@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database (same as production)
+  postgres:
+    image: postgres:15-alpine
+    container_name: trpc-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: trpc_dev
+      POSTGRES_USER: trpc_user
+      POSTGRES_PASSWORD: trpc_password
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+    ports:
+      - "5433:5432"  # Different port to avoid conflicts
+    networks:
+      - trpc-dev-network
+
+  # API Service (development mode with hot reload)
+  api-dev:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile.dev
+    container_name: trpc-api-dev
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://trpc_user:trpc_password@postgres:5432/trpc_dev
+    ports:
+      - "3001:3001"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      - postgres
+    networks:
+      - trpc-dev-network
+
+  # Web Service (development mode with hot reload)
+  web-dev:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile.dev
+    container_name: trpc-web-dev
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: http://localhost:3001
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      - api-dev
+    networks:
+      - trpc-dev-network
+
+networks:
+  trpc-dev-network:
+    driver: bridge
+
+volumes:
+  postgres_dev_data:

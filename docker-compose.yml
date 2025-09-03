@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: trpc-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: trpc_db
+      POSTGRES_USER: trpc_user
+      POSTGRES_PASSWORD: trpc_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - trpc-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trpc_user -d trpc_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # API Service
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: trpc-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://trpc_user:trpc_password@postgres:5432/trpc_db
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - trpc-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3001/trpc/hello.greeting || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  # Web Service
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: trpc-web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    networks:
+      - trpc-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  trpc-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
