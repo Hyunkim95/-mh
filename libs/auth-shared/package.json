@@ -1,0 +1,34 @@
+{
+  "name": "@trpc-template/auth-shared",
+  "version": "1.0.0",
+  "description": "Shared types and utilities for authentication",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup && tsc --emitDeclarationOnly --outDir dist",
+    "dev": "tsup --watch",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "authentication",
+    "auth",
+    "shared",
+    "types"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

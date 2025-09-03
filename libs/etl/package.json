@@ -1,0 +1,30 @@
+{
+  "name": "@libs/etl",
+  "version": "0.1.0",
+  "description": "ETL (Extract, Transform, Load) framework with cursor management",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.29.3",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "tsup": "^7.0.0",
+    "@types/node": "^20.11.24",
+    "@types/pg": "^8.10.9"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  }
+}

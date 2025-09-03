@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(C:\\Users\\hkim\\dev\\mhl-solution/**)",
+      "Bash(yarn run:*)",
+      "Bash(tsc:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm install)",
+      "Bash(yarn install)",
+      "Bash(yarn install:*)",
+      "Bash(npx --no-install tsc --noEmit --skipLibCheck)",
+      "Bash(yarn dev:*)",
+      "Bash(yarn type-check)",
+      "Bash(yarn build)",
+      "Bash(yarn tsc:*)",
+      "Bash(npx --no-install tsc --noEmit --skipLibCheck --project libs/solana-node/tsconfig.json)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx --no-install tsc --noEmit --skipLibCheck --project libs/ethereum-node/tsconfig.json)",
+      "Bash(yarn add turbo)",
+      "Bash(./node_modules/.bin/tsc:*)",
+      "Bash(node:*)",
+      "Bash(./node_modules/typescript/bin/tsc --noEmit --skipLibCheck --project libs/ethereum-node/tsconfig.json)",
+      "Bash(./node_modules/typescript/bin/tsc --noEmit --skipLibCheck --project libs/solana-node/tsconfig.json)",
+      "Bash(mkdir:*)",
+      "Bash(dir /b C:Usershkimdevredesigned-octo-fortnightlibsauth-client)",
+      "Bash(yarn turbo run build:*)",
+      "Bash(dir /b C:Usershkimdevredesigned-octo-fortnightlibsauth-shareddist)",
+      "Bash(find:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

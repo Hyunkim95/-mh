@@ -1,0 +1,30 @@
+{
+  "name": "@libs/ethereum-node",
+  "version": "0.1.0",
+  "description": "Ethereum services and libraries for backend",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup && tsc --emitDeclarationOnly --outDir dist",
+    "dev": "tsup --watch",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "siwe": "^2.1.4",
+    "ethers": "^6.8.1",
+    "drizzle-orm": "^0.29.3",
+    "@libs/crypto-utils": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "tsup": "^7.0.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  }
+}

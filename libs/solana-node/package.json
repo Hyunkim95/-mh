@@ -1,0 +1,34 @@
+{
+  "name": "@libs/solana-node",
+  "version": "0.1.0",
+  "description": "Solana services and libraries for backend",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.87.6",
+    "@solana/spl-token": "^0.3.11",
+    "bs58": "^5.0.0",
+    "tweetnacl": "^1.0.3",
+    "tweetnacl-util": "^0.15.1",
+    "@libs/etl": "*",
+    "@libs/crypto-utils": "*",
+    "drizzle-orm": "^0.29.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "tsup": "^7.0.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  }
+}

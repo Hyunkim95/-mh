@@ -1,0 +1,1 @@
+export { EthereumWalletManager, type EthereumWalletManagerConfig } from './ethereum-wallet-manager';
