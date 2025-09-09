@@ -1,10 +1,12 @@
 import { router } from './trpc';
 import { helloRouter } from './routers/hello';
 import { authRouter } from './auth/routers/auth.router';
+import { contractRouter } from './routers/contract.router';
 
 export const appRouter = router({
   hello: helloRouter,
   auth: authRouter,
+  contract: contractRouter,
 });
 
 export type AppRouter = typeof appRouter;
@@ -26,3 +28,6 @@ export type { AuthContext, JWTPayload } from './auth/services/auth.service';
 export * from './solana/contract.service';
 // Export database configurations
 export * from './db';
+
+// Export executor service
+export { default as executorService } from './executors/executor.service';

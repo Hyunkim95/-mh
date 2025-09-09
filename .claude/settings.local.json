@@ -37,7 +37,8 @@
       "Read(//c/Users/hkim/dev/multi-hopper-project-v1/**)",
       "Bash(yarn docker:dev:*)",
       "Bash(docker container:*)",
-      "Bash(docker logs:*)"
+      "Bash(docker logs:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []

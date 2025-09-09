@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/multi_hopper_project.json`.
  */
 export type MultiHopperProject = {
-  "address": "6HcDbzHgBdPMGhZRYPCHeujAZjTYWVcbhNTV4jW3eTHh",
+  "address": "DzM2xPUErizCjWTHyWTFqWtSgVazcfFVAGiehoRsG8os",
   "metadata": {
     "name": "multiHopperProject",
     "version": "0.1.0",

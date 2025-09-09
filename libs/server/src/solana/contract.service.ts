@@ -1,20 +1,23 @@
-import { Hop, Routes } from "../db";
-import { Transaction, PublicKey, Connection, SystemProgram, Keypair, sendAndConfirmTransaction, clusterApiUrl } from "@solana/web3.js";
+import { Hop } from "../db";
+import { Transaction, PublicKey, Connection, SystemProgram, Keypair, sendAndConfirmTransaction, clusterApiUrl, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { Program, AnchorProvider, utils, BN } from "@coral-xyz/anchor";
 import { getAccount, getAssociatedTokenAddress, NATIVE_MINT, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { MultiHopperProject } from "./idl/multi_hopper_project";
 import { TransferHookGuard } from "./idl/transfer_hook_guard";
 import * as IDLJson from "./idl/multi_hopper_project.json";
 import * as GuardIDLJson from "./idl/transfer_hook_guard.json";
-import {  solToLamports } from "@libs/solana-node";
 import bs58 from "bs58";
+import executorService from "../executors/executor.service";
 
+const solToLamports = (sol: number) => {
+    return sol * LAMPORTS_PER_SOL;
+}
 const IDL = IDLJson as any;
 const GUARD_IDL = GuardIDLJson as any;
 
 // Program IDs
-const MULTI_HOPPER_PROGRAM_ID = new PublicKey("6HcDbzHgBdPMGhZRYPCHeujAZjTYWVcbhNTV4jW3eTHh");
-const TRANSFER_HOOK_GUARD_PROGRAM_ID = new PublicKey("AkqpstLrD1tmbhGpAKidh3AfqGy7ENmxjtsnAMwVt7fi");
+const MULTI_HOPPER_PROGRAM_ID = new PublicKey("DzM2xPUErizCjWTHyWTFqWtSgVazcfFVAGiehoRsG8os");
+const TRANSFER_HOOK_GUARD_PROGRAM_ID = new PublicKey("3umtenQVHLfffxpGsSrcAJL15oVpfhHzjbhNVtqiLn5s");
 
 interface TokenConfig {
     minTransfer: BN;
@@ -28,7 +31,6 @@ interface TokenConfig {
 
 interface SolanaInstructionParams {
     connection: Connection;
-    payer: PublicKey;
     programId: PublicKey;
 }
 
@@ -45,6 +47,11 @@ interface IHop {
     delaySeconds: BN;
 }
 
+export const params = {
+    connection: new Connection(clusterApiUrl("devnet")),
+    programId: MULTI_HOPPER_PROGRAM_ID,
+}
+
 const buildProgram = (params: SolanaInstructionParams) => {
     return new Program<MultiHopperProject>(IDL as any, new AnchorProvider(params.connection, {} as any, {}));
 }
@@ -53,53 +60,42 @@ const buildGuardProgram = (params: SolanaInstructionParams) => {
     return new Program<TransferHookGuard>(GUARD_IDL as any, new AnchorProvider(params.connection, {} as any, {}));
 }
 
+export const getMintAuthority = async (
+    mint: PublicKey
+) => {
+    const [mintAuthority] = PublicKey.findProgramAddressSync(
+        [Buffer.from("mint_authority"), mint.toBuffer()],
+        params.programId
+    );
+    return mintAuthority;
+}
+
 const initializeTokenConfig = async (
-    params: SolanaInstructionParams,
+    payer: PublicKey,
     tokenMint: PublicKey,
     tokenPairMint: Keypair,
     tokenConfig: TokenConfig
 ) => {
-    const programId = new PublicKey(params.programId) || MULTI_HOPPER_PROGRAM_ID;
     const program = buildProgram(params);
+    const tokenConfigPda = await getTokenConfigPda(tokenMint);
+    const mintAuthority = await getMintAuthority(tokenPairMint.publicKey);
+    const permanentDelegate = await getPermanentDelegate(tokenPairMint.publicKey);
     
-    const [tokenConfigPda] = PublicKey.findProgramAddressSync(
-        [Buffer.from("token_config"), tokenMint.toBuffer(), params.payer.toBuffer()],
-        programId
-    );
-    
-    const [mintAuthority] = PublicKey.findProgramAddressSync(
-        [Buffer.from("mint_authority"), tokenPairMint.publicKey.toBuffer()],
-        programId
-    );
-    
-    const [permanentDelegate] = PublicKey.findProgramAddressSync(
-        [Buffer.from("delegate"), tokenPairMint.publicKey.toBuffer()],
-        programId
-    );
-    
-    const [vaultAuthority] = PublicKey.findProgramAddressSync(
-        [Buffer.from("vault_authority"), tokenMint.toBuffer()],
-        programId
-    );
-    
-    // The vault is a PDA derived with the associated token program using vault_authority, token_program, and token_mint
-    const [vault] = PublicKey.findProgramAddressSync(
-        [vaultAuthority.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), tokenMint.toBuffer()],
-        utils.token.ASSOCIATED_PROGRAM_ID
-    );
+    const vaultAuthority = await getVaultAuthority(tokenMint);
+    const vault = await getVault(vaultAuthority, tokenMint);
     
     return await program.methods
         .initializeTokenConfig(
             tokenConfig.minTransfer,
-            tokenConfig.feeBps,
+            tokenConfig.feeBps.toNumber(),
             tokenConfig.feeTreasury,
-            tokenConfig.maxHops,
+            tokenConfig.maxHops.toNumber(),
             tokenConfig.maxDelaySeconds,
             tokenConfig.timelockSeconds,
             tokenConfig.flatFeeLamports
         )
         .accountsPartial({
-            creator: params.payer,
+            creator: payer,
             tokenConfig: tokenConfigPda,
             tokenMint,
             tokenPairMint: tokenPairMint.publicKey,
@@ -116,36 +112,21 @@ const initializeTokenConfig = async (
         .instruction()
 }
 const initializeTokenConfigSol = async (
-    params: SolanaInstructionParams,
+    payer: PublicKey,
     tokenConfig: TokenConfig,
     wsolMint: Keypair // Accept the keypair as parameter instead of generating it
 ) => {
-    const programId = params.programId || MULTI_HOPPER_PROGRAM_ID;
     const program = buildProgram(params);
 
     console.log('initializeTokenConfigSol', 'Program');
     const NATIVE_MINT = new PublicKey("So11111111111111111111111111111111111111112");
     console.log('initializeTokenConfigSol', 'NATIVE_MINT');
-    const [tokenConfigPda] = PublicKey.findProgramAddressSync(
-        [Buffer.from("token_config"), NATIVE_MINT.toBuffer(), params.payer.toBuffer()],
-        programId
-    );
+    const tokenConfigPda = await getTokenConfigPda(NATIVE_MINT);
     console.log('initializeTokenConfigSol', 'tokenConfigPda');
     console.log('initializeTokenConfigSol', 'wsolMint');
-    const [mintAuthority] = PublicKey.findProgramAddressSync(
-        [Buffer.from("mint_authority"), wsolMint.publicKey.toBuffer()],
-        programId
-    );
-    
-    const [permanentDelegate] = PublicKey.findProgramAddressSync(
-        [Buffer.from("delegate"), wsolMint.publicKey.toBuffer()],
-        programId
-    );
-    
-    const [solVault] = PublicKey.findProgramAddressSync(
-        [Buffer.from("sol_vault"), params.payer.toBuffer()],
-        programId
-    );
+    const mintAuthority = await getMintAuthority(wsolMint.publicKey);
+    const permanentDelegate = await getPermanentDelegate(wsolMint.publicKey);
+    const solVault = await getSolVault(payer);
 
     console.log(
         tokenConfig.minTransfer,
@@ -160,15 +141,15 @@ const initializeTokenConfigSol = async (
     return await program.methods
         .initializeSolTokenConfig(
             tokenConfig.minTransfer,
-            tokenConfig.feeBps,
+            tokenConfig.feeBps.toNumber(),
             tokenConfig.feeTreasury,
-            tokenConfig.maxHops,
+            tokenConfig.maxHops.toNumber(),
             tokenConfig.maxDelaySeconds,
             tokenConfig.timelockSeconds,
             tokenConfig.flatFeeLamports
         )
         .accountsPartial({
-            creator: params.payer,
+            creator: payer,
             tokenConfig: tokenConfigPda,
             wsolMint: wsolMint.publicKey,
             mintAuthority,
@@ -186,7 +167,7 @@ const initializeTokenConfigSol = async (
 }
 
 const initGuard = async (
-    params: SolanaInstructionParams,
+    payer: PublicKey,
     tokenMint: PublicKey,
     permanentDelegate: PublicKey
 ) => {
@@ -200,7 +181,7 @@ const initGuard = async (
     return await guardProgram.methods
         .initGuard(permanentDelegate)
         .accountsPartial({
-            payer: params.payer,
+            payer: payer,
             mint: tokenMint,
             guard: guardPda,
             systemProgram: SystemProgram.programId,
@@ -208,7 +189,7 @@ const initGuard = async (
         .instruction();
 }
 const initGuardSol = async (
-    params: SolanaInstructionParams,
+    payer: PublicKey,
     wsolMint: PublicKey,
     permanentDelegate: PublicKey
 ) => {
@@ -222,7 +203,7 @@ const initGuardSol = async (
     return await guardProgram.methods
         .initGuard(permanentDelegate)
         .accountsPartial({
-            payer: params.payer,
+            payer,
             mint: wsolMint,
             guard: guardPda,
             systemProgram: SystemProgram.programId,
@@ -231,7 +212,7 @@ const initGuardSol = async (
 }
 
 const wrap = async (
-    params: SolanaInstructionParams,
+    payer: PublicKey,
     tokenConfigPda: PublicKey,
     originalMint: PublicKey,
     pairMint: PublicKey,
@@ -249,14 +230,14 @@ const wrap = async (
         params.programId
     );
     
-    const originalFrom = await getAssociatedTokenAddress(originalMint, params.payer);
+    const originalFrom = await getAssociatedTokenAddress(originalMint, payer);
     const vault = await getAssociatedTokenAddress(originalMint, vaultAuthority, true);
-    const pairTo = await getAssociatedTokenAddress(pairMint, params.payer, false, TOKEN_2022_PROGRAM_ID);
+    const pairTo = await getAssociatedTokenAddress(pairMint, payer, false, TOKEN_2022_PROGRAM_ID);
     
     return await program.methods
         .wrap(amount)
         .accountsPartial({
-            payer: params.payer,
+            payer: payer,
             tokenConfig: tokenConfigPda,
             originalMint,
             pairMint,
@@ -273,7 +254,7 @@ const wrap = async (
         .instruction();
 }
 const wrapSol = async (
-    params: SolanaInstructionParams,
+    payer: PublicKey,
     tokenConfigPda: PublicKey,
     wsolMint: PublicKey,
     amount: BN
@@ -286,13 +267,10 @@ const wrapSol = async (
         params.programId
     );
     
-    const [solVault] = PublicKey.findProgramAddressSync(
-        [Buffer.from("sol_vault"), tokenConfigAccount.creator.toBuffer()],
-        params.programId
-    );
+    const solVault = await getSolVault(tokenConfigAccount.creator);
 
     console.log('wsolMint', wsolMint.toBase58());
-    console.log('params.payer', params.payer.toBase58());
+    console.log('payer', payer.toBase58());
     console.log('tokenConfigPda', tokenConfigPda.toBase58());
     console.log('amount', amount.toString());
     console.log('mintAuthority', mintAuthority.toBase58());
@@ -311,12 +289,12 @@ const wrapSol = async (
 // associatedTokenProgram ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL
 // systemProgram 11111111111111111111111111111111
 
-    const wsolTo = await getAssociatedTokenAddress(wsolMint, params.payer, false, TOKEN_2022_PROGRAM_ID);
+    const wsolTo = await getAssociatedTokenAddress(wsolMint, payer, false, TOKEN_2022_PROGRAM_ID);
     
     return await program.methods
         .wrapSol(amount)
         .accountsPartial({
-            payer: params.payer,
+            payer: payer,
             tokenConfig: tokenConfigPda,
             wsolMint,
             wsolTo,
@@ -332,7 +310,7 @@ const wrapSol = async (
 // TODO: unwrap can be called by anyone maybe thats a security risk
 // TODO: make originaltokenprogram a parameter
 export const unwrap = async (
-    params: SolanaInstructionParams,
+    payer: PublicKey,
     recipient: PublicKey,
     tokenConfigPda: PublicKey,
     originalMint: PublicKey,
@@ -340,16 +318,8 @@ export const unwrap = async (
     amount: BN
 ) => {
     const program = buildProgram(params);
-    
-    const [vaultAuthority] = PublicKey.findProgramAddressSync(
-        [Buffer.from("vault_authority"), originalMint.toBuffer()],
-        params.programId
-    );
-    
-    const [permanentDelegate] = PublicKey.findProgramAddressSync(
-        [Buffer.from("delegate"), pairMint.toBuffer()],
-        params.programId
-    );
+    const vaultAuthority = await getVaultAuthority(originalMint);
+    const permanentDelegate = await getPermanentDelegate(pairMint);
     
     // These need to be PDAs according to the IDL, not standard associated token accounts
     const [pairFrom] = PublicKey.findProgramAddressSync(
@@ -370,7 +340,7 @@ export const unwrap = async (
     return await program.methods
         .unwrap(amount)
         .accountsPartial({
-            payer: params.payer,
+            payer: payer,
             tokenConfig: tokenConfigPda,
             originalMint,
             pairMint,
@@ -392,33 +362,22 @@ export const unwrap = async (
         });
 }
 export const unwrapSol = async (
-    params: SolanaInstructionParams,
-    creator: PublicKey,
+    payer: PublicKey,
     recipient: PublicKey,
     tokenConfigPda: PublicKey,
     wsolMint: PublicKey,
     amount: BN
 ) => {
     const program = buildProgram(params);
-    
-    const [permanentDelegate] = PublicKey.findProgramAddressSync(
-        [Buffer.from("delegate"), wsolMint.toBuffer()],
-        params.programId
-    );
-    
-    const [solVault] = PublicKey.findProgramAddressSync(
-        [Buffer.from("sol_vault"), creator.toBuffer()],
-        params.programId
-    );
-    
+    const permanentDelegate = await getPermanentDelegate(wsolMint);
+    const tokenConfigAccount = await program.account.tokenConfig.fetch(tokenConfigPda);
+    const solVault = await getSolVault(tokenConfigAccount.creator);
     const wsolFrom = await getAssociatedTokenAddress(wsolMint, recipient, false, TOKEN_2022_PROGRAM_ID);
-    const account = await getAccount(params.connection, wsolFrom, 'finalized', TOKEN_2022_PROGRAM_ID);
-    console.log(account.owner.toBase58(), '----------------------------------------');
     
     return await program.methods
         .unwrapSol(amount)
         .accountsPartial({
-            payer: params.payer,
+            payer,
             tokenConfig: tokenConfigPda,
             wsolMint,
             wsolFrom,
@@ -432,44 +391,78 @@ export const unwrapSol = async (
 }
 
 export const getTokenConfigPda = async (
-    params: SolanaInstructionParams,
-    tokenMint: PublicKey,
-    creator: PublicKey
+    tokenMint: PublicKey
 ) => {
     const [tokenConfigPda] = PublicKey.findProgramAddressSync(
-        [Buffer.from("token_config"), tokenMint.toBuffer(), creator.toBuffer()],
+        [Buffer.from("token_config"), tokenMint.toBuffer()],
         params.programId
     );
     return tokenConfigPda;
 }
 
 export const getRouteConfigPda = async (
-    params: SolanaInstructionParams,
-    creator: PublicKey,
-    tokenConfigPda: PublicKey,
     routeId: BN
 ) => {
     const [routeConfigPda] = PublicKey.findProgramAddressSync(
-        [Buffer.from("route"), creator.toBuffer(), tokenConfigPda.toBuffer(), routeId.toArrayLike(Buffer, "le", 8)],
+        [Buffer.from("route"), routeId.toArrayLike(Buffer, "le", 8)],
         params.programId
     );
     return routeConfigPda;
 }
 
 export const getRouteStatePda = async (
-    params: SolanaInstructionParams,
-    routeConfigPda: PublicKey
+    routeId: BN
 ) => {
     const [routeStatePda] = PublicKey.findProgramAddressSync(
-        [Buffer.from("state"), routeConfigPda.toBuffer()],
+        [Buffer.from("state"), routeId.toArrayLike(Buffer, "le", 8)],
         params.programId
     );
     return routeStatePda;
 }
 
+export const getPermanentDelegate = async (
+    pairMint: PublicKey
+) => {
+    const [permanentDelegate] = PublicKey.findProgramAddressSync(
+        [Buffer.from("delegate"), pairMint.toBuffer()],
+        params.programId
+    );
+    return permanentDelegate;
+}
+
+export const getVaultAuthority = async (
+    originalMint: PublicKey
+) => {
+    const [vaultAuthority] = PublicKey.findProgramAddressSync(
+        [Buffer.from("vault_authority"), originalMint.toBuffer()],
+        params.programId
+    );
+    return vaultAuthority;
+}
+
+export const getSolVault = async (
+    creator: PublicKey
+) => {
+    const [solVault] = PublicKey.findProgramAddressSync(
+        [Buffer.from("sol_vault"), creator.toBuffer()],
+        params.programId
+    );
+    return solVault;
+}
+
+export const getVault = async (
+    vaultAuthority: PublicKey,
+    originalMint: PublicKey
+) => {
+    const [vault] = PublicKey.findProgramAddressSync(
+        [vaultAuthority.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), originalMint.toBuffer()],
+        utils.token.ASSOCIATED_PROGRAM_ID
+    );
+    return vault;
+}
 
 const initializeRoute = async (
-    params: SolanaInstructionParams,
+    payer: PublicKey,
     creator: PublicKey,
     tokenConfigPda: PublicKey,
     originalMint: PublicKey,
@@ -480,8 +473,8 @@ const initializeRoute = async (
     originalTokenProgram: PublicKey,    
 ) => {
     const program = buildProgram(params);
-    const routeConfigPda = await getRouteConfigPda(params, creator, tokenConfigPda, routeId);
-    const routeStatePda = await getRouteStatePda(params, routeConfigPda);
+    const routeConfigPda = await getRouteConfigPda(routeId);
+    const routeStatePda = await getRouteStatePda(routeId);
     
     const originalFrom = await getAssociatedTokenAddress(originalMint, creator, false, originalTokenProgram);
     console.log('Original from', originalFrom.toBase58());
@@ -497,7 +490,7 @@ const initializeRoute = async (
     return await program.methods
         .initializeRoute(routeId, executor, hopAmount, hops)
         .accountsPartial({
-            creator: params.payer,
+            creator: payer,
             tokenConfig: tokenConfigPda,
             routeConfig: routeConfigPda,
             routeState: routeStatePda,
@@ -513,8 +506,7 @@ const initializeRoute = async (
         .instruction();
 }
 const initializeRouteSol = async (
-    params: SolanaInstructionParams,
-    creator: PublicKey,
+    payer: PublicKey,
     tokenConfigPda: PublicKey,
     routeId: BN,
     executor: PublicKey,
@@ -522,8 +514,8 @@ const initializeRouteSol = async (
     hops: IHop[]
 ) => {
     const program = buildProgram(params);
-    const routeConfigPda = await getRouteConfigPda(params, creator, tokenConfigPda, routeId);
-    const routeStatePda = await getRouteStatePda(params, routeConfigPda);
+    const routeConfigPda = await getRouteConfigPda(routeId);
+    const routeStatePda = await getRouteStatePda(routeId);
     
     // Get fee treasury from token config
     const tokenConfigAccount = await program.account.tokenConfig.fetch(tokenConfigPda);
@@ -531,7 +523,7 @@ const initializeRouteSol = async (
     return await program.methods
         .initializeRouteSol(routeId, executor, hopAmount, hops)
         .accountsPartial({
-            creator: params.payer,
+            creator: payer,
             tokenConfig: tokenConfigPda,
             routeConfig: routeConfigPda,
             routeState: routeStatePda,
@@ -546,48 +538,64 @@ const initializeRouteSol = async (
 }
 
 const initializeRouteSolWithWrap = async (
-    params: SolanaInstructionParams,
-    creator: PublicKey,
-    tokenConfigPda: PublicKey,
+    payer: PublicKey,
     routeId: BN,
-    executor: PublicKey,
     hopAmount: BN,
     hops: IHop[]
 ) => {
     const program = buildProgram(params);
-    const tokenConfigAccount = await program.account.tokenConfig.fetch(tokenConfigPda);
-    console.log('Token config account', tokenConfigAccount);
-    const wrapIx = await wrapSol(params, tokenConfigPda, tokenConfigAccount.pairAddress as PublicKey, hopAmount);
+    const tokenConfigPDA = await getTokenConfigPda(NATIVE_MINT);
+    const tokenConfigAccount = await program.account.tokenConfig.fetch(tokenConfigPDA);
+    const wrapIx = await wrapSol(payer, tokenConfigPDA, tokenConfigAccount.pairAddress as PublicKey, hopAmount);
     const transaction = new Transaction();
-    const initializeRouteSolIx = await initializeRouteSol(params, creator, tokenConfigPda, routeId, executor, hopAmount, hops);
+    
+    // Get deterministic executor for this route
+    const executorWallet = executorService.getWalletByRouteId(routeId.toNumber());
+    const initializeRouteSolIx = await initializeRouteSol(payer, tokenConfigPDA, routeId, executorWallet.publicKey, hopAmount, hops);
     transaction.add(initializeRouteSolIx);
     transaction.add(wrapIx);
+    
+    // Add first hop trigger if there are hops
+    if (hops.length > 0) {
+        const triggerIx = await triggerHop(routeId, tokenConfigPDA, executorWallet.publicKey, tokenConfigAccount.pairAddress as PublicKey, payer, hops[0].recipient);
+        transaction.add(triggerIx);
+    }
+    
     return transaction;
 }
 
 const initializeRouteWithWrap = async (
-    params: SolanaInstructionParams,
+    payer: PublicKey,
     creator: PublicKey,
-    tokenConfigPda: PublicKey,
     routeId: BN,
-    executor: PublicKey,
     hopAmount: BN,
     hops: IHop[],
+    splMint: string,
     originalTokenProgram: PublicKey,
 ) => {
     const program = buildProgram(params);
-    const tokenConfigAccount = await program.account.tokenConfig.fetch(tokenConfigPda);
-    const wrapIx = await wrap(params, tokenConfigPda, tokenConfigAccount.tokenMint as PublicKey, tokenConfigAccount.pairAddress as PublicKey, hopAmount);
+    const tokenConfigPDA = await getTokenConfigPda(new PublicKey(splMint));
+    const tokenConfigAccount = await program.account.tokenConfig.fetch(tokenConfigPDA);
+    const wrapIx = await wrap(payer, tokenConfigPDA, tokenConfigAccount.tokenMint as PublicKey, tokenConfigAccount.pairAddress as PublicKey, hopAmount);
     const transaction = new Transaction();
-    const initializeRouteIx = await initializeRoute(params, creator, tokenConfigPda, tokenConfigAccount.tokenMint as PublicKey, routeId, executor, hopAmount, hops, originalTokenProgram);
+    
+    // Get deterministic executor for this route
+    const executorWallet = executorService.getWalletByRouteId(routeId.toNumber());
+    const initializeRouteIx = await initializeRoute(payer, creator, tokenConfigPDA, tokenConfigAccount.tokenMint as PublicKey, routeId, executorWallet.publicKey, hopAmount, hops, originalTokenProgram);
     transaction.add(initializeRouteIx);
     transaction.add(wrapIx);
+    
+    // Add first hop trigger if there are hops
+    if (hops.length > 0) {
+        const triggerIx = await triggerHop(routeId, tokenConfigPDA, executorWallet.publicKey, tokenConfigAccount.pairAddress as PublicKey, creator, hops[0].recipient);
+        transaction.add(triggerIx);
+    }
+    
     return transaction;
 }
 
 const triggerHop = async (
-    params: SolanaInstructionParams,
-    routeConfigPda: PublicKey,
+    routeId: BN,
     tokenConfigPda: PublicKey,
     executor: PublicKey,
     pairMint: PublicKey,
@@ -595,16 +603,9 @@ const triggerHop = async (
     toOwner: PublicKey
 ) => {
     const program = buildProgram(params);
-    
-    const [routeStatePda] = PublicKey.findProgramAddressSync(
-        [Buffer.from("state"), routeConfigPda.toBuffer()],
-        params.programId
-    );
-    
-    const [permanentDelegate] = PublicKey.findProgramAddressSync(
-        [Buffer.from("delegate"), pairMint.toBuffer()],
-        params.programId
-    );
+    const routeStatePda = await getRouteStatePda(routeId);
+    const routeConfigPda = await getRouteConfigPda(routeId);
+    const permanentDelegate = await getPermanentDelegate(pairMint);
     
     const pairFrom = await getAssociatedTokenAddress(pairMint, fromOwner, false, TOKEN_2022_PROGRAM_ID);
     const pairTo = await getAssociatedTokenAddress(pairMint, toOwner, false, TOKEN_2022_PROGRAM_ID);
@@ -612,6 +613,8 @@ const triggerHop = async (
     console.log('Route config pda', routeConfigPda.toBase58());
     console.log('Token config pda', tokenConfigPda.toBase58());
     console.log('Executor', executor.toBase58());
+    console.log('Pair from', pairFrom.toBase58());
+    console.log('Pair to', pairTo.toBase58());
     console.log('Pair mint', pairMint.toBase58());
     console.log('From owner', fromOwner.toBase58());
     console.log('To owner', toOwner.toBase58());
@@ -642,7 +645,7 @@ const triggerHop = async (
         });
 }
 
-const serialize = async (transaction: Transaction, user: PublicKey, provider: Connection) => {
+export const serialize = async (transaction: Transaction, user: PublicKey, provider: Connection) => {
     const { blockhash, lastValidBlockHeight } =
       await provider.getLatestBlockhash('finalized');
     transaction.recentBlockhash = blockhash;
@@ -656,9 +659,23 @@ const serialize = async (transaction: Transaction, user: PublicKey, provider: Co
     return serialized.toString('base64');
 };
 
+export const signAndSerialize = async (transaction: Transaction, payer: PublicKey, signer: Keypair, provider: Connection) => {
+    const { blockhash, lastValidBlockHeight } =
+      await provider.getLatestBlockhash('finalized');
+    transaction.recentBlockhash = blockhash;
+    transaction.lastValidBlockHeight = lastValidBlockHeight;
+    transaction.feePayer = payer;
+    transaction.partialSign(signer);
+    const serialized = transaction.serialize({
+        requireAllSignatures: false,
+        verifySignatures: false,
+    });
+    return serialized.toString('base64');
+}
+
 // Convenience function to create a complete token configuration with guard
-const initializeCompleteTokenConfig = async (
-    params: SolanaInstructionParams,
+export const initializeCompleteTokenConfig = async (
+    payer: PublicKey,
     tokenMint: PublicKey,
     tokenPairMint: Keypair,
     tokenConfig: TokenConfig
@@ -666,26 +683,22 @@ const initializeCompleteTokenConfig = async (
     const transaction = new Transaction();
     
     // First initialize the token config
-    const tokenConfigIx = await initializeTokenConfig(params, tokenMint, tokenPairMint, tokenConfig);
+    const tokenConfigIx = await initializeTokenConfig(payer, tokenMint, tokenPairMint, tokenConfig);
     transaction.add(tokenConfigIx);
     
-    // Get the permanent delegate that was created
-    const programId = params.programId || MULTI_HOPPER_PROGRAM_ID;
-    const [permanentDelegate] = PublicKey.findProgramAddressSync(
-        [Buffer.from("delegate"), tokenPairMint.publicKey.toBuffer()],
-        programId
-    );
-    
+    const permanentDelegate = await getPermanentDelegate(tokenPairMint.publicKey);
+
     // Then initialize the guard for the token pair mint
-    const guardIx = await initGuard(params, tokenPairMint.publicKey, permanentDelegate);
+    const guardIx = await initGuard(payer, tokenPairMint.publicKey, permanentDelegate);
     transaction.add(guardIx);
-    
+
+
     return { transaction, tokenPairMint };
 };
 
 // Convenience function for SOL token configuration with guard
-const initializeCompleteSolTokenConfig = async (
-    params: SolanaInstructionParams,
+export const initializeCompleteSolTokenConfig = async (
+    payer: PublicKey,
     tokenConfig: TokenConfig
 ) => {
     const transaction = new Transaction();
@@ -695,36 +708,30 @@ const initializeCompleteSolTokenConfig = async (
     console.log('Generated wsolMint', wsolMint.publicKey.toBase58());
     
     // First initialize the SOL token config with the wsolMint
-    const solConfigIx = await initializeTokenConfigSol(params, tokenConfig, wsolMint);
+    const solConfigIx = await initializeTokenConfigSol(payer, tokenConfig, wsolMint);
     transaction.add(solConfigIx);
     console.log('SOL config ix added');
     
-    // Get the permanent delegate for wSOL
-    const programId = params.programId || MULTI_HOPPER_PROGRAM_ID;
-    const [permanentDelegate] = PublicKey.findProgramAddressSync(
-        [Buffer.from("delegate"), wsolMint.publicKey.toBuffer()],
-        programId
-    );
-    console.log('Permanent delegate', permanentDelegate.toBase58());
+    const permanentDelegate = await getPermanentDelegate(wsolMint.publicKey);
     
     // Then initialize the guard for the wSOL mint
-    const guardIx = await initGuardSol(params, wsolMint.publicKey, permanentDelegate);
+    const guardIx = await initGuardSol(payer, wsolMint.publicKey, permanentDelegate);
     transaction.add(guardIx);
     console.log('Guard ix added');
     console.log('Wsol mint', wsolMint.publicKey.toBase58());
-    
+
     return { transaction, wsolMint };
 };
 
-const executeHop = async (params: SolanaInstructionParams, hop: Hop, route: Routes, executor: Keypair): Promise<string> => {
+const executeHop = async (
+    creator: PublicKey, 
+    routeId: BN,
+    splMint: PublicKey
+): Promise<string> => {
     let fromOwner;
-    if (!route) {
-        throw new Error(`Route ${hop.routeId} not found`);
-    }
-    const creator = new PublicKey(route.owner);
-    const tokenConfigPda = await getTokenConfigPda(params, new PublicKey(route.token), creator);
-    const routeConfigPda = await getRouteConfigPda(params, creator, tokenConfigPda, new BN(route.id));
-    const routeStatePda = await getRouteStatePda(params, routeConfigPda);
+    const tokenConfigPda = await getTokenConfigPda(splMint);
+    const routeConfigPda = await getRouteConfigPda(routeId);
+    const routeStatePda = await getRouteStatePda(routeId);
     const program = buildProgram(params);
     const tokenConfigAccount = await program.account.tokenConfig.fetch(tokenConfigPda);
     const routeConfigAccount = await program.account.routeConfig.fetch(routeConfigPda);
@@ -732,31 +739,81 @@ const executeHop = async (params: SolanaInstructionParams, hop: Hop, route: Rout
 
     const previousHop = routeConfigAccount.hops[routeStateAccount.currentHopIndex - 1];
     const currentHop = routeConfigAccount.hops[routeStateAccount.currentHopIndex];
+    console.log('Current hop', currentHop);
     const isFirstHop = routeStateAccount.currentHopIndex === 0;
     const isLastHop = routeStateAccount.currentHopIndex === routeConfigAccount.hops.length - 1;
 
     if(isFirstHop) {
-        fromOwner = new PublicKey(route?.owner);
+        fromOwner = new PublicKey(creator);
     } else {
         fromOwner = new PublicKey(previousHop.recipient);
     }
 
+    // Get deterministic executor for this route
+    const executorWallet = executorService.getWalletByRouteId(routeId.toNumber());
+    
     const transaction = new Transaction();
-    const triggerIx = await triggerHop(params, routeConfigPda, tokenConfigPda, executor.publicKey, tokenConfigAccount.pairAddress, fromOwner, currentHop.recipient);
+    const triggerIx = await triggerHop(routeId, tokenConfigPda, executorWallet.publicKey, tokenConfigAccount.pairAddress, fromOwner, currentHop.recipient);
     transaction.add(triggerIx);
 
     if(isLastHop) {
         const recipient = new PublicKey(currentHop.recipient);
-        if (route.token === NATIVE_MINT.toBase58()) {
-            let unwrapIx = await unwrapSol(params, creator, recipient, tokenConfigPda, tokenConfigAccount.pairAddress, routeConfigAccount.hopAmount);
+        if (tokenConfigAccount.tokenMint.toBase58() === NATIVE_MINT.toBase58()) {
+            let unwrapIx = await unwrapSol(executorWallet.publicKey, recipient, tokenConfigPda, tokenConfigAccount.pairAddress, routeConfigAccount.hopAmount);
             transaction.add(unwrapIx);
         } else {
-            let unwrapIx = await unwrap(params, recipient, tokenConfigPda, tokenConfigAccount.tokenMint, tokenConfigAccount.pairAddress, routeConfigAccount.hopAmount);
+            let unwrapIx = await unwrap(executorWallet.publicKey, recipient, tokenConfigPda, tokenConfigAccount.tokenMint, tokenConfigAccount.pairAddress, routeConfigAccount.hopAmount);
             transaction.add(unwrapIx);
         }
     }
 
-    return await sendAndConfirmTransaction(params.connection, transaction, [executor]);
+    return await sendAndConfirmTransaction(params.connection, transaction, [executorWallet]);
+}
+
+export const getTokenConfigSPL = async (splMint: string, creator: string) => {
+    try {
+        const program = buildProgram(params);
+        const tokenConfigPda = await getTokenConfigPda(new PublicKey(splMint));
+        const tokenConfigAccount = await program.account.tokenConfig.fetch(tokenConfigPda);
+        return {
+            creator: creator,
+            splMint: tokenConfigAccount.tokenMint.toBase58(),
+            pairMint: tokenConfigAccount.pairAddress.toBase58(),
+            minTransfer: tokenConfigAccount.minTransfer.toString(),
+            feeBps: tokenConfigAccount.feeBps.toString(),
+            feeTreasury: tokenConfigAccount.feeTreasury.toBase58(),
+            maxHops: tokenConfigAccount.maxHops.toString(),
+            maxDelaySeconds: tokenConfigAccount.maxDelaySeconds.toString(),
+            timelockSeconds: tokenConfigAccount.timelockSeconds.toString(),
+            flatFeeLamports: tokenConfigAccount.flatFeeLamports.toString(),
+        };
+    } catch (error) {
+        console.log('Error', error);
+        return null;
+    }
+}
+
+export const getTokenConfigSOL = async (creator: string) => {
+    try {
+        const program = buildProgram(params);
+        const tokenConfigPda = await getTokenConfigPda(new PublicKey(NATIVE_MINT.toBase58()));
+        const tokenConfigAccount = await program.account.tokenConfig.fetch(tokenConfigPda);
+        return {
+            creator: creator,
+            splMint: tokenConfigAccount.tokenMint.toBase58(),
+            pairMint: tokenConfigAccount.pairAddress.toBase58(),
+            minTransfer: tokenConfigAccount.minTransfer.toString(),
+            feeBps: tokenConfigAccount.feeBps.toString(),
+            feeTreasury: tokenConfigAccount.feeTreasury.toBase58(),
+            maxHops: tokenConfigAccount.maxHops.toString(),
+            maxDelaySeconds: tokenConfigAccount.maxDelaySeconds.toString(),
+            timelockSeconds: tokenConfigAccount.timelockSeconds.toString(),
+            flatFeeLamports: tokenConfigAccount.flatFeeLamports.toString(),
+        };
+    } catch (error) {
+        console.log('Error', error);
+        return null;
+    }
 }
 
 const contractService = {
@@ -766,28 +823,73 @@ const contractService = {
     initializeRouteWithWrap,
     serialize,
     executeHop,
-    
+    getTokenConfigSPL,
+    getTokenConfigSOL,
 }
+
+// Functions to get route configuration and state
+export const getRouteConfiguration = async (
+    routeId: number
+) => {
+    try {
+        const program = buildProgram(params);
+        const routeConfigPda = await getRouteConfigPda(new BN(routeId));
+        const routeConfigAccount = await program.account.routeConfig.fetch(routeConfigPda);
+        
+        return {
+            creator: routeConfigAccount.creator.toBase58(),
+            routeId: routeConfigAccount.routeId.toString(),
+            tokenConfig: routeConfigAccount.tokenConfig.toBase58(),
+            sourceOwner: routeConfigAccount.sourceOwner.toBase58(),
+            executor: routeConfigAccount.executor.toBase58(),
+            hops: routeConfigAccount.hops.map((hop: any) => ({
+                recipient: hop.recipient.toBase58(),
+                delaySeconds: hop.delaySeconds.toString(),
+            })),
+            hopAmount: routeConfigAccount.hopAmount.toString(),
+            isFinalized: routeConfigAccount.isFinalized,
+            createdAt: routeConfigAccount.createdAt.toString(),
+        };
+    } catch (error) {
+        console.log('Error fetching route configuration:', error);
+        return null;
+    }
+};
+
+export const getRouteStateAccount = async (
+    routeId: number
+) => {
+    try {
+        const program = buildProgram(params);
+        const routeStatePda = await getRouteStatePda(new BN(routeId));
+        const routeStateAccount = await program.account.routeState.fetch(routeStatePda);
+        
+        return {
+            currentHopIndex: routeStateAccount.currentHopIndex,
+        };
+    } catch (error) {
+        console.log('Error fetching route state:', error);
+        return null;
+    }
+};
+
+// Export individual functions needed by the router
+export { initializeRouteWithWrap, initializeRouteSolWithWrap, executeHop };
 
 export default contractService;
 
 const privateKey = 'zNNYT4aNPQEj8YJoVshrkcaRPqdoFLm76UF9tepVDCrTQWFJMxkaqXbk6wmUuGisjCcM9fL3CM5csvDZtsVEPYs';
-const creatorUser = Keypair.fromSecretKey(bs58.decode(privateKey));
+export const creatorUser = Keypair.fromSecretKey(bs58.decode(privateKey));
 const splToken = new PublicKey('HL2HB3medCwhHNkzC3cdCKoknYGrBtH5MtJKbj6KSLfV');
 const treasury = new PublicKey('7kQX84vLNS32of1F3XL9H4LD5LauRej8nNz5csv7su2P');
 
 export const createSPLTokenConfig = async () => {
-    const params = {
-        connection: new Connection(clusterApiUrl('devnet') , 'finalized'),
-        payer: creatorUser.publicKey,
-        programId: MULTI_HOPPER_PROGRAM_ID,
-    };
-    const tokenConfigPda = await getTokenConfigPda(params, splToken, creatorUser.publicKey);
+    const tokenConfigPda = await getTokenConfigPda(splToken);
     const pairMint = Keypair.generate();
     console.log('Pair mint', pairMint.publicKey.toBase58());
     console.log('Token config PDA', tokenConfigPda.toBase58());
     const transaction = new Transaction();
-    const createSPLIx = await initializeTokenConfig(params, splToken, pairMint, {
+    const createSPLIx = await initializeTokenConfig(creatorUser.publicKey, splToken, pairMint, {
         minTransfer: new BN(solToLamports(0.0001)),
         feeBps: new BN(500),
         feeTreasury: treasury,
@@ -830,7 +932,7 @@ export const createSolTokenConfig = async () => {
         transaction,
         wsolMint
     } = await initializeCompleteSolTokenConfig(
-        params,
+        creatorUser.publicKey,
         config
     );
     console.log('Transaction', transaction);
@@ -855,15 +957,7 @@ export const createSolTokenConfig = async () => {
     }
 };
 
-const executorUint8 = [
-    128, 110,  27, 128, 241,  68, 229, 148,  88, 238, 213,
-    45,  11,   2, 229,  59,  71, 115, 174, 239, 216,  45,
-   210, 134,  77,  89, 244,  54,  92, 187, 221, 101,  28,
-   107, 254, 154, 196, 238,  32, 238, 104, 109, 161, 116,
-   220, 254, 194,  25, 178, 156,  17, 211, 204, 189, 168,
-    96, 134,  83,  35, 178, 196, 220,  10, 134
-];
-const executor = Keypair.fromSecretKey(new Uint8Array(executorUint8));
+// Hardcoded executor removed - now using deterministic executor service
 const routeId = new BN(6969691);
 // const wSOLMint = new PublicKey('6ytpVfGxTPmyUSeE953ZyomqewTnyGm77W2VxbzHyLji');
 
@@ -889,15 +983,6 @@ const hops = [
         isReady: false,
     }
 ] as Hop[];
-const route = {
-    id: Number(routeId),
-    // token: NATIVE_MINT.toBase58(),
-    token: splToken.toBase58(),
-    owner: creatorUser.publicKey.toBase58(),
-    // pairMint: wSOLMint.toBase58(),
-    currentIndex: 0,
-    lastIndex: hops.length - 1,
-} as Routes;
 
 export const initializeSPLRoute = async () => {
     const hopAmount = new BN(solToLamports(100));
@@ -906,13 +991,21 @@ export const initializeSPLRoute = async () => {
         payer: creatorUser.publicKey,
         programId: MULTI_HOPPER_PROGRAM_ID,
     };
-    const tokenConfigPda = await getTokenConfigPda(params, splToken, creatorUser.publicKey);
+    const tokenConfigPda = await getTokenConfigPda(splToken);
     console.log('Token config PDA', tokenConfigPda.toBase58());
     const transaction = new Transaction();
-    const initializeRouteIx = await initializeRouteWithWrap(params, creatorUser.publicKey, tokenConfigPda, routeId, executor.publicKey, hopAmount, hops.map(hop => ({
+    const initializeRouteIx = await initializeRouteWithWrap(
+        creatorUser.publicKey,
+        creatorUser.publicKey, 
+        routeId, 
+        hopAmount, 
+        hops.map(hop => ({
         recipient: new PublicKey(hop.toAddress),
-        delaySeconds: new BN(0),
-    })), TOKEN_PROGRAM_ID);
+            delaySeconds: new BN(0),
+        })), 
+        splToken.toBase58(),
+        TOKEN_PROGRAM_ID
+    );
     console.log('Initialize route SOL ix', initializeRouteIx);
     transaction.add(initializeRouteIx);
     const serialized = await serialize(transaction, creatorUser.publicKey, params.connection);
@@ -933,21 +1026,32 @@ export const initializeSolRoute = async () => {
     const hopAmount = new BN(solToLamports(0.05));
     console.log('Route ID', routeId);
     console.log('Hop amount', hopAmount);
-    // const executor = await executorService.getKeypair(routeId);
-    console.log('Executor', executor.publicKey.toBase58());
+    
+    // Get deterministic executor for this route
+    const executorWallet = executorService.getWalletByRouteId(routeId.toNumber());
+    console.log('Executor', executorWallet.publicKey.toBase58());
     console.log('Initializing SOL route');
+    
     const params = {
         connection: new Connection(clusterApiUrl('devnet') , 'finalized'),
         payer: creatorUser.publicKey,
         programId: MULTI_HOPPER_PROGRAM_ID,
     };
-    const tokenConfigPda = await getTokenConfigPda(params, new PublicKey(NATIVE_MINT.toBase58()), creatorUser.publicKey);
-    console.log('Token config PDA', tokenConfigPda.toBase58());
+    const program = buildProgram(params);
+    const routeConfigPda = await getRouteConfigPda(routeId);
+    const routeConfigAccount = await program.account.routeConfig.fetch(routeConfigPda);
+    const tokenConfigPDA = routeConfigAccount.tokenConfig;
+    console.log('Token config PDA', tokenConfigPDA.toBase58());
     const transaction = new Transaction();
-    const initializeRouteSolIx = await initializeRouteSolWithWrap(params, creatorUser.publicKey, tokenConfigPda, routeId, executor.publicKey, hopAmount, hops.map(hop => ({
-        recipient: new PublicKey(hop.toAddress),
-        delaySeconds: new BN(0),
-    })));
+    const initializeRouteSolIx = await initializeRouteSolWithWrap(
+        creatorUser.publicKey, 
+        routeId, 
+        hopAmount, 
+        hops.map(hop => ({
+            recipient: new PublicKey(hop.toAddress),
+            delaySeconds: new BN(0),
+        }))
+    );
     console.log('Initialize route SOL ix', initializeRouteSolIx);
     transaction.add(initializeRouteSolIx);
     const serialized = await serialize(transaction, creatorUser.publicKey, params.connection);
@@ -964,16 +1068,10 @@ export const initializeSolRoute = async () => {
 }
 
 export const testSPLHop = async () => {
-    const params = {
-        connection: new Connection(clusterApiUrl('devnet') , 'finalized'),
-        payer: executor.publicKey,
-        programId: MULTI_HOPPER_PROGRAM_ID,
-    };
-
     try {
         for (const hop of hops) {
             console.log('Starting test hop', hop.toAddress );
-            const signature = await executeHop(params, hop, route, executor);
+            const signature = await executeHop(creatorUser.publicKey, routeId, splToken);
             console.log('Hop executed', hop.toAddress);
             console.log('Signature', signature);
             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -984,16 +1082,11 @@ export const testSPLHop = async () => {
 }
 
 export const testHops = async () => {
-    const params = {
-        connection: new Connection(clusterApiUrl('devnet') , 'finalized'),
-        payer: executor.publicKey,
-        programId: MULTI_HOPPER_PROGRAM_ID,
-    };
     try {
         for (const hop of hops) {
             try {
-                console.log('Starting test hop', hop.toAddress, route);
-                const signature = await executeHop(params, hop, route, executor);
+                console.log('Starting test hop', hop.toAddress, routeId);
+                const signature = await executeHop(creatorUser.publicKey, routeId, splToken);
                 console.log('Hop executed', hop.toAddress);
                 console.log('Signature', signature);
                 await new Promise(resolve => setTimeout(resolve, 1000));
