@@ -11,14 +11,14 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "siwe": "^2.1.4",
-    "ethers": "^6.8.1",
+    "@libs/crypto-utils": "*",
     "drizzle-orm": "^0.29.3",
-    "@libs/crypto-utils": "*"
+    "ethers": "^6.8.1",
+    "siwe": "^2.1.4"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
-    "tsup": "^7.0.0"
+    "tsup": "^7.0.0",
+    "typescript": "^5.0.0"
   },
   "exports": {
     ".": {

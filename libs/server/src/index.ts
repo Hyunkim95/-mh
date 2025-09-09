@@ -1,14 +1,28 @@
 import { router } from './trpc';
 import { helloRouter } from './routers/hello';
+import { authRouter } from './auth/routers/auth.router';
 
 export const appRouter = router({
   hello: helloRouter,
+  auth: authRouter,
 });
 
 export type AppRouter = typeof appRouter;
 
 // Export the router and types
-export { router, publicProcedure } from './trpc';
+export { 
+  router, 
+  publicProcedure, 
+  protectedProcedure, 
+  adminProcedure, 
+  createRoleBasedProcedure,
+  createContext
+} from './trpc';
 
+// Export authentication types and services
+export type { Context } from './trpc';
+export { authService } from './auth/services/auth.service';
+export type { AuthContext, JWTPayload } from './auth/services/auth.service';
+export * from './solana/contract.service';
 // Export database configurations
 export * from './db';

@@ -11,18 +11,18 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@solana/web3.js": "^1.87.6",
-    "@solana/spl-token": "^0.3.11",
-    "bs58": "^5.0.0",
-    "tweetnacl": "^1.0.3",
-    "tweetnacl-util": "^0.15.1",
-    "@libs/etl": "*",
     "@libs/crypto-utils": "*",
-    "drizzle-orm": "^0.29.3"
+    "@libs/etl": "*",
+    "@solana/spl-token": "^0.3.11",
+    "@solana/web3.js": "^1.87.6",
+    "bs58": "^5.0.0",
+    "drizzle-orm": "^0.29.3",
+    "tweetnacl": "^1.0.3",
+    "tweetnacl-util": "^0.15.1"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
-    "tsup": "^7.0.0"
+    "tsup": "^7.0.0",
+    "typescript": "^5.0.0"
   },
   "exports": {
     ".": {

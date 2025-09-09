@@ -11,8 +11,8 @@
   },
   "dependencies": {
     "@fastify/cors": "^9.0.1",
-    "@trpc/server": "^10.45.2",
     "@trpc-template/server": "*",
+    "@trpc/server": "^10.45.2",
     "fastify": "^4.26.2"
   },
   "devDependencies": {

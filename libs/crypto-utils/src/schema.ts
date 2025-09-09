@@ -1,7 +1,7 @@
 import { pgTable, serial, varchar, text, timestamp } from 'drizzle-orm/pg-core';
 
 // Custodial Wallets table for encrypted wallet storage
-export const custodialWallets = pgTable('custodial_wallets', {
+export const custodialWalletsSchema = pgTable('custodial_wallets', {
   id: serial('id').primaryKey(),
   keyIdentifier: varchar('key_identifier', { length: 255 }).notNull().unique(),
   address: varchar('address', { length: 255 }).notNull(),
@@ -13,5 +13,5 @@ export const custodialWallets = pgTable('custodial_wallets', {
 });
 
 // Export types
-export type CustodialWallet = typeof custodialWallets.$inferSelect;
-export type NewCustodialWallet = typeof custodialWallets.$inferInsert;
+export type CustodialWallet = typeof custodialWalletsSchema.$inferSelect;
+export type NewCustodialWallet = typeof custodialWalletsSchema.$inferInsert;

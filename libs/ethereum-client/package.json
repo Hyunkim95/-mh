@@ -11,14 +11,14 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@rainbow-me/rainbowkit": "^2.0.8",
     "viem": "^1.19.15",
-    "wagmi": "^2.5.7",
-    "@rainbow-me/rainbowkit": "^2.0.8"
+    "wagmi": "^2.5.7"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
+    "@types/react": "^18.0.0",
     "tsup": "^7.0.0",
-    "@types/react": "^18.0.0"
+    "typescript": "^5.0.0"
   },
   "peerDependencies": {
     "react": "^18.0.0"

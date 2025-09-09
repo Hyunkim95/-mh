@@ -4,7 +4,7 @@ import {
   WalletManager, 
   WalletManagerConfig, 
   CustodialWallet,
-  custodialWallets,
+  custodialWalletsSchema,
   deriveKeyFromObject,
   type KeyDerivableObject
 } from '@libs/crypto-utils';
@@ -39,8 +39,8 @@ export class EthereumWalletManager extends WalletManager {
   async getWalletByIdentifier(identifier: string): Promise<CustodialWallet | null> {
     const result = await this.db
       .select()
-      .from(custodialWallets)
-      .where(eq(custodialWallets.keyIdentifier, identifier))
+      .from(custodialWalletsSchema)
+      .where(eq(custodialWalletsSchema  .keyIdentifier, identifier))
       .limit(1);
     
     return result[0] || null;
@@ -53,7 +53,7 @@ export class EthereumWalletManager extends WalletManager {
     iv: string
   ): Promise<CustodialWallet> {
     const [wallet] = await this.db
-      .insert(custodialWallets)
+      .insert(custodialWalletsSchema)
       .values({
         keyIdentifier: identifier,
         address,
@@ -68,9 +68,9 @@ export class EthereumWalletManager extends WalletManager {
 
   async updateWallet(id: string, updates: Partial<CustodialWallet>): Promise<CustodialWallet> {
     const [wallet] = await this.db
-      .update(custodialWallets)
+      .update(custodialWalletsSchema)
       .set({ ...updates, updatedAt: new Date() })
-      .where(eq(custodialWallets.id, parseInt(id)))
+      .where(eq(custodialWalletsSchema.id, parseInt(id)))
       .returning();
     
     return wallet;

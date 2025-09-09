@@ -8,7 +8,7 @@
     "apps/*",
     "libs/*"
   ],
-  "packageManager": "yarn@1.22.22",
+  "packageManager": "yarn@4.9.4",
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
@@ -18,7 +18,7 @@
     "build:server": "turbo run build --filter=@trpc-template/server",
     "build:shared": "turbo run build --filter=@trpc-template/shared",
     "type-check": "turbo run type-check",
-    "docker:dev": "docker-compose -f docker-compose.dev.yml up --build",
+    "docker:dev": "docker-compose -f docker-compose.dev.yml up --build -d",
     "docker:prod": "docker-compose up --build",
     "docker:down": "docker-compose down && docker-compose -f docker-compose.dev.yml down",
     "docker:logs": "docker-compose logs -f",
@@ -26,5 +26,8 @@
   },
   "devDependencies": {
     "turbo": "^2.5.5"
+  },
+  "dependencies": {
+    "cron": "^4.3.3"
   }
 }

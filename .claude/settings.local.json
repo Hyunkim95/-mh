@@ -26,7 +26,18 @@
       "Bash(dir /b C:Usershkimdevredesigned-octo-fortnightlibsauth-client)",
       "Bash(yarn turbo run build:*)",
       "Bash(dir /b C:Usershkimdevredesigned-octo-fortnightlibsauth-shareddist)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Read(/C:\\Users\\hkim\\dev\\multi-hopper-project-v1/**)",
+      "Read(/C:\\Users\\hkim\\dev\\multi-hopper-project-v1/**)",
+      "Read(/C:\\Users\\hkim\\dev\\multi-hopper-project-v1\\programs/**)",
+      "Read(/C:\\Users\\hkim\\dev\\multi-hopper-project-v1\\programs\\multi_hopper_project\\src/**)",
+      "Read(/C:\\Users\\hkim\\dev\\multi-hopper-project-v1/**)",
+      "Read(/C:\\Users\\hkim\\dev\\multi-hopper-project-v1\\target\\idl/**)",
+      "Read(/C:\\Users\\hkim\\dev\\multihopper\\libs\\server\\src\\solana/**)",
+      "Read(//c/Users/hkim/dev/multi-hopper-project-v1/**)",
+      "Bash(yarn docker:dev:*)",
+      "Bash(docker container:*)",
+      "Bash(docker logs:*)"
     ],
     "deny": [],
     "ask": []

@@ -10,20 +10,28 @@
     "dev": "tsup --watch",
     "type-check": "tsc --noEmit",
     "db:generate": "drizzle-kit generate:pg",
-    "db:migrate": "drizzle-kit push:pg",
-    "db:studio": "drizzle-kit studio"
+    "db:push": "drizzle-kit push:pg",
+    "db:migrate": "tsx src/db/migrate.ts",
+    "db:studio": "drizzle-kit studio",
+    "db:reset": "docker exec -it multihopper-postgres psql -U trpc_user -d trpc_db -c \"DROP SCHEMA public CASCADE; CREATE SCHEMA public;\""
   },
   "dependencies": {
+    "@coral-xyz/anchor": "^0.31.1",
+    "@libs/crypto-utils": "*",
+    "@libs/solana-node": "*",
     "@trpc/server": "^10.45.2",
-    "zod": "^3.22.4",
-    "drizzle-orm": "^0.29.3",
     "drizzle-kit": "^0.20.7",
-    "pg": "^8.11.3"
+    "drizzle-orm": "^0.29.3",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.11.3",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.3",
     "@types/node": "^20.11.24",
     "@types/pg": "^8.10.9",
     "tsup": "^8.0.2",
+    "tsx": "^4.20.5",
     "typescript": "^5.3.3"
   }
 }
