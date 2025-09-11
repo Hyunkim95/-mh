@@ -96,8 +96,8 @@ export class SolanaTransactionEtlJob<TSchema = any> extends BaseEtlJob<SolanaTra
           publicKey,
           {
             limit: this.solanaConfig.maxSignatures,
-            until: cursorInfo?.signature, // Get signatures up to this one (going forward in time)
-            before: this.solanaConfig.beforeSignature,
+            before: cursorInfo?.signature, // Get signatures before this one (going forward in time)
+            until: this.solanaConfig.untilSignature,
           }
         );
       } else {
@@ -106,8 +106,8 @@ export class SolanaTransactionEtlJob<TSchema = any> extends BaseEtlJob<SolanaTra
           publicKey,
           {
             limit: this.solanaConfig.maxSignatures,
-            before: cursorInfo?.signature, // Get signatures before this one (going backward in time)
-            until: this.solanaConfig.untilSignature,
+            before: this.solanaConfig.beforeSignature,
+            until: cursorInfo?.signature, // Get signatures until this one (going backward in time)
           }
         );
         
