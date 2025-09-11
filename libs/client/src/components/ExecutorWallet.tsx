@@ -95,11 +95,11 @@ export const ExecutorWallet: React.FC<ExecutorWalletProps> = ({
         </span>
       </div>
 
-      {error && (
+      {error ? (
         <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
           Error: {error instanceof Error ? error.message : String(error)}
         </div>
-      )}
+      ) : null}
 
       {/* Wallet Info */}
       <div className="space-y-4 mb-6">

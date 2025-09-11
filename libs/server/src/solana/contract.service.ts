@@ -1,7 +1,7 @@
 import { Hop } from "../db";
 import { Transaction, PublicKey, Connection, SystemProgram, Keypair, sendAndConfirmTransaction, clusterApiUrl, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { Program, AnchorProvider, utils, BN } from "@coral-xyz/anchor";
-import { getAccount, getAssociatedTokenAddress, NATIVE_MINT, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { getAssociatedTokenAddress, NATIVE_MINT, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { MultiHopperProject } from "./idl/multi_hopper_project";
 import { TransferHookGuard } from "./idl/transfer_hook_guard";
 import * as IDLJson from "./idl/multi_hopper_project.json";

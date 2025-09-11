@@ -8,8 +8,6 @@ import {
   convertHumanReadableToRouteInput,
   InitializeRouteInput
 } from '../types/route';
-import { useConnection } from '@solana/wallet-adapter-react';
-import { getMint } from '@solana/spl-token';
 
 export interface RouteCreateFormProps {
   type: 'SPL' | 'SOL';
@@ -21,23 +19,26 @@ export interface RouteCreateFormProps {
   }) => Promise<void>;
   isLoading?: boolean;
   error?: string;
+  connection?: any; // Solana connection for detecting decimals
+  onDecimalsDetected?: (decimals: number) => void; // Callback when decimals are detected
 }
 
 export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
   type,
   onSubmit,
   isLoading = false,
-  error
+  error,
+  connection,
+  onDecimalsDetected
 }) => {
   const [detectedDecimals, setDetectedDecimals] = useState<number>(type === 'SOL' ? 9 : 6);
   const [isDetectingDecimals, setIsDetectingDecimals] = useState(false);
   const [decimalsError, setDecimalsError] = useState<string>('');
-  const { connection } = useConnection();
   
   const [humanReadableRoute, setHumanReadableRoute] = useState<HumanReadableRouteInput>({
     routeId: 1,
     hopAmountTokens: '0.1', // Human readable: 0.1 tokens
-    splMint: type === 'SPL' ? 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr' : undefined,
+    splMint: type === 'SPL' ? '' : undefined,
     hops: [
       { recipient: '', delayMinutes: '0' } // Human readable: 0 minutes delay
     ]
@@ -47,7 +48,8 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
   useEffect(() => {
     const detectDecimals = async () => {
       if (type !== 'SPL' || !humanReadableRoute.splMint || !connection) {
-        setDetectedDecimals(type === 'SOL' ? 9 : 6);
+        const defaultDecimals = type === 'SOL' ? 9 : 6;
+        setDetectedDecimals(defaultDecimals);
         return;
       }
 
@@ -55,10 +57,15 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
         setIsDetectingDecimals(true);
         setDecimalsError('');
         
+        // Dynamic import to avoid bundling issues
+        const { PublicKey } = await import('@solana/web3.js');
+        const { getMint } = await import('@solana/spl-token');
+        
         const mintPublicKey = new PublicKey(humanReadableRoute.splMint);
         const mintInfo = await getMint(connection, mintPublicKey);
         
         setDetectedDecimals(mintInfo.decimals);
+        onDecimalsDetected?.(mintInfo.decimals);
         console.log(`Detected ${mintInfo.decimals} decimals for token ${humanReadableRoute.splMint}`);
       } catch (error) {
         console.warn('Could not fetch token decimals:', error);
@@ -72,7 +79,7 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
     // Debounce the detection to avoid too many API calls
     const timeoutId = setTimeout(detectDecimals, 500);
     return () => clearTimeout(timeoutId);
-  }, [humanReadableRoute.splMint, type, connection]);
+  }, [humanReadableRoute.splMint, type, connection, onDecimalsDetected]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,7 +108,7 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
       setHumanReadableRoute({
         routeId: 1,
         hopAmountTokens: '0.1',
-        splMint: type === 'SPL' ? 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr' : undefined,
+        splMint: type === 'SPL' ? '' : undefined,
         hops: [{ recipient: '', delayMinutes: '0' }]
       });
     } catch (err) {
@@ -205,21 +212,23 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
               />
               
               {/* Token Decimals Detection Info */}
-              <div className="mt-2">
-                {isDetectingDecimals ? (
-                  <p className="text-xs text-blue-600">🔍 Detecting token decimals...</p>
-                ) : decimalsError ? (
-                  <p className="text-xs text-orange-600">⚠️ {decimalsError}</p>
-                ) : detectedDecimals !== 6 ? (
-                  <p className="text-xs text-green-600">
-                    ✅ Detected {detectedDecimals} decimal places for this token
-                  </p>
-                ) : (
-                  <p className="text-xs text-gray-500">
-                    Using {detectedDecimals} decimal places
-                  </p>
-                )}
-              </div>
+              {connection && (
+                <div className="mt-2">
+                  {isDetectingDecimals ? (
+                    <p className="text-xs text-blue-600">🔍 Detecting token decimals...</p>
+                  ) : decimalsError ? (
+                    <p className="text-xs text-orange-600">⚠️ {decimalsError}</p>
+                  ) : detectedDecimals !== 6 ? (
+                    <p className="text-xs text-green-600">
+                      ✅ Detected {detectedDecimals} decimal places for this token
+                    </p>
+                  ) : (
+                    <p className="text-xs text-gray-500">
+                      Using {detectedDecimals} decimal places
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -313,4 +322,4 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
       </form>
     </div>
   );
-};
+}; 

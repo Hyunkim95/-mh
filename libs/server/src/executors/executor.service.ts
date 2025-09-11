@@ -1,10 +1,10 @@
-import { clusterApiUrl, Connection, Keypair, PublicKey, SystemProgram, Transaction, sendAndConfirmTransaction } from '@solana/web3.js';
+import { Connection, Keypair, PublicKey, SystemProgram, Transaction, sendAndConfirmTransaction } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
 import crypto from 'crypto';
 
 // Connection for Solana operations
 const connection = new Connection(
-    process.env.SOLANA_RPC_URL! || clusterApiUrl('devnet'),
+    'https://devnet.helius-rpc.com/?api-key=f6d0c03a-562f-4784-8b78-ebb084b72514',
     { commitment: 'confirmed' }
 );
 
