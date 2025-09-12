@@ -4,13 +4,11 @@ import { ExecutorWallet } from './ExecutorWallet';
 import { useTriggerHop } from '../hooks';
 import { PublicKey } from '@solana/web3.js';
 
-export interface RouteViewerProps {
-  publicKey?: string;
-}
+export interface RouteViewerProps {}
 
 const NATIVE_MINT = new PublicKey('So11111111111111111111111111111111111111112');
 
-export const RouteViewer: React.FC<RouteViewerProps> = ({ publicKey }) => {
+export const RouteViewer: React.FC<RouteViewerProps> = () => {
   const [routeId, setRouteId] = useState<string>('');
   const [splMint, setSplMint] = useState<string>(NATIVE_MINT.toBase58());
   const [queryEnabled, setQueryEnabled] = useState<boolean>(false);

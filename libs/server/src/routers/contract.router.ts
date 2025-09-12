@@ -4,10 +4,8 @@ import { router, publicProcedure } from '../trpc';
 import { 
   initializeCompleteTokenConfig, 
   initializeCompleteSolTokenConfig, 
-  serialize,
   getTokenConfigSPL,
   getTokenConfigSOL,
-  creatorUser,
   signAndSerialize,
   initializeRouteWithWrap,
   initializeRouteSolWithWrap,
@@ -60,7 +58,7 @@ const getTokenConfigSolInputSchema = z.object({
 // Route validation schemas
 const hopSchema = z.object({
   recipient: publicKeySchema,
-  delaySeconds: z.string(),
+  delaySeconds: z.number(),
 });
 
 const initializeRouteInputSchema = z.object({

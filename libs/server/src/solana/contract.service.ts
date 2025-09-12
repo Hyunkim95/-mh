@@ -1,4 +1,3 @@
-import { Hop } from "../db";
 import { Transaction, PublicKey, Connection, SystemProgram, Keypair, sendAndConfirmTransaction, clusterApiUrl, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { Program, AnchorProvider, utils, BN } from "@coral-xyz/anchor";
 import { getAssociatedTokenAddress, NATIVE_MINT, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from "@solana/spl-token";
@@ -537,6 +536,42 @@ const initializeRouteSol = async (
         });
 }
 
+/**
+ * Calculates the SOL amount needed to fund an executor based on hop count.
+ * Uses moderate funding formula: (hopCount * 0.002) + 0.02 SOL
+ * This covers transaction fees and provides a safety buffer.
+ * 
+ * @param hopCount - Number of hops in the route
+ * @returns BN representing lamports to fund the executor
+ */
+const calculateExecutorFunding = (hopCount: number): BN => {
+    // Moderate funding formula: (hopCount * 0.002) + 0.02 SOL
+    const perHopFunding = 0.002; // SOL per hop
+    const baseFunding = 0.02; // Base SOL amount
+    const totalFunding = (hopCount * perHopFunding) + baseFunding;
+    return new BN(solToLamports(totalFunding));
+};
+
+/**
+ * Creates a SystemProgram transfer instruction to fund an executor wallet.
+ * 
+ * @param payer - The account paying for the transfer
+ * @param executor - The executor wallet to receive funding
+ * @param amount - Amount in lamports to transfer
+ * @returns SystemProgram transfer instruction
+ */
+const createExecutorFundingInstruction = (
+    payer: PublicKey,
+    executor: PublicKey,
+    amount: BN
+) => {
+    return SystemProgram.transfer({
+        fromPubkey: payer,
+        toPubkey: executor,
+        lamports: amount.toNumber(),
+    });
+};
+
 const initializeRouteSolWithWrap = async (
     payer: PublicKey,
     routeId: BN,
@@ -551,6 +586,12 @@ const initializeRouteSolWithWrap = async (
     
     // Get deterministic executor for this route
     const executorWallet = executorService.getWalletByRouteId(routeId.toNumber());
+    
+    // Calculate and add executor funding
+    const executorFunding = calculateExecutorFunding(hops.length);
+    const fundingIx = createExecutorFundingInstruction(payer, executorWallet.publicKey, executorFunding);
+    transaction.add(fundingIx);
+    
     const initializeRouteSolIx = await initializeRouteSol(payer, tokenConfigPDA, routeId, executorWallet.publicKey, hopAmount, hops);
     transaction.add(initializeRouteSolIx);
     transaction.add(wrapIx);
@@ -560,6 +601,8 @@ const initializeRouteSolWithWrap = async (
         const triggerIx = await triggerHop(routeId, tokenConfigPDA, executorWallet.publicKey, tokenConfigAccount.pairAddress as PublicKey, payer, hops[0].recipient);
         transaction.add(triggerIx);
     }
+    
+    console.log(`Executor ${executorWallet.publicKey.toBase58()} will be funded with ${executorFunding.toNumber() / LAMPORTS_PER_SOL} SOL for ${hops.length} hops`);
     
     return transaction;
 }
@@ -581,6 +624,12 @@ const initializeRouteWithWrap = async (
     
     // Get deterministic executor for this route
     const executorWallet = executorService.getWalletByRouteId(routeId.toNumber());
+    
+    // Calculate and add executor funding
+    const executorFunding = calculateExecutorFunding(hops.length);
+    const fundingIx = createExecutorFundingInstruction(payer, executorWallet.publicKey, executorFunding);
+    transaction.add(fundingIx);
+    
     const initializeRouteIx = await initializeRoute(payer, creator, tokenConfigPDA, tokenConfigAccount.tokenMint as PublicKey, routeId, executorWallet.publicKey, hopAmount, hops, originalTokenProgram);
     transaction.add(initializeRouteIx);
     transaction.add(wrapIx);
@@ -590,6 +639,8 @@ const initializeRouteWithWrap = async (
         const triggerIx = await triggerHop(routeId, tokenConfigPDA, executorWallet.publicKey, tokenConfigAccount.pairAddress as PublicKey, creator, hops[0].recipient);
         transaction.add(triggerIx);
     }
+    
+    console.log(`Executor ${executorWallet.publicKey.toBase58()} will be funded with ${executorFunding.toNumber() / LAMPORTS_PER_SOL} SOL for ${hops.length} hops`);
     
     return transaction;
 }
@@ -825,6 +876,8 @@ const contractService = {
     executeHop,
     getTokenConfigSPL,
     getTokenConfigSOL,
+    calculateExecutorFunding,
+    createExecutorFundingInstruction,
 }
 
 // Functions to get route configuration and state
@@ -866,6 +919,9 @@ export const getRouteStateAccount = async (
         
         return {
             currentHopIndex: routeStateAccount.currentHopIndex,
+            startedAt: routeStateAccount.startedAt.toString(),
+            lastHopAt: routeStateAccount.lastHopAt.map((timestamp: BN) => timestamp.toString()),
+            hopsCount: routeStateAccount.hopsCount,
         };
     } catch (error) {
         console.log('Error fetching route state:', error);
@@ -873,8 +929,38 @@ export const getRouteStateAccount = async (
     }
 };
 
+// Check if a route is actually deployed on-chain by verifying the route config PDA exists
+export const isRouteDeployedOnChain = async (routeId: number): Promise<boolean> => {
+    try {
+        const program = buildProgram(params);
+        const routeConfigPda = await getRouteConfigPda(new BN(routeId));
+        
+        // Try to fetch the route config account
+        await program.account.routeConfig.fetch(routeConfigPda);
+        return true;
+    } catch (error) {
+        // If account doesn't exist or can't be fetched, route is not deployed
+        return false;
+    }
+};
+
+// Check if a specific route config PDA exists on-chain
+export const isRouteConfigPdaDeployed = async (routeConfigPda: string): Promise<boolean> => {
+    try {
+        const program = buildProgram(params);
+        const pda = new PublicKey(routeConfigPda);
+        
+        // Try to fetch the route config account
+        await program.account.routeConfig.fetch(pda);
+        return true;
+    } catch (error) {
+        // If account doesn't exist or can't be fetched, route is not deployed
+        return false;
+    }
+};
+
 // Export individual functions needed by the router
-export { initializeRouteWithWrap, initializeRouteSolWithWrap, executeHop };
+export { initializeRouteWithWrap, initializeRouteSolWithWrap, executeHop, calculateExecutorFunding, createExecutorFundingInstruction };
 
 export default contractService;
 
@@ -958,143 +1044,120 @@ export const createSolTokenConfig = async () => {
 };
 
 // Hardcoded executor removed - now using deterministic executor service
-const routeId = new BN(6969691);
+// const routeId = new BN(6969691);
 // const wSOLMint = new PublicKey('6ytpVfGxTPmyUSeE953ZyomqewTnyGm77W2VxbzHyLji');
 
-const hops = [
-    {
-        routeId: Number(routeId),
-        index: 0,
-        toAddress: '9sxuvwgUWHpGCLy5EFFKPV5bHz2vjDUN3J1kguPCgfqn',
-        executesAt: new Date(),
-        executedAt: new Date(),
-        txHash: '',
-        error: '',
-        isReady: false,
-    },
-    {
-        routeId: Number(routeId),
-        index: 1,
-        toAddress: 'AHz5Emsg8xTXZenPkdhEjkzfJxTTJinQqqFLnsJvpB6q',
-        executesAt: new Date(),
-        executedAt: new Date(),
-        txHash: '',
-        error: '',
-        isReady: false,
-    }
-] as Hop[];
+// export const initializeSPLRoute = async () => {
+//     const hopAmount = new BN(solToLamports(100));
+//     const params = {
+//         connection: new Connection(clusterApiUrl('devnet') , 'finalized'),
+//         payer: creatorUser.publicKey,
+//         programId: MULTI_HOPPER_PROGRAM_ID,
+//     };
+//     const tokenConfigPda = await getTokenConfigPda(splToken);
+//     console.log('Token config PDA', tokenConfigPda.toBase58());
+//     const transaction = new Transaction();
+//     const initializeRouteIx = await initializeRouteWithWrap(
+//         creatorUser.publicKey,
+//         creatorUser.publicKey, 
+//         routeId, 
+//         hopAmount, 
+//         hops.map(hop => ({
+//         recipient: new PublicKey(hop.toAddress),
+//             delaySeconds: new BN(0),
+//         })), 
+//         splToken.toBase58(),
+//         TOKEN_PROGRAM_ID
+//     );
+//     console.log('Initialize route SOL ix', initializeRouteIx);
+//     transaction.add(initializeRouteIx);
+//     const serialized = await serialize(transaction, creatorUser.publicKey, params.connection);
+//     const serializedTransaction = Transaction.from(Buffer.from(serialized, 'base64'));
+//     console.log('Serialized transaction');
 
-export const initializeSPLRoute = async () => {
-    const hopAmount = new BN(solToLamports(100));
-    const params = {
-        connection: new Connection(clusterApiUrl('devnet') , 'finalized'),
-        payer: creatorUser.publicKey,
-        programId: MULTI_HOPPER_PROGRAM_ID,
-    };
-    const tokenConfigPda = await getTokenConfigPda(splToken);
-    console.log('Token config PDA', tokenConfigPda.toBase58());
-    const transaction = new Transaction();
-    const initializeRouteIx = await initializeRouteWithWrap(
-        creatorUser.publicKey,
-        creatorUser.publicKey, 
-        routeId, 
-        hopAmount, 
-        hops.map(hop => ({
-        recipient: new PublicKey(hop.toAddress),
-            delaySeconds: new BN(0),
-        })), 
-        splToken.toBase58(),
-        TOKEN_PROGRAM_ID
-    );
-    console.log('Initialize route SOL ix', initializeRouteIx);
-    transaction.add(initializeRouteIx);
-    const serialized = await serialize(transaction, creatorUser.publicKey, params.connection);
-    const serializedTransaction = Transaction.from(Buffer.from(serialized, 'base64'));
-    console.log('Serialized transaction');
+//     try {
+//         console.log('Sending transaction');
+//         const signature = await sendAndConfirmTransaction(params.connection, serializedTransaction, [creatorUser]);
+//         console.log('Signature', signature);
+//         console.log('Transaction sent', signature);
+//     } catch (error) {
+//         console.log('Error', error);
+//     }
+// }
 
-    try {
-        console.log('Sending transaction');
-        const signature = await sendAndConfirmTransaction(params.connection, serializedTransaction, [creatorUser]);
-        console.log('Signature', signature);
-        console.log('Transaction sent', signature);
-    } catch (error) {
-        console.log('Error', error);
-    }
-}
-
-export const initializeSolRoute = async () => {
-    const hopAmount = new BN(solToLamports(0.05));
-    console.log('Route ID', routeId);
-    console.log('Hop amount', hopAmount);
+// export const initializeSolRoute = async () => {
+//     const hopAmount = new BN(solToLamports(0.05));
+//     console.log('Route ID', routeId);
+//     console.log('Hop amount', hopAmount);
     
-    // Get deterministic executor for this route
-    const executorWallet = executorService.getWalletByRouteId(routeId.toNumber());
-    console.log('Executor', executorWallet.publicKey.toBase58());
-    console.log('Initializing SOL route');
+//     // Get deterministic executor for this route
+//     const executorWallet = executorService.getWalletByRouteId(routeId.toNumber());
+//     console.log('Executor', executorWallet.publicKey.toBase58());
+//     console.log('Initializing SOL route');
     
-    const params = {
-        connection: new Connection(clusterApiUrl('devnet') , 'finalized'),
-        payer: creatorUser.publicKey,
-        programId: MULTI_HOPPER_PROGRAM_ID,
-    };
-    const program = buildProgram(params);
-    const routeConfigPda = await getRouteConfigPda(routeId);
-    const routeConfigAccount = await program.account.routeConfig.fetch(routeConfigPda);
-    const tokenConfigPDA = routeConfigAccount.tokenConfig;
-    console.log('Token config PDA', tokenConfigPDA.toBase58());
-    const transaction = new Transaction();
-    const initializeRouteSolIx = await initializeRouteSolWithWrap(
-        creatorUser.publicKey, 
-        routeId, 
-        hopAmount, 
-        hops.map(hop => ({
-            recipient: new PublicKey(hop.toAddress),
-            delaySeconds: new BN(0),
-        }))
-    );
-    console.log('Initialize route SOL ix', initializeRouteSolIx);
-    transaction.add(initializeRouteSolIx);
-    const serialized = await serialize(transaction, creatorUser.publicKey, params.connection);
-    const serializedTransaction = Transaction.from(Buffer.from(serialized, 'base64'));
-    console.log('Serialized transaction');
-    try {
-        console.log('Sending transaction');
-        const signature = await sendAndConfirmTransaction(params.connection, serializedTransaction, [creatorUser]);
-        console.log('Signature', signature);
-        console.log('Transaction sent', signature);
-    } catch (error) {
-        console.log('Error', error);
-    }
-}
+//     const params = {
+//         connection: new Connection(clusterApiUrl('devnet') , 'finalized'),
+//         payer: creatorUser.publicKey,
+//         programId: MULTI_HOPPER_PROGRAM_ID,
+//     };
+//     const program = buildProgram(params);
+//     const routeConfigPda = await getRouteConfigPda(routeId);
+//     const routeConfigAccount = await program.account.routeConfig.fetch(routeConfigPda);
+//     const tokenConfigPDA = routeConfigAccount.tokenConfig;
+//     console.log('Token config PDA', tokenConfigPDA.toBase58());
+//     const transaction = new Transaction();
+//     const initializeRouteSolIx = await initializeRouteSolWithWrap(
+//         creatorUser.publicKey, 
+//         routeId, 
+//         hopAmount, 
+//         hops.map(hop => ({
+//             recipient: new PublicKey(hop.toAddress),
+//             delaySeconds: new BN(0),
+//         }))
+//     );
+//     console.log('Initialize route SOL ix', initializeRouteSolIx);
+//     transaction.add(initializeRouteSolIx);
+//     const serialized = await serialize(transaction, creatorUser.publicKey, params.connection);
+//     const serializedTransaction = Transaction.from(Buffer.from(serialized, 'base64'));
+//     console.log('Serialized transaction');
+//     try {
+//         console.log('Sending transaction');
+//         const signature = await sendAndConfirmTransaction(params.connection, serializedTransaction, [creatorUser]);
+//         console.log('Signature', signature);
+//         console.log('Transaction sent', signature);
+//     } catch (error) {
+//         console.log('Error', error);
+//     }
+// }
 
-export const testSPLHop = async () => {
-    try {
-        for (const hop of hops) {
-            console.log('Starting test hop', hop.toAddress );
-            const signature = await executeHop(creatorUser.publicKey, routeId, splToken);
-            console.log('Hop executed', hop.toAddress);
-            console.log('Signature', signature);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-    } catch (error) {
-        console.log('Error', error);
-    }
-}
+// export const testSPLHop = async () => {
+//     try {
+//         for (const hop of hops) {
+//             console.log('Starting test hop', hop.toAddress );
+//             const signature = await executeHop(creatorUser.publicKey, routeId, splToken);
+//             console.log('Hop executed', hop.toAddress);
+//             console.log('Signature', signature);
+//             await new Promise(resolve => setTimeout(resolve, 1000));
+//         }
+//     } catch (error) {
+//         console.log('Error', error);
+//     }
+// }
 
-export const testHops = async () => {
-    try {
-        for (const hop of hops) {
-            try {
-                console.log('Starting test hop', hop.toAddress, routeId);
-                const signature = await executeHop(creatorUser.publicKey, routeId, splToken);
-                console.log('Hop executed', hop.toAddress);
-                console.log('Signature', signature);
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            } catch (error) {
-                console.log('Error', error);
-            }
-        }
-    } catch (error) {
-        console.log('Error', error);
-    }
-}
+// export const testHops = async () => {
+//     try {
+//         for (const hop of hops) {
+//             try {
+//                 console.log('Starting test hop', hop.toAddress, routeId);
+//                 const signature = await executeHop(creatorUser.publicKey, routeId, splToken);
+//                 console.log('Hop executed', hop.toAddress);
+//                 console.log('Signature', signature);
+//                 await new Promise(resolve => setTimeout(resolve, 1000));
+//             } catch (error) {
+//                 console.log('Error', error);
+//             }
+//         }
+//     } catch (error) {
+//         console.log('Error', error);
+//     }
+// }

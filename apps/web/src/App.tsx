@@ -3,24 +3,26 @@ import { trpc } from './lib/trpc';
 import { TokenConfigForm } from './components/TokenConfigForm';
 import { RouteCreateForm } from './components/RouteCreateForm';
 import { RouteViewer } from './components/RouteViewer';
+import { HopsTab } from './components/HopsTab';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { PublicKey, Transaction } from '@solana/web3.js';
+import { Transaction } from '@solana/web3.js';
 import { WalletButton } from '@libs/solana-client';
 import { useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 
-const NATIVE_MINT = new PublicKey("So11111111111111111111111111111111111111112");
+// const NATIVE_MINT = new PublicKey("So11111111111111111111111111111111111111112");
 
 function App() {
   const initializeTokenConfig = trpc.contract.initializeTokenConfig.useMutation();
   const initializeTokenConfigSOL = trpc.contract.initializeTokenConfigSOL.useMutation();
   const initializeRoute = trpc.contract.initializeRoute.useMutation();
   const initializeRouteSOL = trpc.contract.initializeRouteSOL.useMutation();
+  const createRoute = trpc.routes.create.useMutation();
 
   const { sendTransaction, publicKey } = useWallet();
   const { connection } = useConnection();
   const [splMint, setSplMint] = useState('');
-  const [activeTab, setActiveTab] = useState<'token-config' | 'routes'>('token-config');
+  const [activeTab, setActiveTab] = useState<'token-config' | 'routes' | 'hops'>('token-config');
   const getTokenConfigSOL = trpc.contract.getTokenConfigSOL.useQuery({
     creator: publicKey?.toBase58() ?? '',
   }, {
@@ -34,57 +36,25 @@ function App() {
     enabled: !!publicKey && !!splMint,
   });
 
-  const handleRouteSubmit = async (data: {
-    routeId: number;
-    routes: any[]; // Using any[] to match the IHop[] from RouteCreateForm
-    hopAmount: string;
-    splMint?: string;
-  }, type: 'SPL' | 'SOL') => {
+  const handleRouteSubmit = async (data: any, type: 'SPL' | 'SOL') => {
+    console.log('Received route data:', data);
     try {
-      let transactionSignature;
-      
-      if (type === 'SPL') {
-        if (!data.splMint) {
-          throw new Error('SPL mint address is required for SPL routes');
-        }
-        transactionSignature = await initializeRoute.mutateAsync({
-          routeId: data.routeId,
-          routes: data.routes,
-          hopAmount: data.hopAmount,
-          creator: publicKey?.toBase58() ?? '',
-          splMint: data.splMint
-        });
-      } else {
-        transactionSignature = await initializeRouteSOL.mutateAsync({
-          routeId: data.routeId,
-          routes: data.routes,
-          hopAmount: data.hopAmount,
-          creator: publicKey?.toBase58() ?? '',
-          splMint: NATIVE_MINT.toBase58()
-        });
-      }
-      
-      const transaction = Transaction.from(Buffer.from(transactionSignature.data.transaction, "base64"));
-      const signature = await sendTransaction(transaction, connection, {
-        skipPreflight: true,
+      await createRoute.mutateAsync({
+        tokenType: type,
+        tokenMint: data.tokenMint,
+        tokenDecimals: data.tokenDecimals,
+        hopAmountTokens: data.hopAmountTokens,
+        hopAmountRaw: data.hopAmountRaw,
+        hops: data.hops,
+        creator: publicKey?.toBase58() ?? '',
       });
-      const confirmation = await connection.confirmTransaction({
-        signature: signature,
-        blockhash: transaction.recentBlockhash!,
-        lastValidBlockHeight: transaction.lastValidBlockHeight!,
-      }, 'confirmed');
-      
-      if (confirmation.value.err) {
-        throw new Error(`Transaction failed: ${confirmation.value.err}`);
-      }
-      
-      toast.success(`${type} Route created successfully! Signature: ${signature.slice(0, 8)}...`);
+
+      toast.success(`${type} Route created successfully!`);
     } catch (error) {
       console.error(`${type} Route creation failed:`, error);
       toast.error(`${type} Route creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-  };
-
+  }
 
   return <div className="min-h-screen bg-gray-100 w-full">
     <Toaster position="top-right" />
@@ -99,7 +69,7 @@ function App() {
 
     <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Tab Navigation */}
-      <div className="flex space-x-1 mb-8 bg-gray-200 p-1 rounded-lg max-w-md">
+      <div className="flex space-x-1 mb-8 bg-gray-200 p-1 rounded-lg max-w-lg">
         <button
           onClick={() => setActiveTab('token-config')}
           className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
@@ -119,6 +89,16 @@ function App() {
           }`}
         >
           Routes
+        </button>
+        <button
+          onClick={() => setActiveTab('hops')}
+          className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors ${
+            activeTab === 'hops'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          Hops
         </button>
       </div>
 
@@ -141,10 +121,11 @@ function App() {
                   const signature = await sendTransaction(transaction, connection, {
                     skipPreflight: true,
                   });
+                  const latestBlockhash = await connection.getLatestBlockhash();
                   const confirmation = await connection.confirmTransaction({
                     signature: signature,
-                    blockhash: transaction.recentBlockhash!,
-                    lastValidBlockHeight: transaction.lastValidBlockHeight!,
+                    blockhash: latestBlockhash.blockhash,
+                    lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
                   }, 'confirmed');
                   
                   if (confirmation.value.err) {
@@ -175,10 +156,11 @@ function App() {
                   const signature = await sendTransaction(transaction, connection, {
                     skipPreflight: true,
                   });
+                  const latestBlockhash = await connection.getLatestBlockhash();  
                   const confirmation = await connection.confirmTransaction({
                     signature: signature,
-                    blockhash: transaction.recentBlockhash!,
-                    lastValidBlockHeight: transaction.lastValidBlockHeight!,
+                    blockhash: latestBlockhash.blockhash,
+                    lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
                   }, 'confirmed');
                   
                   if (confirmation.value.err) {
@@ -272,6 +254,9 @@ function App() {
           <RouteViewer />
         </div>
       )}
+
+      {/* Hops Tab */}
+      {activeTab === 'hops' && <HopsTab />}
     </div>
   </div>;
 }

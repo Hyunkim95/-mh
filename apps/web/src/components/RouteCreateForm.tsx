@@ -1,52 +1,115 @@
 import React, { useState, useEffect } from 'react';
 import { PublicKey } from '@solana/web3.js';
-import BN from 'bn.js';
-import { 
-  IHop,
-  HumanReadableRouteInput, 
-  HumanReadableHopInput, 
-  convertHumanReadableToRouteInput,
+import {
+  TimestampRouteInput, 
+  TimestampHopInput, 
+  convertTimestampToRouteInput,
   InitializeRouteInput
 } from '../types/route';
 import { useConnection } from '@solana/wallet-adapter-react';
 import { getMint } from '@solana/spl-token';
+import { TimezoneAwareDatePicker, TimezoneAwareDateDisplay } from './TimezoneAwareDatePicker';
+import { useTimezone } from '../hooks/useTimezone';
+
+// Custom styles for react-datepicker
+const datePickerStyles = `
+  .react-datepicker-wrapper {
+    width: 100%;
+  }
+  
+  .react-datepicker__input-container input {
+    width: 100% !important;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+  
+  .react-datepicker__input-container input:focus {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+    border-color: transparent;
+    box-shadow: 0 0 0 2px #10b981;
+  }
+  
+  .react-datepicker {
+    font-family: inherit;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+  
+  .react-datepicker__header {
+    background-color: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+    border-radius: 0.5rem 0.5rem 0 0;
+  }
+  
+  .react-datepicker__current-month {
+    color: #374151;
+    font-weight: 600;
+  }
+  
+  .react-datepicker__day--selected {
+    background-color: #10b981 !important;
+    color: white !important;
+  }
+  
+  .react-datepicker__day--keyboard-selected {
+    background-color: #059669 !important;
+    color: white !important;
+  }
+  
+  .react-datepicker__time-container {
+    border-left: 1px solid #e5e7eb;
+  }
+  
+  .react-datepicker__time-list-item--selected {
+    background-color: #10b981 !important;
+    color: white !important;
+  }
+`;
 
 export interface RouteCreateFormProps {
   type: 'SPL' | 'SOL';
-  onSubmit: (data: {
-    routeId: number;
-    routes: IHop[];
-    splMint?: string;
-    hopAmount: string;
-  }) => Promise<void>;
   isLoading?: boolean;
   error?: string;
+  onSubmit: (route: any) => void;
 }
 
 export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
   type,
-  onSubmit,
   isLoading = false,
-  error
+  error,
+  onSubmit
 }) => {
   const [detectedDecimals, setDetectedDecimals] = useState<number>(type === 'SOL' ? 9 : 6);
   const [isDetectingDecimals, setIsDetectingDecimals] = useState(false);
   const [decimalsError, setDecimalsError] = useState<string>('');
   const { connection } = useConnection();
+  const { scheduleFromNow } = useTimezone();
   
-  const [humanReadableRoute, setHumanReadableRoute] = useState<HumanReadableRouteInput>({
-    routeId: 1,
-    hopAmountTokens: '0.1', // Human readable: 0.1 tokens
+  const [isCreatingRoute, setIsCreatingRoute] = useState(false);
+  const [createRouteError, setCreateRouteError] = useState<string | null>(null);
+
+  // Get default scheduled time as UTC string
+  const getDefaultScheduledTime = (minutesFromNow: number = 5) => {
+    return scheduleFromNow(minutesFromNow).utcIsoString;
+  };
+
+  const [timestampRoute, setTimestampRoute] = useState<TimestampRouteInput>({
+    hopAmountTokens: '0.1',
     splMint: type === 'SPL' ? 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr' : undefined,
     hops: [
-      { recipient: '', delayMinutes: '0' } // Human readable: 0 minutes delay
+      { recipient: '', scheduledAt: getDefaultScheduledTime(5) }
     ]
   });
 
   // Detect token decimals when SPL mint address changes
   useEffect(() => {
     const detectDecimals = async () => {
-      if (type !== 'SPL' || !humanReadableRoute.splMint || !connection) {
+      if (type !== 'SPL' || !timestampRoute.splMint || !connection) {
         setDetectedDecimals(type === 'SOL' ? 9 : 6);
         return;
       }
@@ -55,11 +118,11 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
         setIsDetectingDecimals(true);
         setDecimalsError('');
         
-        const mintPublicKey = new PublicKey(humanReadableRoute.splMint);
+        const mintPublicKey = new PublicKey(timestampRoute.splMint);
         const mintInfo = await getMint(connection, mintPublicKey);
         
         setDetectedDecimals(mintInfo.decimals);
-        console.log(`Detected ${mintInfo.decimals} decimals for token ${humanReadableRoute.splMint}`);
+        console.log(`Detected ${mintInfo.decimals} decimals for token ${timestampRoute.splMint}`);
       } catch (error) {
         console.warn('Could not fetch token decimals:', error);
         setDecimalsError('Could not detect token decimals. Using default (6).');
@@ -69,64 +132,47 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
       }
     };
 
-    // Debounce the detection to avoid too many API calls
     const timeoutId = setTimeout(detectDecimals, 500);
     return () => clearTimeout(timeoutId);
-  }, [humanReadableRoute.splMint, type, connection]);
+  }, [timestampRoute.splMint, type, connection]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
-      // Convert human-readable input to internal format using detected decimals
-      const internalRouteInput: InitializeRouteInput = convertHumanReadableToRouteInput(
-        humanReadableRoute, 
+      const internalRouteInput: InitializeRouteInput = convertTimestampToRouteInput(
+        timestampRoute, 
         detectedDecimals
       );
       
-      // Convert to the format expected by the parent component
-      const convertedHops: IHop[] = internalRouteInput.routes.map(hop => ({
-        recipient: new PublicKey(hop.recipient),
-        delaySeconds: new BN(hop.delaySeconds)
-      }));
+      const routeData = {
+        tokenType: type,
+        tokenMint: internalRouteInput.splMint,
+        tokenDecimals: detectedDecimals,
+        hopAmountTokens: timestampRoute.hopAmountTokens,
+        hopAmountRaw: internalRouteInput.hopAmount,
+        hops: timestampRoute.hops.map(hop => ({
+          recipient: hop.recipient,
+          scheduledAt: hop.scheduledAt,
+        })),
+      };
 
-      await onSubmit({
-        routeId: internalRouteInput.routeId,
-        routes: convertedHops,
-        splMint: internalRouteInput.splMint,
-        hopAmount: internalRouteInput.hopAmount
-      });
+      setIsCreatingRoute(true);
+      setCreateRouteError(null);
       
-      // Reset form on success
-      setHumanReadableRoute({
-        routeId: 1,
-        hopAmountTokens: '0.1',
-        splMint: type === 'SPL' ? 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr' : undefined,
-        hops: [{ recipient: '', delayMinutes: '0' }]
-      });
+      console.log('Creating route with timestamp-based hops:', routeData);
+      onSubmit(routeData); // Send the data directly, not wrapped in result
+      
     } catch (err) {
-      console.error('Form submission error:', err);
+      console.error('Error creating route:', err);
+      setCreateRouteError(err instanceof Error ? err.message : 'Failed to create route');
+    } finally {
+      setIsCreatingRoute(false);
     }
   };
 
-  const addHop = () => {
-    setHumanReadableRoute(prev => ({
-      ...prev,
-      hops: [...prev.hops, { recipient: '', delayMinutes: '0' }]
-    }));
-  };
-
-  const removeHop = (index: number) => {
-    if (humanReadableRoute.hops.length > 1) {
-      setHumanReadableRoute(prev => ({
-        ...prev,
-        hops: prev.hops.filter((_, i) => i !== index)
-      }));
-    }
-  };
-
-  const updateHop = (index: number, field: keyof HumanReadableHopInput, value: string) => {
-    setHumanReadableRoute(prev => ({
+  const updateHop = (index: number, field: keyof TimestampHopInput, value: string | Date) => {
+    setTimestampRoute(prev => ({
       ...prev,
       hops: prev.hops.map((hop, i) => 
         i === index ? { ...hop, [field]: value } : hop
@@ -134,77 +180,92 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
     }));
   };
 
-  const updateRouteField = (field: keyof HumanReadableRouteInput, value: string | number) => {
-    setHumanReadableRoute(prev => ({
+  const addHop = () => {
+    const lastHop = timestampRoute.hops[timestampRoute.hops.length - 1];
+    const lastHopTime = new Date(lastHop.scheduledAt).getTime();
+    const nextScheduledTime = new Date(lastHopTime + 30 * 60 * 1000).toISOString(); // 30 minutes after last hop
+    
+    setTimestampRoute(prev => ({
       ...prev,
-      [field]: value
+      hops: [...prev.hops, { recipient: '', scheduledAt: nextScheduledTime }]
     }));
   };
 
-  const baseInputStyles = 'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500';
-  const labelStyles = 'block text-sm font-medium text-gray-700 mb-1';
-  const containerStyles = 'mb-4';
+  const removeHop = (index: number) => {
+    setTimestampRoute(prev => ({
+      ...prev,
+      hops: prev.hops.filter((_, i) => i !== index)
+    }));
+  };
+
+
+
+  // Calculate delay from previous hop for display
+  const calculateDelay = (currentIndex: number): string => {
+    if (currentIndex === 0) return 'Immediate';
+    
+    const currentTime = new Date(timestampRoute.hops[currentIndex].scheduledAt).getTime();
+    const prevTime = new Date(timestampRoute.hops[currentIndex - 1].scheduledAt).getTime();
+    const diffMinutes = Math.round((currentTime - prevTime) / (1000 * 60));
+    
+    if (diffMinutes < 60) {
+      return `${diffMinutes} minutes after previous hop`;
+    } else if (diffMinutes < 24 * 60) {
+      const hours = Math.floor(diffMinutes / 60);
+      const mins = diffMinutes % 60;
+      return `${hours}h ${mins}m after previous hop`;
+    } else {
+      const days = Math.floor(diffMinutes / (24 * 60));
+      const hours = Math.floor((diffMinutes % (24 * 60)) / 60);
+      return `${days}d ${hours}h after previous hop`;
+    }
+  };
+
+  const baseInputStyles = "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent";
+  const labelStyles = "block text-sm font-medium text-gray-700 mb-1";
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-6 text-green-800">
-        Create {type} Route
-      </h2>
+    <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-md">
+      {/* Inject custom styles */}
+      <style dangerouslySetInnerHTML={{ __html: datePickerStyles }} />
       
-      <form onSubmit={handleSubmit}>
-        {/* Basic Route Info */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <div className={containerStyles}>
-            <label className={labelStyles}>Route ID</label>
-            <input
-              type="number"
-              value={humanReadableRoute.routeId}
-              onChange={(e) => updateRouteField('routeId', parseInt(e.target.value))}
-              placeholder="Enter unique route ID"
-              className={baseInputStyles}
-              required
-              min="1"
-            />
-          </div>
-          
-          <div className={containerStyles}> 
-            <label className={labelStyles}>
-              Hop Amount
-              <span className="text-xs text-gray-500 ml-1">
-                ({type === 'SPL' ? 'tokens' : 'SOL'})
-              </span>
-            </label>
-            <input
-              type="number"
-              step="any"
-              value={humanReadableRoute.hopAmountTokens}
-              onChange={(e) => updateRouteField('hopAmountTokens', e.target.value)}
-              placeholder="0.1"
-              className={baseInputStyles}
-              required
-              min="0"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Amount transferred in each hop
-              {type === 'SPL' && detectedDecimals !== 6 && (
-                <span className="text-blue-600"> (using {detectedDecimals} decimals)</span>
-              )}
-            </p>
-          </div>
+      <h2 className="text-2xl font-bold text-gray-800 mb-6">Create {type} Route</h2>
+      
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Amount Section */}
+        <div className="mb-6">
+          <label className={labelStyles}>
+            Amount per hop
+            <span className="text-xs text-gray-500 ml-1">({type} tokens)</span>
+          </label>
+          <input
+            type="number"
+            step="0.000001"
+            value={timestampRoute.hopAmountTokens}
+            onChange={(e) => setTimestampRoute(prev => ({ ...prev, hopAmountTokens: e.target.value }))}
+            placeholder="0.1"
+            className={baseInputStyles}
+            required
+            min="0"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Amount of {type} tokens to send in each hop
+          </p>
+        </div>
 
+        {/* SPL Token Configuration */}
+        <div className="mb-6">
           {type === 'SPL' && (
-            <div className={containerStyles}>
-              <label className={labelStyles}>SPL Token Address</label>
+            <div>
+              <label className={labelStyles}>SPL Token Mint Address</label>
               <input
                 type="text"
-                value={humanReadableRoute.splMint || ''}
-                onChange={(e) => updateRouteField('splMint', e.target.value)}
-                placeholder="SPL token mint address"
+                value={timestampRoute.splMint || ''}
+                onChange={(e) => setTimestampRoute(prev => ({ ...prev, splMint: e.target.value }))}
+                placeholder="Token mint address"
                 className={baseInputStyles}
                 required
               />
-              
-              {/* Token Decimals Detection Info */}
               <div className="mt-2">
                 {isDetectingDecimals ? (
                   <p className="text-xs text-blue-600">🔍 Detecting token decimals...</p>
@@ -228,20 +289,31 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
         <div className="mb-6">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold text-gray-800">Route Hops</h3>
-            <button
-              type="button"
-              onClick={addHop}
-              className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
-            >
-              Add Hop
-            </button>
+            <div className="flex items-center space-x-4">
+              <div className="text-xs text-gray-500">
+                Current time: {new Date().toLocaleTimeString('en-US', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: true,
+                  month: 'short',
+                  day: 'numeric'
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={addHop}
+                className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
+              >
+                Add Hop
+              </button>
+            </div>
           </div>
 
-          {humanReadableRoute.hops.map((hop, index) => (
+          {timestampRoute.hops.map((hop, index) => (
             <div key={index} className="border border-gray-200 rounded-lg p-4 mb-4 bg-gray-50">
               <div className="flex justify-between items-center mb-3">
                 <h4 className="font-medium text-gray-700">Hop {index + 1}</h4>
-                {humanReadableRoute.hops.length > 1 && (
+                {timestampRoute.hops.length > 1 && (
                   <button
                     type="button"
                     onClick={() => removeHop(index)}
@@ -252,7 +324,7 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className={labelStyles}>Recipient Address</label>
                   <input
@@ -267,21 +339,90 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
 
                 <div>
                   <label className={labelStyles}>
-                    Delay
-                    <span className="text-xs text-gray-500 ml-1">(minutes)</span>
+                    Scheduled Execution Time
+                    <span className="text-xs text-gray-500 ml-2">(Your Timezone)</span>
                   </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={hop.delayMinutes}
-                    onChange={(e) => updateHop(index, 'delayMinutes', e.target.value)}
-                    placeholder="0"
+                  <TimezoneAwareDatePicker
+                    utcValue={hop.scheduledAt}
+                    onUtcChange={(utcString) => updateHop(index, 'scheduledAt', utcString || getDefaultScheduledTime(5))}
+                    showTimeSelect={true}
+                    minDate={new Date()}
+                    placeholderText="Select date and time"
+                    showTimezoneSelector={false}
                     className={baseInputStyles}
-                    required
-                    min="0"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Time to wait before this hop executes
+                  
+                  {/* Quick Time Presets */}
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <span className="text-xs text-gray-600 mr-2 self-center">Quick set:</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const now = new Date();
+                        const in5Min = new Date(now.getTime() + 5 * 60 * 1000);
+                        updateHop(index, 'scheduledAt', in5Min);
+                      }}
+                      className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                    >
+                      +5min
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const now = new Date();
+                        const in15Min = new Date(now.getTime() + 15 * 60 * 1000);
+                        updateHop(index, 'scheduledAt', in15Min);
+                      }}
+                      className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                    >
+                      +15min
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const now = new Date();
+                        const in1Hour = new Date(now.getTime() + 60 * 60 * 1000);
+                        updateHop(index, 'scheduledAt', in1Hour);
+                      }}
+                      className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                    >
+                      +1hr
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const now = new Date();
+                        const in1Day = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+                        updateHop(index, 'scheduledAt', in1Day);
+                      }}
+                      className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                    >
+                      +1day
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const now = new Date();
+                        const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+                        updateHop(index, 'scheduledAt', nextWeek);
+                      }}
+                      className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                    >
+                      +1week
+                    </button>
+                  </div>
+                  
+                  <p className="text-xs text-gray-500 mt-2">
+                    <strong>{calculateDelay(index)}</strong>
+                    {index > 0 && (
+                      <span className="block mt-1">
+                        Executes on <TimezoneAwareDateDisplay 
+                          utcTimestamp={hop.scheduledAt}
+                          format="short"
+                          className="font-medium"
+                        />
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
@@ -290,26 +431,30 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
         </div>
 
         {/* Error Display */}
-        {error && (
+        {(error || createRouteError) && (
           <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-            {error}
+            {error || createRouteError}
           </div>
         )}
 
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={isLoading || (type === 'SPL' && isDetectingDecimals) || humanReadableRoute.hops.some(hop => !hop.recipient)}
+          disabled={isLoading || isCreatingRoute || (type === 'SPL' && isDetectingDecimals) || timestampRoute.hops.some(hop => !hop.recipient)}
           className={`w-full py-3 px-4 rounded-md font-medium transition-colors ${
-            isLoading || (type === 'SPL' && isDetectingDecimals) || humanReadableRoute.hops.some(hop => !hop.recipient)
+            isLoading || isCreatingRoute || (type === 'SPL' && isDetectingDecimals) || timestampRoute.hops.some(hop => !hop.recipient)
               ? 'bg-gray-400 cursor-not-allowed'
               : 'bg-green-500 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500'
           } text-white`}
         >
-          {isLoading ? 'Creating Route...' : 
+          {isLoading || isCreatingRoute ? 'Saving Route...' : 
            (type === 'SPL' && isDetectingDecimals) ? 'Detecting decimals...' :
-           `Create ${type} Route`}
+           `Save ${type} Route`}
         </button>
+        
+        <p className="text-sm text-gray-500 mt-2 text-center">
+          Your route will be saved to the database. You can deploy it later from the Routes tab.
+        </p>
       </form>
     </div>
   );

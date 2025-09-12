@@ -12,7 +12,6 @@ import {
 export interface RouteCreateFormProps {
   type: 'SPL' | 'SOL';
   onSubmit: (data: {
-    routeId: number;
     routes: IHop[];
     splMint?: string;
     hopAmount: string;
@@ -36,7 +35,6 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
   const [decimalsError, setDecimalsError] = useState<string>('');
   
   const [humanReadableRoute, setHumanReadableRoute] = useState<HumanReadableRouteInput>({
-    routeId: 1,
     hopAmountTokens: '0.1', // Human readable: 0.1 tokens
     splMint: type === 'SPL' ? '' : undefined,
     hops: [
@@ -98,7 +96,6 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
       }));
 
       await onSubmit({
-        routeId: internalRouteInput.routeId,
         routes: convertedHops,
         splMint: internalRouteInput.splMint,
         hopAmount: internalRouteInput.hopAmount
@@ -106,7 +103,6 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
       
       // Reset form on success
       setHumanReadableRoute({
-        routeId: 1,
         hopAmountTokens: '0.1',
         splMint: type === 'SPL' ? '' : undefined,
         hops: [{ recipient: '', delayMinutes: '0' }]
@@ -160,20 +156,7 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
       
       <form onSubmit={handleSubmit}>
         {/* Basic Route Info */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <div className={containerStyles}>
-            <label className={labelStyles}>Route ID</label>
-            <input
-              type="number"
-              value={humanReadableRoute.routeId}
-              onChange={(e) => updateRouteField('routeId', parseInt(e.target.value))}
-              placeholder="Enter unique route ID"
-              className={baseInputStyles}
-              required
-              min="1"
-            />
-          </div>
-          
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">          
           <div className={containerStyles}> 
             <label className={labelStyles}>
               Hop Amount

@@ -13,13 +13,19 @@
     "db:push": "drizzle-kit push:pg",
     "db:migrate": "tsx src/db/migrate.ts",
     "db:studio": "drizzle-kit studio",
-    "db:reset": "docker exec -it multihopper-postgres psql -U trpc_user -d trpc_db -c \"DROP SCHEMA public CASCADE; CREATE SCHEMA public;\""
+    "db:reset": "docker exec -it multihopper-postgres psql -U trpc_user -d trpc_db -c \"DROP SCHEMA public CASCADE; CREATE SCHEMA public;\"",
+    "db:seed": "tsx src/db/seed.ts",
+    "db:status": "drizzle-kit up:pg",
+    "db:drop": "drizzle-kit drop",
+    "db:introspect": "drizzle-kit introspect:pg",
+    "db:check": "drizzle-kit check:pg"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",
     "@libs/crypto-utils": "*",
     "@libs/solana-node": "*",
     "@trpc/server": "^10.45.2",
+    "dotenv": "^17.2.2",
     "drizzle-kit": "^0.20.7",
     "drizzle-orm": "^0.29.3",
     "jsonwebtoken": "^9.0.2",

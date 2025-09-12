@@ -8,6 +8,62 @@
       "when": 1757070647619,
       "tag": "0000_jazzy_gauntlet",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1757595614767,
+      "tag": "0001_fresh_hiroim",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1757596422391,
+      "tag": "0002_stale_loners",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1757610438123,
+      "tag": "0003_tough_skreet",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1757611302645,
+      "tag": "0004_fine_vulture",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1757612835291,
+      "tag": "0005_cooing_fallen_one",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1757614336816,
+      "tag": "0006_etl_cursors",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1757614362744,
+      "tag": "0007_contract_events_complete",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1757659158000,
+      "tag": "0009_melted_kinsey_walden",
+      "breakpoints": true
     }
   ]
 }

@@ -4,9 +4,10 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Pool } from 'pg';
 import { join } from 'path';
+import { DATABASE_CONFIG } from '../config/database';
 
 // Database connection configuration
-const connectionString = process.env.DATABASE_URL || 'postgresql://trpc_user:trpc_password@localhost:5432/trpc_db';
+const connectionString = DATABASE_CONFIG.getConnectionString();
 
 async function runMigrations() {
   console.log('🔄 Starting database migration...');
