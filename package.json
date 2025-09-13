@@ -28,22 +28,5 @@
     "docker:down": "docker-compose down && docker-compose -f docker-compose.dev.yml down",
     "docker:logs": "docker-compose logs -f",
     "docker:logs:dev": "docker-compose -f docker-compose.dev.yml logs -f"
-  },
-  "devDependencies": {
-    "@types/fastestsmallesttextencoderdecoder": "^1",
-    "@types/lodash": "^4.17.20",
-    "@types/moment-timezone": "^0.5.30",
-    "@types/ws": "^8",
-    "turbo": "^2.5.5"
-  },
-  "dependencies": {
-    "bs58": "^6.0.0",
-    "cron": "^4.3.3",
-    "fastestsmallesttextencoderdecoder": "^1.0.22",
-    "lodash": "^4.17.21",
-    "moment-timezone": "^0.6.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "ws": "^8.18.3"
   }
 }
