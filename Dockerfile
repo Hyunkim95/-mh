@@ -1,6 +1,9 @@
 # Build stage
 FROM node:18-alpine AS builder
 
+# Install build dependencies for native modules
+RUN apk add --no-cache python3 make g++ eudev-dev libusb-dev linux-headers
+
 # Set working directory
 WORKDIR /app
 
@@ -19,14 +22,20 @@ COPY libs/solana-node/package.json ./libs/solana-node/
 RUN corepack enable
 RUN yarn install
 
+# Dependencies are now added to individual packages where needed
+
 # Copy source code
 COPY . .
 
-# Build the shared libraries first
-RUN yarn build:server && yarn build:shared
+# Build the libraries in dependency order
+RUN cd libs/etl && yarn build
+RUN cd libs/crypto-utils && yarn build
+RUN cd libs/solana-node && yarn build
+RUN cd libs/server && yarn build
+RUN cd libs/shared && yarn build
 
-# Build the API
-RUN cd apps/api && yarn build
+# Build the API (needs to be done from root to resolve workspace dependencies)
+RUN yarn workspace @trpc-template/api build
 
 # Production stage
 FROM node:18-alpine AS production
@@ -47,7 +56,7 @@ COPY libs/solana-node/package.json ./libs/solana-node/
 
 # Enable Corepack and install only production dependencies
 RUN corepack enable
-RUN yarn install --production
+RUN yarn workspaces focus --production
 
 # Copy built application
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
