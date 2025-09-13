@@ -1459,10 +1459,13 @@ __metadata:
     "@solana/web3.js": "npm:^1.87.6"
     "@types/react": "npm:^18.0.0"
     bs58: "npm:^5.0.0"
+    react: "npm:^18.0.0"
+    react-dom: "npm:^18.0.0"
     tsup: "npm:^7.0.0"
     typescript: "npm:^5.0.0"
   peerDependencies:
     react: ^18.0.0
+    react-dom: ^18.0.0
   languageName: unknown
   linkType: soft
 
@@ -4393,11 +4396,14 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@trpc-template/root@workspace:."
   dependencies:
+    "@trpc/server": "npm:^10.45.2"
     "@types/lodash": "npm:^4.17.20"
     "@types/moment-timezone": "npm:^0.5.30"
     cron: "npm:^4.3.3"
     lodash: "npm:^4.17.21"
     moment-timezone: "npm:^0.6.0"
+    react: "npm:^18.2.0"
+    react-dom: "npm:^18.2.0"
     turbo: "npm:^2.5.5"
   languageName: unknown
   linkType: soft
@@ -4459,13 +4465,17 @@ __metadata:
     "@trpc-template/server": "file:../server"
     "@trpc/client": "npm:^10.45.2"
     "@trpc/react-query": "npm:^10.45.2"
+    "@trpc/server": "npm:^10.45.2"
     "@types/node": "npm:^20.11.24"
     "@types/react": "npm:^18.2.64"
     react: "npm:^18.2.0"
+    react-dom: "npm:^18.2.0"
     tsup: "npm:^8.0.2"
     typescript: "npm:^5.3.3"
   peerDependencies:
+    "@trpc/server": ^10.45.2
     react: ^18.2.0
+    react-dom: ^18.2.0
   languageName: unknown
   linkType: soft
 
@@ -4479,6 +4489,7 @@ __metadata:
     "@trpc-template/shared": "workspace:*"
     "@trpc/client": "npm:^10.45.0"
     "@trpc/react-query": "npm:^10.45.0"
+    "@trpc/server": "npm:^10.45.2"
     "@types/react": "npm:^18.2.66"
     "@types/react-datepicker": "npm:^7.0.0"
     "@types/react-dom": "npm:^18.2.22"
@@ -11030,7 +11041,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-dom@npm:^18.2.0":
+"react-dom@npm:^18.0.0, react-dom@npm:^18.2.0":
   version: 18.3.1
   resolution: "react-dom@npm:18.3.1"
   dependencies:
@@ -11105,7 +11116,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react@npm:^18.2.0":
+"react@npm:^18.0.0, react@npm:^18.2.0":
   version: 18.3.1
   resolution: "react@npm:18.3.1"
   dependencies:
