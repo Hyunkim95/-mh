@@ -1,0 +1,27 @@
+{
+  "name": "@libs/crypto-utils",
+  "version": "0.1.0",
+  "description": "Shared cryptographic utilities for custodial wallets",
+  "module": "dist/index.mjs",
+  "dependencies": {
+    "drizzle-orm": "^0.29.3"
+  },
+  "devDependencies": {
+    "tsup": "^7.0.0",
+    "typescript": "^5.0.0"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup && tsc --emitDeclarationOnly --outDir dist",
+    "dev": "tsup --watch",
+    "type-check": "tsc --noEmit"
+  }
+}

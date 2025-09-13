@@ -1,3 +1,3 @@
-export { trpc, trpcClient } from './trpc';
+export { trpc } from './trpc';
 export { TRPCProvider } from './provider';
 export type { AppRouter } from './trpc';

@@ -3,25 +3,24 @@ FROM node:18-alpine
 # Set working directory
 WORKDIR /app
 
-# Install curl for healthchecks
-RUN apk add --no-cache curl
+# Install curl for healthchecks, build tools for native dependencies, and enable corepack
+RUN apk add --no-cache curl python3 make g++ linux-headers libudev-zero-dev && corepack enable
 
-# Copy package files
-COPY package.json yarn.lock ./
+# Copy package files and yarn configuration
+COPY package.json yarn.lock .yarnrc.yml ./
+COPY .yarn .yarn
 COPY apps/web/package.json ./apps/web/
 COPY apps/api/package.json ./apps/api/
-COPY libs/client/package.json ./libs/client/
-COPY libs/server/package.json ./libs/server/
-COPY libs/shared/package.json ./libs/shared/
+COPY libs/ ./libs/
 
 # Install dependencies
-RUN yarn install --frozen-lockfile
+RUN yarn install
 
 # Copy source code
 COPY . .
 
 # Build shared libraries
-RUN yarn build:server && yarn build:shared
+RUN yarn build:shared && yarn build:server
 
 # Expose port
 EXPOSE 3001

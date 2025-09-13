@@ -7,5 +7,8 @@ export default defineConfig({
   splitting: false,
   sourcemap: true,
   clean: true,
-  external: ['react', 'react-dom'],
+  external: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime', '@tanstack/react-query'],
+  esbuildOptions(options) {
+    options.external = ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'];
+  },
 })

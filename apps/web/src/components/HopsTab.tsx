@@ -1,0 +1,311 @@
+import React, { useState } from 'react';
+import { trpc } from '../lib/trpc';
+import { useWallet, useConnection } from '@solana/wallet-adapter-react';
+import { RouteDetailView } from './RouteDetailView';
+import { Transaction } from '@solana/web3.js';
+import toast from 'react-hot-toast';
+import { TimestampHopInput } from '../types/route';
+
+interface Route {
+  id: number;
+  routeId: number;
+  name?: string | null;
+  description?: string | null;
+  tokenType: string;
+  tokenMint?: string | null;
+  hopAmountTokens: string;
+  hopAmountRaw: string;
+  hops?: Array<{
+    recipient: string;
+    scheduledAt: string; // ISO string from database
+    delayMinutes?: number;
+    delaySeconds?: number;
+  }>;
+  creator: string;
+  status: string;
+  createdAt: string;
+  deployedAt?: string | null;
+  deploymentTxHash?: string | null;
+  routeConfigPda?: string | null;
+  canDeploy: boolean;
+  deploymentStatus: 'draft' | 'deploying' | 'deployed' | 'failed';
+}
+
+export const HopsTab: React.FC = () => {
+  const { publicKey, sendTransaction } = useWallet();
+  const { connection } = useConnection();
+  const [selectedRouteId, setSelectedRouteId] = useState<number | null>(null);
+  const [showRouteDetail, setShowRouteDetail] = useState(false);
+
+  // Fetch routes for the current user
+  const { data: routesData, isLoading, refetch } = trpc.routes.getByCreator.useQuery(
+    { creator: publicKey?.toBase58() ?? '' },
+    { enabled: !!publicKey }
+  );
+
+  // Deploy route mutations
+  const initializeRoute = trpc.contract.initializeRoute.useMutation();
+  const initializeRouteSOL = trpc.contract.initializeRouteSOL.useMutation();
+  const markDeployed = trpc.routes.markDeployed.useMutation();
+
+  const routes = routesData?.data ?? [];
+
+  const handleViewRoute = (routeId: number) => {
+    setSelectedRouteId(routeId);
+    setShowRouteDetail(true);
+  };
+
+  const handleBackToList = () => {
+    setShowRouteDetail(false);
+    setSelectedRouteId(null);
+  };
+
+  const handleDeploy = async (route: Route) => {
+    if (!publicKey || !sendTransaction) {
+      toast.error('Please connect your wallet');
+      return;
+    }
+
+    try {
+      toast.loading('Preparing deployment transaction...', { id: 'deploy' });
+
+      // Convert hops to the format expected by the contract
+      const hopsArray = Array.isArray(route.hops) ? route.hops : [];
+      const formattedHops = hopsArray.map((hop: any) => ({
+        recipient: hop.recipient,
+        delaySeconds: hop.delaySeconds,
+      }));
+
+      let transactionSignature;
+      
+      if (route.tokenType === 'SPL') {
+        if (!route.tokenMint) {
+          throw new Error('SPL mint address is required for SPL routes');
+        }
+        transactionSignature = await initializeRoute.mutateAsync({
+          routeId: route.routeId,
+          routes: formattedHops,
+          hopAmount: route.hopAmountRaw,
+          creator: publicKey.toBase58(),
+          splMint: route.tokenMint
+        });
+      } else {
+        transactionSignature = await initializeRouteSOL.mutateAsync({
+          routeId: route.routeId,
+          routes: formattedHops,
+          hopAmount: route.hopAmountRaw,
+          creator: publicKey.toBase58(),
+          splMint: 'So11111111111111111111111111111111111111112' // Native SOL mint
+        });
+      }
+
+      toast.loading('Please sign the transaction...', { id: 'deploy' });
+
+      // Convert the serialized transaction and send it
+      const transaction = Transaction.from(Buffer.from(transactionSignature.data.transaction, "base64"));
+      const signature = await sendTransaction(transaction, connection, {
+        skipPreflight: true,
+      });
+
+      toast.loading('Confirming transaction...', { id: 'deploy' });
+
+      // Wait for confirmation
+      const confirmation = await connection.confirmTransaction({
+        signature: signature,
+        blockhash: transaction.recentBlockhash!,
+        lastValidBlockHeight: transaction.lastValidBlockHeight!,
+      }, 'confirmed');
+
+      if (confirmation.value.err) {
+        throw new Error(`Transaction failed: ${confirmation.value.err}`);
+      }
+
+      // Mark route as deployed in the database
+      await markDeployed.mutateAsync({
+        id: route.id,
+        creator: publicKey.toBase58(),
+        deploymentTxHash: signature,
+      });
+
+      toast.success(`${route.tokenType} Route deployed successfully! Signature: ${signature.slice(0, 8)}...`, { id: 'deploy' });
+      
+      // Refresh the routes list
+      refetch();
+
+    } catch (error) {
+      console.error(`${route.tokenType} Route deployment failed:`, error);
+      toast.error(`${route.tokenType} Route deployment failed: ${error instanceof Error ? error.message : 'Unknown error'}`, { id: 'deploy' });
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const statusColors = {
+      draft: 'bg-gray-100 text-gray-800',
+      deploying: 'bg-yellow-100 text-yellow-800',
+      deployed: 'bg-green-100 text-green-800',
+      failed: 'bg-red-100 text-red-800',
+    };
+    
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[status as keyof typeof statusColors] || statusColors.draft}`}>
+        {status.charAt(0).toUpperCase() + status.slice(1)}
+      </span>
+    );
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  if (!publicKey) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-gray-500">Please connect your wallet to view your routes.</div>
+      </div>
+    );
+  }
+
+  if (showRouteDetail && selectedRouteId !== null) {
+    const selectedRoute = routes.find(r => r.id === selectedRouteId);
+    
+    // Convert database route to RouteDetailView format
+    const convertedRoute = selectedRoute ? {
+      ...selectedRoute,
+      hops: selectedRoute.hops?.map(hop => ({
+        recipient: hop.recipient,
+        scheduledAt: hop.scheduledAt, // Already a UTC ISO string
+      })) as TimestampHopInput[]
+    } : undefined;
+    
+    return (
+      <RouteDetailView 
+        route={convertedRoute} 
+        onBack={handleBackToList}
+        onRouteUpdate={refetch}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-900">Your Hops</h2>
+        <div className="text-sm text-gray-500">
+          {routes.length} route{routes.length !== 1 ? 's' : ''} found
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="text-center py-12">
+          <div className="text-gray-600">Loading your routes...</div>
+        </div>
+      ) : routes.length === 0 ? (
+        <div className="text-center py-12">
+          <div className="text-gray-500 mb-4">No routes created yet.</div>
+          <div className="text-sm text-gray-400">
+            Create your first route in the "Routes" tab to get started.
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Route
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Token
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Hop Amount
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Hops
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Created
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {routes.map((route) => (
+                  <tr key={route.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex flex-col">
+                        <div className="text-sm font-medium text-gray-900">
+                          {route.name || `Route #${route.routeId}`}
+                        </div>
+                        {route.description && (
+                          <div className="text-sm text-gray-500 truncate max-w-xs">
+                            {route.description}
+                          </div>
+                        )}
+                        <div className="text-xs text-gray-400">
+                          ID: {route.routeId}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {route.tokenType}
+                      </div>
+                      {route.tokenMint && (
+                        <div className="text-xs text-gray-500 font-mono truncate max-w-xs">
+                          {route.tokenMint}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {route.hopAmountTokens} {route.tokenType}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {Array.isArray(route.hops) ? route.hops.length : 0} hop{Array.isArray(route.hops) && route.hops.length !== 1 ? 's' : ''}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {getStatusBadge(route.status)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(route.createdAt)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex justify-end space-x-2">
+                        <button
+                          onClick={() => handleViewRoute(route.id)}
+                          className="text-blue-600 hover:text-blue-900 px-3 py-1 rounded border border-blue-200 hover:bg-blue-50 transition-colors"
+                        >
+                          View Route
+                        </button>
+                        {route.canDeploy && (
+                          <button
+                            onClick={() => handleDeploy(route)}
+                            className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded transition-colors"
+                          >
+                            Deploy
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}; 

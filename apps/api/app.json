@@ -1,0 +1,40 @@
+{
+  "name": "multihopper-api",
+  "description": "MultiHopper API with scheduler and indexer workers",
+  "repository": "https://github.com/your-username/multihopper",
+  "keywords": ["node", "trpc", "solana", "api"],
+  "success_url": "/health",
+  "env": {
+    "NODE_ENV": {
+      "description": "Node environment",
+      "value": "production"
+    },
+    "PORT": {
+      "description": "Port for the web server",
+      "value": "3001"
+    },
+    "HOST": {
+      "description": "Host for the web server",
+      "value": "0.0.0.0"
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
+    },
+    "scheduler": {
+      "quantity": 1,
+      "size": "basic"
+    },
+    "indexer": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    }
+  ]
+} 

@@ -1,0 +1,1 @@
+export { SolanaWalletManager, type SolanaWalletManagerConfig } from './solana-wallet-manager';
