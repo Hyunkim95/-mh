@@ -1,6 +1,6 @@
 build:
   docker:
-    web: apps/api/Dockerfile
+    web: Dockerfile
 setup:
   addons:
     - plan: heroku-postgresql:essential-0
