@@ -15,7 +15,8 @@ COPY libs/etl/package.json ./libs/etl/
 COPY libs/solana-client/package.json ./libs/solana-client/
 COPY libs/solana-node/package.json ./libs/solana-node/
 
-# Install dependencies
+# Enable Corepack and install dependencies
+RUN corepack enable
 RUN yarn install --frozen-lockfile
 
 # Copy source code
@@ -44,7 +45,8 @@ COPY libs/etl/package.json ./libs/etl/
 COPY libs/solana-client/package.json ./libs/solana-client/
 COPY libs/solana-node/package.json ./libs/solana-node/
 
-# Install only production dependencies
+# Enable Corepack and install only production dependencies
+RUN corepack enable
 RUN yarn install --frozen-lockfile --production
 
 # Copy built application
