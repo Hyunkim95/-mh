@@ -40,7 +40,10 @@
       "Bash(docker logs:*)",
       "Bash(grep:*)",
       "Bash(npm run:*)",
-      "Bash(yarn:*)"
+      "Bash(yarn:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []
