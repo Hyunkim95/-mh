@@ -11,8 +11,8 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@libs/crypto-utils": "*",
-    "@libs/etl": "*",
+    "@libs/crypto-utils": "workspace:*",
+    "@libs/etl": "workspace:*",
     "@metaplex-foundation/mpl-token-metadata": "^3.2.1",
     "@metaplex-foundation/umi": "^0.9.2",
     "@metaplex-foundation/umi-bundle-defaults": "^0.9.2",

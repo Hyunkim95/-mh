@@ -54,9 +54,8 @@ COPY libs/etl/package.json ./libs/etl/
 COPY libs/solana-client/package.json ./libs/solana-client/
 COPY libs/solana-node/package.json ./libs/solana-node/
 
-# Enable Corepack and install only production dependencies
-RUN corepack enable
-RUN yarn workspaces focus --production
+# Copy built node_modules from builder stage (includes all compiled native modules)
+COPY --from=builder /app/node_modules ./node_modules
 
 # Copy built application
 COPY --from=builder /app/apps/api/dist ./apps/api/dist

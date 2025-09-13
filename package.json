@@ -30,6 +30,7 @@
     "docker:logs:dev": "docker-compose -f docker-compose.dev.yml logs -f"
   },
   "devDependencies": {
-    "@types/lodash": "^4.17.20"
+    "@types/lodash": "^4.17.20",
+    "turbo": "^2.5.5"
   }
 }
