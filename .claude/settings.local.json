@@ -43,7 +43,9 @@
       "Bash(yarn:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(rm:*)",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": []
