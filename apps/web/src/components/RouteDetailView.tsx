@@ -3,7 +3,7 @@ import { trpc } from '../lib/trpc';
 import { ExecutorWallet } from './ExecutorWallet';
 import { useTriggerHop } from '../hooks';
 import { PublicKey } from '@solana/web3.js';
-import toast from 'react-hot-toast';
+
 import { useDeploy } from '../hooks/useDeploy';
 import { convertTimestampHopsToIHopInput, TimestampHopInput } from '../types/route';
 import { TimezoneAwareDateDisplay } from './TimezoneAwareDatePicker';
@@ -32,11 +32,12 @@ interface Route {
 interface RouteDetailViewProps {
   route?: Route;
   onBack: () => void;
+  onRouteUpdate?: () => void; // Callback to refresh route data in parent
 }
 
 const NATIVE_MINT = new PublicKey('So11111111111111111111111111111111111111112');
 
-export const RouteDetailView: React.FC<RouteDetailViewProps> = ({ route, onBack }) => {
+export const RouteDetailView: React.FC<RouteDetailViewProps> = ({ route, onBack, onRouteUpdate }) => {
   const [queryEnabled, setQueryEnabled] = useState<boolean>(false);
   const { deploy } = useDeploy();
 
@@ -95,20 +96,26 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({ route, onBack 
   const handleDeploy = async () => {
     if (!route || !route.hops) return;    
     try {
-      toast.success(`Deploying route ${route.routeId}... (Implementation pending)`);
-      
       // Convert timestamp-based hops to IHopInput format
       const convertedHops = convertTimestampHopsToIHopInput(route.hops);
       
       await deploy({
-        routeId: route.routeId,
+        routeId: route.routeId, // Contract route ID
+        databaseId: route.id, // Database primary key ID
         routes: convertedHops,
-        hopAmount: route.hopAmountTokens,
+        hopAmount: route.hopAmountRaw, // Use raw amount for contract
         splMint: route.tokenMint || NATIVE_MINT.toBase58(),
       }, route.tokenType === 'SPL' ? 'SPL' : 'SOL');
+      
+      // Refresh the route data after successful deployment
+      setTimeout(() => {
+        routeStateQuery.refetch();
+        routeConfigQuery.refetch();
+        onRouteUpdate?.(); // Refresh parent route list
+      }, 1000);
     } catch (error) {
       console.error('Deploy failed:', error);
-      toast.error(`Deploy failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Error handling is now done in the useDeploy hook
     }
   };
 

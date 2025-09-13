@@ -19,9 +19,6 @@ import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { BN } from '@coral-xyz/anchor';
 import executorService from '../executors/executor.service';
 
-// Program IDs
-const MULTI_HOPPER_PROGRAM_ID = new PublicKey("DzM2xPUErizCjWTHyWTFqWtSgVazcfFVAGiehoRsG8os");
-
 // Input validation schemas
 const publicKeySchema = z.string().min(32).max(44).regex(/^[A-Za-z0-9]+$/, 'Invalid public key format');
 
@@ -125,15 +122,6 @@ const parseHops = (hops: z.infer<typeof hopSchema>[]) => {
     recipient: new PublicKey(hop.recipient),
     delaySeconds: new BN(hop.delaySeconds),
   }));
-};
-
-// Helper to get connection and params
-const getConnectionParams = (payer: PublicKey) => {
-  return {
-    connection: new Connection(clusterApiUrl('devnet'), 'finalized'),
-    payer,
-    programId: MULTI_HOPPER_PROGRAM_ID,
-  };
 };
 
 export const contractRouter = router({

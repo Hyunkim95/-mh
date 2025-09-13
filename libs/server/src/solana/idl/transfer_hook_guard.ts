@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/transfer_hook_guard.json`.
  */
 export type TransferHookGuard = {
-  "address": "3umtenQVHLfffxpGsSrcAJL15oVpfhHzjbhNVtqiLn5s",
+  "address": "8Gova8GuLtLGZtvP9cVMbDBUoqb8wKG8trXno6rwAoG6",
   "metadata": {
     "name": "transferHookGuard",
     "version": "0.1.0",

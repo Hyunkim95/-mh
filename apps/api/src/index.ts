@@ -1,8 +1,9 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { fastifyTRPCPlugin } from '@trpc/server/adapters/fastify';
-import { appRouter, createContext } from '@trpc-template/server';
+import { appRouter, createContext, hopsSchedulerService, dualDirectionContractEventsService } from '@trpc-template/server';
 import './types'; // Import Fastify type extensions
+import { env } from './env';
 
 const server = Fastify({
   maxParamLength: 5000,
@@ -50,4 +51,15 @@ const start = async () => {
   }
 };
 
+if (env.NODE_ENV === 'development' || env.SCHEDULER_ENABLED === 'true') {
+  console.log('Starting hops scheduler service');
+  hopsSchedulerService.triggerHopJob.start();
+}
+
+if (env.NODE_ENV === 'development' || env.DUAL_DIRECTION_ENABLED === 'true') {
+  console.log('Starting dual direction contract events service');
+  dualDirectionContractEventsService.initialize();
+}
+
 start();
+

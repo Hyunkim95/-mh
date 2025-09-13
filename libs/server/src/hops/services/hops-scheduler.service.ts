@@ -17,7 +17,7 @@ interface HopExecutionAttempt {
 // Track failed hop execution attempts
 const failedHops = new Map<number, HopExecutionAttempt>();
 const MAX_RETRY_ATTEMPTS = 3;
-const RETRY_COOLDOWN_MINUTES = 15; // Wait 15 minutes before retrying
+const RETRY_COOLDOWN_MINUTES = 5; // Wait 5 minutes before retrying
 
 // Main cron job to scan and trigger ready hops
 // run every 10 seconds
@@ -212,6 +212,3 @@ export const hopsSchedulerService = {
     retryFailedHop,
     verifyHopIndexSync,
 }
-
-console.log('Starting hops scheduler service');
-triggerHopJob.start();

@@ -2,24 +2,26 @@ import './App.css';
 import { trpc } from './lib/trpc';
 import { TokenConfigForm } from './components/TokenConfigForm';
 import { RouteCreateForm } from './components/RouteCreateForm';
-import { RouteViewer } from './components/RouteViewer';
 import { HopsTab } from './components/HopsTab';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { Transaction } from '@solana/web3.js';
 import { WalletButton } from '@libs/solana-client';
 import { useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
+import { useQueryClient } from '@tanstack/react-query';
 
 // const NATIVE_MINT = new PublicKey("So11111111111111111111111111111111111111112");
 
 function App() {
+  const { publicKey } = useWallet();
   const initializeTokenConfig = trpc.contract.initializeTokenConfig.useMutation();
   const initializeTokenConfigSOL = trpc.contract.initializeTokenConfigSOL.useMutation();
   const initializeRoute = trpc.contract.initializeRoute.useMutation();
   const initializeRouteSOL = trpc.contract.initializeRouteSOL.useMutation();
   const createRoute = trpc.routes.create.useMutation();
+  const queryClient = useQueryClient();
 
-  const { sendTransaction, publicKey } = useWallet();
+  const { sendTransaction } = useWallet();
   const { connection } = useConnection();
   const [splMint, setSplMint] = useState('');
   const [activeTab, setActiveTab] = useState<'token-config' | 'routes' | 'hops'>('token-config');
@@ -50,6 +52,7 @@ function App() {
       });
 
       toast.success(`${type} Route created successfully!`);
+      await queryClient.invalidateQueries({ queryKey: ['routes.getByCreator', { creator: publicKey?.toBase58() ?? '' }] });
     } catch (error) {
       console.error(`${type} Route creation failed:`, error);
       toast.error(`${type} Route creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -250,8 +253,6 @@ function App() {
               error={initializeRouteSOL.error?.message}
             />
           </div>
-
-          <RouteViewer />
         </div>
       )}
 

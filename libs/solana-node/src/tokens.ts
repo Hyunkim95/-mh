@@ -1,6 +1,18 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { getAccount, getAssociatedTokenAddress } from '@solana/spl-token';
 
+// Re-export metadata functions for convenience
+export {
+  fetchTokenMetadata,
+  fetchTokenInfo,
+  fetchOnChainMetadata,
+  hasTokenMetadata,
+  batchFetchTokenMetadata,
+  batchFetchTokenInfo,
+  type TokenMetadata,
+  type TokenInfo
+} from './token-metadata';
+
 /**
  * Get token account balance
  */

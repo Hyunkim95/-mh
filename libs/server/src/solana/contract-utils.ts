@@ -6,7 +6,7 @@ import * as IDLJson from './idl/multi_hopper_project.json';
 const IDL = IDLJson as any;
 
 // Program ID - should match the one in contract.service.ts
-const MULTI_HOPPER_PROGRAM_ID = new PublicKey("DzM2xPUErizCjWTHyWTFqWtSgVazcfFVAGiehoRsG8os");
+const MULTI_HOPPER_PROGRAM_ID = new PublicKey(IDLJson.address);
 
 export interface SolanaInstructionParams {
     connection: Connection;

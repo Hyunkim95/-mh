@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/multi_hopper_project.json`.
  */
 export type MultiHopperProject = {
-  "address": "DzM2xPUErizCjWTHyWTFqWtSgVazcfFVAGiehoRsG8os",
+  "address": "6KyZCYGjwHQnU5KXmVAZaxW5VgA2jstiYpDzZLBvqc4X",
   "metadata": {
     "name": "multiHopperProject",
     "version": "0.1.0",
@@ -77,14 +77,6 @@ export type MultiHopperProject = {
                 ]
               },
               {
-                "kind": "account",
-                "path": "creator"
-              },
-              {
-                "kind": "account",
-                "path": "tokenConfig"
-              },
-              {
                 "kind": "arg",
                 "path": "routeId"
               }
@@ -107,8 +99,8 @@ export type MultiHopperProject = {
                 ]
               },
               {
-                "kind": "account",
-                "path": "routeConfig"
+                "kind": "arg",
+                "path": "routeId"
               }
             ]
           }
@@ -312,14 +304,6 @@ export type MultiHopperProject = {
                 ]
               },
               {
-                "kind": "account",
-                "path": "creator"
-              },
-              {
-                "kind": "account",
-                "path": "tokenConfig"
-              },
-              {
                 "kind": "arg",
                 "path": "routeId"
               }
@@ -342,8 +326,8 @@ export type MultiHopperProject = {
                 ]
               },
               {
-                "kind": "account",
-                "path": "routeConfig"
+                "kind": "arg",
+                "path": "routeId"
               }
             ]
           }
@@ -458,10 +442,6 @@ export type MultiHopperProject = {
                   0,
                   1
                 ]
-              },
-              {
-                "kind": "account",
-                "path": "creator"
               }
             ]
           }
@@ -588,6 +568,18 @@ export type MultiHopperProject = {
         {
           "name": "flatFeeLamports",
           "type": "u64"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "symbol",
+          "type": "string"
+        },
+        {
+          "name": "uri",
+          "type": "string"
         }
       ]
     },
@@ -634,10 +626,6 @@ export type MultiHopperProject = {
               {
                 "kind": "account",
                 "path": "tokenMint"
-              },
-              {
-                "kind": "account",
-                "path": "creator"
               }
             ]
           }
@@ -837,6 +825,18 @@ export type MultiHopperProject = {
         {
           "name": "flatFeeLamports",
           "type": "u64"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "symbol",
+          "type": "string"
+        },
+        {
+          "name": "uri",
+          "type": "string"
         }
       ]
     },
@@ -1126,6 +1126,10 @@ export type MultiHopperProject = {
           "writable": true
         },
         {
+          "name": "to",
+          "writable": true
+        },
+        {
           "name": "originalTo",
           "writable": true,
           "pda": {
@@ -1297,6 +1301,18 @@ export type MultiHopperProject = {
           }
         },
         {
+          "name": "routeConfig",
+          "docs": [
+            "Route config for access control"
+          ]
+        },
+        {
+          "name": "routeState",
+          "docs": [
+            "Route state for access control"
+          ]
+        },
+        {
           "name": "tokenProgram"
         },
         {
@@ -1405,6 +1421,10 @@ export type MultiHopperProject = {
           "writable": true
         },
         {
+          "name": "to",
+          "writable": true
+        },
+        {
           "name": "permanentDelegate",
           "pda": {
             "seeds": [
@@ -1454,6 +1474,18 @@ export type MultiHopperProject = {
               }
             ]
           }
+        },
+        {
+          "name": "routeConfig",
+          "docs": [
+            "Route config for access control"
+          ]
+        },
+        {
+          "name": "routeState",
+          "docs": [
+            "Route state for access control"
+          ]
         },
         {
           "name": "token2022Program",
@@ -2090,6 +2122,11 @@ export type MultiHopperProject = {
       "code": 6015,
       "name": "depositMismatch",
       "msg": "Deposit amount doesn't match sum of hops plus fees"
+    },
+    {
+      "code": 6016,
+      "name": "unauthorizedUnwrap",
+      "msg": "Unauthorized unwrap: only route owner or after last hop"
     }
   ],
   "types": [

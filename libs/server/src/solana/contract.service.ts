@@ -7,6 +7,7 @@ import * as IDLJson from "./idl/multi_hopper_project.json";
 import * as GuardIDLJson from "./idl/transfer_hook_guard.json";
 import bs58 from "bs58";
 import executorService from "../executors/executor.service";
+import { fetchTokenMetadata } from "@libs/solana-node";
 
 const solToLamports = (sol: number) => {
     return sol * LAMPORTS_PER_SOL;
@@ -15,8 +16,8 @@ const IDL = IDLJson as any;
 const GUARD_IDL = GuardIDLJson as any;
 
 // Program IDs
-const MULTI_HOPPER_PROGRAM_ID = new PublicKey("DzM2xPUErizCjWTHyWTFqWtSgVazcfFVAGiehoRsG8os");
-const TRANSFER_HOOK_GUARD_PROGRAM_ID = new PublicKey("3umtenQVHLfffxpGsSrcAJL15oVpfhHzjbhNVtqiLn5s");
+const MULTI_HOPPER_PROGRAM_ID = new PublicKey(IDLJson.address);
+const TRANSFER_HOOK_GUARD_PROGRAM_ID = new PublicKey(GuardIDLJson.address);
 
 interface TokenConfig {
     minTransfer: BN;
@@ -83,6 +84,12 @@ const initializeTokenConfig = async (
     const vaultAuthority = await getVaultAuthority(tokenMint);
     const vault = await getVault(vaultAuthority, tokenMint);
     
+    // Try to get original URI first - if token already has metadata, reuse it
+    const offchainMetadata = await fetchTokenMetadata(params.connection, tokenMint);
+    const uri = offchainMetadata?.uri || '';
+    const name = offchainMetadata?.name || 'SPL Token';
+    const symbol = offchainMetadata?.symbol || 'SPL';
+
     return await program.methods
         .initializeTokenConfig(
             tokenConfig.minTransfer,
@@ -91,7 +98,10 @@ const initializeTokenConfig = async (
             tokenConfig.maxHops.toNumber(),
             tokenConfig.maxDelaySeconds,
             tokenConfig.timelockSeconds,
-            tokenConfig.flatFeeLamports
+            tokenConfig.flatFeeLamports,
+            name,
+            symbol,
+            uri
         )
         .accountsPartial({
             creator: payer,
@@ -127,16 +137,11 @@ const initializeTokenConfigSol = async (
     const permanentDelegate = await getPermanentDelegate(wsolMint.publicKey);
     const solVault = await getSolVault(payer);
 
-    console.log(
-        tokenConfig.minTransfer,
-        tokenConfig.feeBps,
-        tokenConfig.feeTreasury,
-        tokenConfig.maxHops,
-        tokenConfig.maxDelaySeconds,
-        tokenConfig.timelockSeconds,
-        tokenConfig.flatFeeLamports
-    )
-    
+    // todo: find hardcoded values or upload it to ipfs ourselves
+    const name = 'Wrapped SOL';
+    const symbol = 'wSOL';
+    const uri = "";
+
     return await program.methods
         .initializeSolTokenConfig(
             tokenConfig.minTransfer,
@@ -145,7 +150,10 @@ const initializeTokenConfigSol = async (
             tokenConfig.maxHops.toNumber(),
             tokenConfig.maxDelaySeconds,
             tokenConfig.timelockSeconds,
-            tokenConfig.flatFeeLamports
+            tokenConfig.flatFeeLamports,
+            name,
+            symbol,
+            uri
         )
         .accountsPartial({
             creator: payer,
@@ -314,12 +322,14 @@ export const unwrap = async (
     tokenConfigPda: PublicKey,
     originalMint: PublicKey,
     pairMint: PublicKey,
-    amount: BN
+    amount: BN,
+    routeId: BN
 ) => {
     const program = buildProgram(params);
     const vaultAuthority = await getVaultAuthority(originalMint);
     const permanentDelegate = await getPermanentDelegate(pairMint);
-    
+    const routeConfigPda = await getRouteConfigPda(routeId);
+    const routeStatePda = await getRouteStatePda(routeId);
     // These need to be PDAs according to the IDL, not standard associated token accounts
     const [pairFrom] = PublicKey.findProgramAddressSync(
         [recipient.toBuffer(), TOKEN_2022_PROGRAM_ID.toBuffer(), pairMint.toBuffer()],
@@ -346,7 +356,10 @@ export const unwrap = async (
             pairFrom,
             from: recipient,
             originalTo,
+            to: recipient,
             vault,
+            routeConfig: routeConfigPda,
+            routeState: routeStatePda,
             vaultAuth: vaultAuthority,
             permanentDelegate,
             tokenProgram: TOKEN_2022_PROGRAM_ID,
@@ -365,14 +378,16 @@ export const unwrapSol = async (
     recipient: PublicKey,
     tokenConfigPda: PublicKey,
     wsolMint: PublicKey,
-    amount: BN
+    amount: BN,
+    routeId: BN
 ) => {
     const program = buildProgram(params);
     const permanentDelegate = await getPermanentDelegate(wsolMint);
     const tokenConfigAccount = await program.account.tokenConfig.fetch(tokenConfigPda);
     const solVault = await getSolVault(tokenConfigAccount.creator);
     const wsolFrom = await getAssociatedTokenAddress(wsolMint, recipient, false, TOKEN_2022_PROGRAM_ID);
-    
+    const routeConfigPda = await getRouteConfigPda(routeId);
+    const routeStatePda = await getRouteStatePda(routeId);
     return await program.methods
         .unwrapSol(amount)
         .accountsPartial({
@@ -381,6 +396,9 @@ export const unwrapSol = async (
             wsolMint,
             wsolFrom,
             from: recipient,
+            to: recipient,
+            routeConfig: routeConfigPda,
+            routeState: routeStatePda,
             permanentDelegate,
             solVault,
             token2022Program: TOKEN_2022_PROGRAM_ID,
@@ -732,6 +750,7 @@ export const initializeCompleteTokenConfig = async (
     tokenConfig: TokenConfig
 ) => {
     const transaction = new Transaction();
+
     
     // First initialize the token config
     const tokenConfigIx = await initializeTokenConfig(payer, tokenMint, tokenPairMint, tokenConfig);
@@ -742,7 +761,6 @@ export const initializeCompleteTokenConfig = async (
     // Then initialize the guard for the token pair mint
     const guardIx = await initGuard(payer, tokenPairMint.publicKey, permanentDelegate);
     transaction.add(guardIx);
-
 
     return { transaction, tokenPairMint };
 };
@@ -769,6 +787,7 @@ export const initializeCompleteSolTokenConfig = async (
     const guardIx = await initGuardSol(payer, wsolMint.publicKey, permanentDelegate);
     transaction.add(guardIx);
     console.log('Guard ix added');
+
     console.log('Wsol mint', wsolMint.publicKey.toBase58());
 
     return { transaction, wsolMint };
@@ -810,10 +829,25 @@ const executeHop = async (
     if(isLastHop) {
         const recipient = new PublicKey(currentHop.recipient);
         if (tokenConfigAccount.tokenMint.toBase58() === NATIVE_MINT.toBase58()) {
-            let unwrapIx = await unwrapSol(executorWallet.publicKey, recipient, tokenConfigPda, tokenConfigAccount.pairAddress, routeConfigAccount.hopAmount);
+            let unwrapIx = await unwrapSol(
+                executorWallet.publicKey, 
+                recipient, 
+                tokenConfigPda, 
+                tokenConfigAccount.pairAddress, 
+                routeConfigAccount.hopAmount,
+                routeId
+            );
             transaction.add(unwrapIx);
         } else {
-            let unwrapIx = await unwrap(executorWallet.publicKey, recipient, tokenConfigPda, tokenConfigAccount.tokenMint, tokenConfigAccount.pairAddress, routeConfigAccount.hopAmount);
+            let unwrapIx = await unwrap(
+                executorWallet.publicKey, 
+                recipient, 
+                tokenConfigPda, 
+                tokenConfigAccount.tokenMint, 
+                tokenConfigAccount.pairAddress, 
+                routeConfigAccount.hopAmount,
+                routeId
+            );
             transaction.add(unwrapIx);
         }
     }

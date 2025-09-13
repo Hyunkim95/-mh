@@ -1,5 +1,5 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, and, isNull, inArray } from 'drizzle-orm';
+import { eq, and, isNull, inArray, gt } from 'drizzle-orm';
 import { PublicKey } from '@solana/web3.js';
 import { 
   contractEvents, 
@@ -188,47 +188,52 @@ export class ContractEventProcessor {
         })
         .where(eq(routesSchema.id, routeRecord.id));
 
-      // DYNAMIC SCHEDULING: Update next hop's scheduledAt based on actual execution time
+      // DYNAMIC SCHEDULING: Update all subsequent hops' scheduledAt based on actual execution time
       // This ensures that if a hop executes late (due to failures, retries, etc.), 
-      // the subsequent hop is rescheduled appropriately to maintain the original delay
-      const nextHopIndex = eventData.hopIndex + 1;
+      // all subsequent hops are rescheduled appropriately to maintain the original delays
       
-      // Get the next hop in the sequence (if it exists and hasn't been executed yet)
-      const nextHop = await tx
+      // DYNAMIC SCHEDULING: Get all subsequent hops that haven't been executed yet
+      const allSubsequentHops = await tx
         .select()
         .from(hopsSchema)
         .where(and(
           eq(hopsSchema.routeId, routeRecord.id),
-          eq(hopsSchema.hopIndex, nextHopIndex),
+          gt(hopsSchema.hopIndex, eventData.hopIndex), // All hops after the current one
           isNull(hopsSchema.executedAt) // Only update if not already executed
         ))
-        .limit(1);
+        .orderBy(hopsSchema.hopIndex);
 
-      if (nextHop.length > 0) {
-        // Calculate the original delay between current and next hop
+      if (allSubsequentHops.length > 0) {
+        // Calculate the time shift: difference between actual and originally scheduled execution
         const currentHopOriginalScheduledAt = hop[0].scheduledAt;
-        const nextHopOriginalScheduledAt = nextHop[0].scheduledAt;
-        const originalDelayMs = nextHopOriginalScheduledAt.getTime() - currentHopOriginalScheduledAt.getTime();
+        const timeShiftMs = executionTime.getTime() - currentHopOriginalScheduledAt.getTime();
 
-        // Safety check: only reschedule if the original delay was positive
-        if (originalDelayMs >= 0) {
-          // Calculate new scheduled time: actual execution time + original delay
-          const newNextHopScheduledAt = new Date(executionTime.getTime() + originalDelayMs);
+        console.log(`Dynamic scheduling: Time shift detected: ${timeShiftMs}ms (executed at ${executionTime.toISOString()}, originally scheduled at ${currentHopOriginalScheduledAt.toISOString()})`);
 
-          // Only update if the new time is different (avoid unnecessary updates)
-          if (Math.abs(newNextHopScheduledAt.getTime() - nextHopOriginalScheduledAt.getTime()) > 1000) { // 1 second threshold
+        // Update all subsequent hops by applying the same time shift
+
+        let updatedCount = 0;
+        for (const subsequentHop of allSubsequentHops) {
+          // Apply the same time shift to each subsequent hop
+          const newScheduledAt = new Date(subsequentHop.scheduledAt.getTime() + timeShiftMs);
+
+          // Only update if the time shift is significant (more than 1 second)
+          if (Math.abs(timeShiftMs) > 1000) {
             await tx
               .update(hopsSchema)
               .set({
-                scheduledAt: newNextHopScheduledAt,
+                scheduledAt: newScheduledAt,
                 updatedAt: new Date(),
               })
-              .where(eq(hopsSchema.id, nextHop[0].id));
+              .where(eq(hopsSchema.id, subsequentHop.id));
 
-            console.log(`Dynamic scheduling: Updated next hop (${nextHopIndex}) scheduledAt from ${nextHopOriginalScheduledAt.toISOString()} to ${newNextHopScheduledAt.toISOString()} (delay: ${originalDelayMs}ms)`);
+            console.log(`Dynamic scheduling: Updated hop ${subsequentHop.hopIndex} scheduledAt from ${subsequentHop.scheduledAt.toISOString()} to ${newScheduledAt.toISOString()}`);
+            updatedCount++;
           }
-        } else {
-          console.warn(`Negative delay detected between hop ${eventData.hopIndex} and ${nextHopIndex}: ${originalDelayMs}ms`);
+        }
+
+        if (updatedCount > 0) {
+          console.log(`Dynamic scheduling: Updated ${updatedCount} subsequent hops with time shift of ${timeShiftMs}ms`);
         }
       }
 

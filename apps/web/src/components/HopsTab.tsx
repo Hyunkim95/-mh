@@ -187,6 +187,7 @@ export const HopsTab: React.FC = () => {
       <RouteDetailView 
         route={convertedRoute} 
         onBack={handleBackToList}
+        onRouteUpdate={refetch}
       />
     );
   }

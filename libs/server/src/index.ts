@@ -6,12 +6,6 @@ import { routesRouter } from './routers/routes.router';
 import { dualContractEventsRouter } from './routers/dual-contract-events.router';
 import dualDirectionContractEventsService from './solana/dual-direction-contract-events.service';
 
-// Initialize dual direction contract events service
-dualDirectionContractEventsService.initialize().catch((error) => {
-  console.error('Failed to initialize dual direction contract events service:', error);
-  // Don't exit the process, just log the error
-});
-
 export const appRouter = router({
   hello: helloRouter,
   auth: authRouter,

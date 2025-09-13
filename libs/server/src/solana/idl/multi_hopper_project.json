@@ -1,5 +1,5 @@
 {
-  "address": "DzM2xPUErizCjWTHyWTFqWtSgVazcfFVAGiehoRsG8os",
+  "address": "6KyZCYGjwHQnU5KXmVAZaxW5VgA2jstiYpDzZLBvqc4X",
   "metadata": {
     "name": "multi_hopper_project",
     "version": "0.1.0",
@@ -71,14 +71,6 @@
                 ]
               },
               {
-                "kind": "account",
-                "path": "creator"
-              },
-              {
-                "kind": "account",
-                "path": "token_config"
-              },
-              {
                 "kind": "arg",
                 "path": "route_id"
               }
@@ -101,8 +93,8 @@
                 ]
               },
               {
-                "kind": "account",
-                "path": "route_config"
+                "kind": "arg",
+                "path": "route_id"
               }
             ]
           }
@@ -306,14 +298,6 @@
                 ]
               },
               {
-                "kind": "account",
-                "path": "creator"
-              },
-              {
-                "kind": "account",
-                "path": "token_config"
-              },
-              {
                 "kind": "arg",
                 "path": "route_id"
               }
@@ -336,8 +320,8 @@
                 ]
               },
               {
-                "kind": "account",
-                "path": "route_config"
+                "kind": "arg",
+                "path": "route_id"
               }
             ]
           }
@@ -452,10 +436,6 @@
                   0,
                   1
                 ]
-              },
-              {
-                "kind": "account",
-                "path": "creator"
               }
             ]
           }
@@ -582,6 +562,18 @@
         {
           "name": "flat_fee_lamports",
           "type": "u64"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "symbol",
+          "type": "string"
+        },
+        {
+          "name": "uri",
+          "type": "string"
         }
       ]
     },
@@ -628,10 +620,6 @@
               {
                 "kind": "account",
                 "path": "token_mint"
-              },
-              {
-                "kind": "account",
-                "path": "creator"
               }
             ]
           }
@@ -831,6 +819,18 @@
         {
           "name": "flat_fee_lamports",
           "type": "u64"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "symbol",
+          "type": "string"
+        },
+        {
+          "name": "uri",
+          "type": "string"
         }
       ]
     },
@@ -1120,6 +1120,10 @@
           "writable": true
         },
         {
+          "name": "to",
+          "writable": true
+        },
+        {
           "name": "original_to",
           "writable": true,
           "pda": {
@@ -1291,6 +1295,18 @@
           }
         },
         {
+          "name": "route_config",
+          "docs": [
+            "Route config for access control"
+          ]
+        },
+        {
+          "name": "route_state",
+          "docs": [
+            "Route state for access control"
+          ]
+        },
+        {
           "name": "token_program"
         },
         {
@@ -1399,6 +1415,10 @@
           "writable": true
         },
         {
+          "name": "to",
+          "writable": true
+        },
+        {
           "name": "permanent_delegate",
           "pda": {
             "seeds": [
@@ -1448,6 +1468,18 @@
               }
             ]
           }
+        },
+        {
+          "name": "route_config",
+          "docs": [
+            "Route config for access control"
+          ]
+        },
+        {
+          "name": "route_state",
+          "docs": [
+            "Route state for access control"
+          ]
         },
         {
           "name": "token_2022_program",
@@ -2084,6 +2116,11 @@
       "code": 6015,
       "name": "DepositMismatch",
       "msg": "Deposit amount doesn't match sum of hops plus fees"
+    },
+    {
+      "code": 6016,
+      "name": "UnauthorizedUnwrap",
+      "msg": "Unauthorized unwrap: only route owner or after last hop"
     }
   ],
   "types": [

@@ -290,5 +290,3 @@ process.on('SIGINT', async () => {
 });
 
 export default dualDirectionContractEventsService; 
-
-// dualDirectionContractEventsService.initialize();
