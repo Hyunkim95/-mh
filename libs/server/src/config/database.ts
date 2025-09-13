@@ -14,5 +14,6 @@ export const DATABASE_CONFIG = {
   getConnectionOptions: () => ({
     synchronize: DATABASE_CONFIG.isDevelopment(),
     logging: DATABASE_CONFIG.isDevelopment(),
+    ssl: DATABASE_CONFIG.isDevelopment() ? false : true,
   }),
 };

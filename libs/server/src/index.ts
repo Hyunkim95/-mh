@@ -1,3 +1,6 @@
+import { config } from 'dotenv';
+config();
+
 import { router } from './trpc';
 import { helloRouter } from './routers/hello';
 import { authRouter } from './auth/routers/auth.router';
@@ -5,6 +8,7 @@ import { contractRouter } from './routers/contract.router';
 import { routesRouter } from './routers/routes.router';
 import { dualContractEventsRouter } from './routers/dual-contract-events.router';
 import dualDirectionContractEventsService from './solana/dual-direction-contract-events.service';
+
 
 export const appRouter = router({
   hello: helloRouter,
