@@ -4414,7 +4414,7 @@ __metadata:
 
 "@trpc-template/server@file:../server::locator=%40trpc-template%2Fshared%40workspace%3Alibs%2Fshared":
   version: 1.0.0
-  resolution: "@trpc-template/server@file:../server#../server::hash=400d1b&locator=%40trpc-template%2Fshared%40workspace%3Alibs%2Fshared"
+  resolution: "@trpc-template/server@file:../server#../server::hash=b04abb&locator=%40trpc-template%2Fshared%40workspace%3Alibs%2Fshared"
   dependencies:
     "@coral-xyz/anchor": "npm:^0.31.1"
     "@libs/crypto-utils": "npm:*"
@@ -4430,7 +4430,7 @@ __metadata:
     jsonwebtoken: "npm:^9.0.2"
     pg: "npm:^8.11.3"
     zod: "npm:^3.22.4"
-  checksum: 10c0/242ce483b0a5258309dc775b305abbf1ceb7f820e4e5ae909a797bb12b98f62fbd85f443105d7b4653f5914bfd2942c1cd24e2724459d13408a1ab20d5760583
+  checksum: 10c0/f64cdf11c6e0cef3df93499c58983efc8c63185ce097bd08cd93c5a7198bc6695e2c16ba47dd4f78848c031c41530b540fecf9c745ed08610f454e64072565cf
   languageName: node
   linkType: hard
 
