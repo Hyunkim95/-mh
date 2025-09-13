@@ -1,3 +1,3 @@
-web: yarn start
-scheduler: SCHEDULER_ENABLED=true yarn start
-indexer: DUAL_DIRECTION_ENABLED=true yarn start 
+web: node dist/index.js
+scheduler: SCHEDULER_ENABLED=true node dist/index.js
+indexer: DUAL_DIRECTION_ENABLED=true node dist/index.js 
