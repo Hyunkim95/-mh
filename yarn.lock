@@ -4397,14 +4397,19 @@ __metadata:
   resolution: "@trpc-template/root@workspace:."
   dependencies:
     "@trpc/server": "npm:^10.45.2"
+    "@types/fastestsmallesttextencoderdecoder": "npm:^1"
     "@types/lodash": "npm:^4.17.20"
     "@types/moment-timezone": "npm:^0.5.30"
+    "@types/ws": "npm:^8"
+    bs58: "npm:^6.0.0"
     cron: "npm:^4.3.3"
+    fastestsmallesttextencoderdecoder: "npm:^1.0.22"
     lodash: "npm:^4.17.21"
     moment-timezone: "npm:^0.6.0"
     react: "npm:^18.2.0"
     react-dom: "npm:^18.2.0"
     turbo: "npm:^2.5.5"
+    ws: "npm:^8.18.3"
   languageName: unknown
   linkType: soft
 
@@ -4612,6 +4617,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/fastestsmallesttextencoderdecoder@npm:^1":
+  version: 1.0.2
+  resolution: "@types/fastestsmallesttextencoderdecoder@npm:1.0.2"
+  checksum: 10c0/9e2869ab546b63260ad29bea97ec00d99f273d57f2f271295b8fe23a6e46797a91614cac5c38de7b91b76e0e364e5a95a99ede3e23137610719b422dd3b64739
+  languageName: node
+  linkType: hard
+
 "@types/jsonwebtoken@npm:^9.0.3":
   version: 9.0.10
   resolution: "@types/jsonwebtoken@npm:9.0.10"
@@ -4770,7 +4782,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/ws@npm:^8.2.2":
+"@types/ws@npm:^8, @types/ws@npm:^8.2.2":
   version: 8.18.1
   resolution: "@types/ws@npm:8.18.1"
   dependencies:
@@ -8066,6 +8078,13 @@ __metadata:
   version: 3.1.0
   resolution: "fast-uri@npm:3.1.0"
   checksum: 10c0/44364adca566f70f40d1e9b772c923138d47efeac2ae9732a872baafd77061f26b097ba2f68f0892885ad177becd065520412b8ffeec34b16c99433c5b9e2de7
+  languageName: node
+  linkType: hard
+
+"fastestsmallesttextencoderdecoder@npm:^1.0.22":
+  version: 1.0.22
+  resolution: "fastestsmallesttextencoderdecoder@npm:1.0.22"
+  checksum: 10c0/ccf028cbc7f5db4a7a6feb21d81ba60e1293511b85926fcb212d1a5c3bc8e9c2d3ba590322e3589bf4ab97d1628b0f670d0fe23de7757ebda791a078adb62313
   languageName: node
   linkType: hard
 
@@ -13210,7 +13229,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ws@npm:8.18.3, ws@npm:^8.13.0, ws@npm:^8.18.0, ws@npm:^8.5.0":
+"ws@npm:8.18.3, ws@npm:^8.13.0, ws@npm:^8.18.0, ws@npm:^8.18.3, ws@npm:^8.5.0":
   version: 8.18.3
   resolution: "ws@npm:8.18.3"
   peerDependencies:

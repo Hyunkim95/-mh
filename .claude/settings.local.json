@@ -39,7 +39,8 @@
       "Bash(docker container:*)",
       "Bash(docker logs:*)",
       "Bash(grep:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(yarn:*)"
     ],
     "deny": [],
     "ask": []
