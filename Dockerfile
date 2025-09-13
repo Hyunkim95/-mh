@@ -17,7 +17,7 @@ COPY libs/solana-node/package.json ./libs/solana-node/
 
 # Enable Corepack and install dependencies
 RUN corepack enable
-RUN yarn install --immutable
+RUN yarn install
 
 # Copy source code
 COPY . .
@@ -47,7 +47,7 @@ COPY libs/solana-node/package.json ./libs/solana-node/
 
 # Enable Corepack and install only production dependencies
 RUN corepack enable
-RUN yarn install --immutable --production
+RUN yarn install --production
 
 # Copy built application
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
