@@ -4396,7 +4396,6 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@trpc-template/root@workspace:."
   dependencies:
-    "@trpc/server": "npm:^10.45.2"
     "@types/fastestsmallesttextencoderdecoder": "npm:^1"
     "@types/lodash": "npm:^4.17.20"
     "@types/moment-timezone": "npm:^0.5.30"
