@@ -1,0 +1,9 @@
+build:
+  docker:
+    web: apps/api/Dockerfile
+setup:
+  addons:
+    - plan: heroku-postgresql:essential-0
+      as: DATABASE
+run:
+  web: node apps/api/dist/index.js 
