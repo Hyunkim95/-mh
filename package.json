@@ -12,6 +12,8 @@
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
+    "start": "cd apps/api && yarn start",
+    "heroku-postbuild": "yarn install && yarn build",
     "dev:web": "turbo run dev --filter=@trpc-template/web",
     "dev:api": "turbo run dev --filter=@trpc-template/api",
     "build:client": "turbo run build --filter=@trpc-template/client",
