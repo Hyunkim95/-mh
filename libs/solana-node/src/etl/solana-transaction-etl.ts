@@ -513,7 +513,7 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
           processedCount += batch.length;
           
           // Mark transactions as processed in memory
-          batch.forEach(tx => {
+          batch.forEach((tx: TSchema) => {
             this.indexedTransactions.set(tx.signature, true);
           });
         } catch (batchError) {
@@ -546,7 +546,7 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
       }
 
       // Update cursor with processed signatures
-      await this.updateCursorWithProcessedSignatures(uniqueData.map(tx => tx.signature));
+      await this.updateCursorWithProcessedSignatures(uniqueData.map((tx: TSchema) => tx.signature));
 
       return {
         success: errors.length === 0,

@@ -25,6 +25,7 @@
     "tweetnacl-util": "^0.15.1"
   },
   "devDependencies": {
+    "@types/lodash": "^4.17.20",
     "tsup": "^7.0.0",
     "typescript": "^5.0.0"
   },
