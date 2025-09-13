@@ -17,6 +17,7 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "start": "turbo run start --filter=@trpc-template/api",
+    "heroku-prebuild": "yarn config && yarn install",
     "heroku-postbuild": "yarn build",
     "dev:web": "turbo run dev --filter=@trpc-template/web",
     "dev:api": "turbo run dev --filter=@trpc-template/api",
