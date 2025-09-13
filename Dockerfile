@@ -6,7 +6,6 @@ WORKDIR /app
 
 # Copy package files for dependency resolution
 COPY package.json yarn.lock .yarnrc.yml ./
-COPY .yarn ./.yarn
 COPY apps/api/package.json ./apps/api/
 COPY libs/client/package.json ./libs/client/
 COPY libs/server/package.json ./libs/server/
@@ -36,7 +35,6 @@ WORKDIR /app
 
 # Copy package files
 COPY package.json yarn.lock .yarnrc.yml ./
-COPY .yarn ./.yarn
 COPY apps/api/package.json ./apps/api/
 COPY libs/client/package.json ./libs/client/
 COPY libs/server/package.json ./libs/server/
