@@ -102,30 +102,12 @@ export async function fetchTokenMetadata(
 
     const metadata = digitalAsset.metadata;
     console.log('metadata', metadata);
-    // Fetch off-chain metadata if URI exists
-    let offChainMetadata: any = null;
-    if (metadata.uri) {
-      try {
-        const response = await fetch(metadata.uri);
-        if (response.ok) {
-          offChainMetadata = await response.json();
-        }
-      } catch (error) {
-        console.warn('Failed to fetch off-chain metadata:', error);
-      }
-    }
 
     const tokenMetadata: TokenMetadata = {
       mint: mint.toBase58(),
-      name: metadata.name || offChainMetadata?.name,
-      symbol: metadata.symbol || offChainMetadata?.symbol,
-      uri: metadata.uri || offChainMetadata?.uri,
-      description: offChainMetadata?.description,
-      image: offChainMetadata?.image,
-      external_url: offChainMetadata?.external_url,
-      animation_url: offChainMetadata?.animation_url,
-      attributes: offChainMetadata?.attributes,
-      properties: offChainMetadata?.properties,
+      name: metadata.name,
+      symbol: metadata.symbol,
+      uri: metadata.uri,
       updateAuthority: toWeb3JsPublicKey(metadata.updateAuthority).toBase58(),
       isMutable: metadata.isMutable,
       primarySaleHappened: metadata.primarySaleHappened,
