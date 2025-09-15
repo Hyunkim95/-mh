@@ -867,22 +867,23 @@ export const initializeCompleteTokenConfig = async (
     tokenPairMint: Keypair,
     tokenConfig: TokenConfig
 ) => {
+    const time = Date.now();
     const transaction = new Transaction();
-
+    console.log('Creating token config', Date.now() - time);
     // Add dynamic priority fee instructions
     const priorityInstructions = await createDynamicPriorityInstructions(params.connection);
     priorityInstructions.forEach(ix => transaction.add(ix));
-    
+    console.log('Priority instructions', Date.now() - time);
     // First initialize the token config
     const tokenConfigIx = await initializeTokenConfig(payer, tokenMint, tokenPairMint, tokenConfig);
     transaction.add(tokenConfigIx);
-    
+    console.log('Token config ix', Date.now() - time);
     const permanentDelegate = await getPermanentDelegate(tokenPairMint.publicKey);
-
+    console.log('Permanent delegate', Date.now() - time);
     // Then initialize the guard for the token pair mint
     const guardIx = await initGuard(payer, tokenPairMint.publicKey, permanentDelegate);
     transaction.add(guardIx);
-
+    console.log('Guard ix', Date.now() - time);
     return { transaction, tokenPairMint };
 };
 
