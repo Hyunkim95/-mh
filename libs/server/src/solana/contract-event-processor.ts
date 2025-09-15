@@ -10,8 +10,10 @@ import {
 import { HopCompletedEvent, RouteCreatedEvent, RouteFinishedEvent } from './contract-events-etl';
 import { 
   getRouteIdFromPda, 
+  getRouteConfiguration,
   MULTI_HOPPER_PROGRAM_ID 
 } from './contract-utils';
+import { getRouteStateAccount } from './contract.service';
 
 export class ContractEventProcessor {
   constructor(private db: NodePgDatabase<any>) {}
@@ -188,52 +190,107 @@ export class ContractEventProcessor {
         })
         .where(eq(routesSchema.id, routeRecord.id));
 
-      // DYNAMIC SCHEDULING: Update all subsequent hops' scheduledAt based on actual execution time
-      // This ensures that if a hop executes late (due to failures, retries, etc.), 
-      // all subsequent hops are rescheduled appropriately to maintain the original delays
+      // DYNAMIC SCHEDULING: Fetch account from onchain and update subsequent hops based on delaySeconds
+      // This ensures that subsequent hops are scheduled according to the actual onchain delay configuration
       
-      // DYNAMIC SCHEDULING: Get all subsequent hops that haven't been executed yet
-      const allSubsequentHops = await tx
-        .select()
-        .from(hopsSchema)
-        .where(and(
-          eq(hopsSchema.routeId, routeRecord.id),
-          gt(hopsSchema.hopIndex, eventData.hopIndex), // All hops after the current one
-          isNull(hopsSchema.executedAt) // Only update if not already executed
-        ))
-        .orderBy(hopsSchema.hopIndex);
-
-      if (allSubsequentHops.length > 0) {
-        // Calculate the time shift: difference between actual and originally scheduled execution
-        const currentHopOriginalScheduledAt = hop[0].scheduledAt;
-        const timeShiftMs = executionTime.getTime() - currentHopOriginalScheduledAt.getTime();
-
-        console.log(`Dynamic scheduling: Time shift detected: ${timeShiftMs}ms (executed at ${executionTime.toISOString()}, originally scheduled at ${currentHopOriginalScheduledAt.toISOString()})`);
-
-        // Update all subsequent hops by applying the same time shift
-
-        let updatedCount = 0;
-        for (const subsequentHop of allSubsequentHops) {
-          // Apply the same time shift to each subsequent hop
-          const newScheduledAt = new Date(subsequentHop.scheduledAt.getTime() + timeShiftMs);
-
-          // Only update if the time shift is significant (more than 1 second)
-          if (Math.abs(timeShiftMs) > 1000) {
-            await tx
-              .update(hopsSchema)
-              .set({
-                scheduledAt: newScheduledAt,
-                updatedAt: new Date(),
-              })
-              .where(eq(hopsSchema.id, subsequentHop.id));
-
-            console.log(`Dynamic scheduling: Updated hop ${subsequentHop.hopIndex} scheduledAt from ${subsequentHop.scheduledAt.toISOString()} to ${newScheduledAt.toISOString()}`);
-            updatedCount++;
-          }
+      try {
+        // Fetch the route configuration from onchain to get the delaySeconds for each hop
+        const onchainRouteConfig = await getRouteConfiguration(routeRecord.routeId!, MULTI_HOPPER_PROGRAM_ID);
+        if (!onchainRouteConfig) {
+          console.warn(`No onchain route configuration found for route ${routeRecord.routeId}`);
+          return;
         }
 
-        if (updatedCount > 0) {
-          console.log(`Dynamic scheduling: Updated ${updatedCount} subsequent hops with time shift of ${timeShiftMs}ms`);
+        // Get all subsequent hops that haven't been executed yet
+        const allSubsequentHops = await tx
+          .select()
+          .from(hopsSchema)
+          .where(and(
+            eq(hopsSchema.routeId, routeRecord.id),
+            gt(hopsSchema.hopIndex, eventData.hopIndex), // All hops after the current one
+            isNull(hopsSchema.executedAt) // Only update if not already executed
+          ))
+          .orderBy(hopsSchema.hopIndex);
+
+        if (allSubsequentHops.length > 0 && onchainRouteConfig.hops.length > 0) {
+          console.log(`Updating ${allSubsequentHops.length} subsequent hops based on onchain delaySeconds`);
+
+          let updatedCount = 0;
+          let cumulativeTime = executionTime; // Start from the actual execution time of the completed hop
+
+          for (const subsequentHop of allSubsequentHops) {
+            // Get the delaySeconds for this hop from the onchain configuration
+            const onchainHop = onchainRouteConfig.hops[subsequentHop.hopIndex];
+            if (onchainHop) {
+              const delaySeconds = parseInt(onchainHop.delaySeconds);
+              
+              // Calculate the new scheduled time: previous hop's execution + this hop's delay
+              const newScheduledAt = new Date(cumulativeTime.getTime() + (delaySeconds * 1000));
+
+              // Update the hop's scheduled time
+              await tx
+                .update(hopsSchema)
+                .set({
+                  scheduledAt: newScheduledAt,
+                  updatedAt: new Date(),
+                })
+                .where(eq(hopsSchema.id, subsequentHop.id));
+
+              console.log(`Updated hop ${subsequentHop.hopIndex} scheduledAt to ${newScheduledAt.toISOString()} (delay: ${delaySeconds}s)`);
+              updatedCount++;
+
+              // Update cumulative time for the next hop calculation
+              cumulativeTime = newScheduledAt;
+            } else {
+              console.warn(`No onchain hop configuration found for hop index ${subsequentHop.hopIndex}`);
+            }
+          }
+
+          if (updatedCount > 0) {
+            console.log(`Updated ${updatedCount} subsequent hops based on onchain delaySeconds configuration`);
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to fetch onchain route configuration for route ${routeRecord.routeId}:`, error);
+        
+        // Fallback: Use the original time shift logic if onchain fetch fails
+        const allSubsequentHops = await tx
+          .select()
+          .from(hopsSchema)
+          .where(and(
+            eq(hopsSchema.routeId, routeRecord.id),
+            gt(hopsSchema.hopIndex, eventData.hopIndex),
+            isNull(hopsSchema.executedAt)
+          ))
+          .orderBy(hopsSchema.hopIndex);
+
+        if (allSubsequentHops.length > 0) {
+          const currentHopOriginalScheduledAt = hop[0].scheduledAt;
+          const timeShiftMs = executionTime.getTime() - currentHopOriginalScheduledAt.getTime();
+
+          console.log(`Fallback: Applying time shift of ${timeShiftMs}ms to ${allSubsequentHops.length} subsequent hops`);
+
+          let updatedCount = 0;
+          for (const subsequentHop of allSubsequentHops) {
+            const newScheduledAt = new Date(subsequentHop.scheduledAt.getTime() + timeShiftMs);
+
+            if (Math.abs(timeShiftMs) > 1000) {
+              await tx
+                .update(hopsSchema)
+                .set({
+                  scheduledAt: newScheduledAt,
+                  updatedAt: new Date(),
+                })
+                .where(eq(hopsSchema.id, subsequentHop.id));
+
+              console.log(`Fallback: Updated hop ${subsequentHop.hopIndex} scheduledAt from ${subsequentHop.scheduledAt.toISOString()} to ${newScheduledAt.toISOString()}`);
+              updatedCount++;
+            }
+          }
+
+          if (updatedCount > 0) {
+            console.log(`Fallback: Updated ${updatedCount} subsequent hops with time shift of ${timeShiftMs}ms`);
+          }
         }
       }
 
@@ -281,7 +338,7 @@ export class ContractEventProcessor {
         .limit(1);
     }
 
-    if (!route || route.length === 0) {
+    if (!route || route.length === 0) {new Date(),
       console.warn(`No matching route found for creator: ${eventData.creator.toString()}, route ID: ${onChainRouteId}`);
       return;
     }
@@ -297,6 +354,31 @@ export class ContractEventProcessor {
         updatedAt: new Date(),
       })
       .where(eq(routesSchema.id, route[0].id));
+
+    const firstHop = await this.db
+      .select()
+      .from(hopsSchema)
+      .where(eq(hopsSchema.routeId, route[0].id))
+      .orderBy(hopsSchema.hopIndex)
+      .limit(1);
+
+    if (firstHop.length > 0) {
+      const onchainRouteState = await getRouteStateAccount(route[0].routeId!);
+      if (!onchainRouteState) {
+        console.warn(`No onchain route configuration found for route ${route[0].routeId}`);
+        return;
+      }
+
+      const firstHopScheduledAt = this.convertHexTimestampToDate(onchainRouteState.lastHopAt[0]);
+
+      await this.db
+        .update(hopsSchema)
+        .set({
+          scheduledAt: firstHopScheduledAt,
+          updatedAt: new Date(),
+        })
+        .where(eq(hopsSchema.id, firstHop[0].id));
+    }
     console.log(`Processed RouteCreated: linked route ${route[0].id} to PDA ${eventData.route.toString()}`);
   }
 

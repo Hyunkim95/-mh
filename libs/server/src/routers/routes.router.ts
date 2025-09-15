@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { publicProcedure, router } from '../trpc';
 import routesService from '../routes/services/routes.service';
+import { validateRoute } from '../routes/services/route-validation.service';
 
 // Validation schemas
 const routeHopSchema = z.object({
@@ -36,11 +37,44 @@ const updateRouteSchema = z.object({
 });
 
 export const routesRouter = router({
+  // Validate a route against token config constraints (without creating it)
+  validate: publicProcedure
+    .input(createRouteSchema)
+    .mutation(async ({ input }) => {
+      try {
+        const validation = await validateRoute(input);
+        return {
+          success: true,
+          data: {
+            isValid: validation.isValid,
+            errors: validation.errors
+          },
+          message: validation.isValid ? 'Route is valid' : 'Route validation failed'
+        };
+      } catch (error) {
+        console.error('Error validating route:', error);
+        return {
+          success: false,
+          data: {
+            isValid: false,
+            errors: ['Failed to validate route: Unable to check token configuration']
+          },
+          message: 'Validation error'
+        };
+      }
+    }),
+
   // Create a new route (save to database)
   create: publicProcedure
     .input(createRouteSchema)
     .mutation(async ({ input }) => {
       try {
+        // Validate route against token config constraints
+        const validation = await validateRoute(input);
+        if (!validation.isValid) {
+          throw new Error(`Route validation failed: ${validation.errors.join('; ')}`);
+        }
+
         const route = await routesService.createRoute(input);
         return {
           success: true,
@@ -49,6 +83,12 @@ export const routesRouter = router({
         };
       } catch (error) {
         console.error('Error creating route:', error);
+        
+        // Throw the original error message if it's a validation error
+        if (error instanceof Error && error.message.includes('Route validation failed')) {
+          throw error;
+        }
+        
         throw new Error('Failed to create route');
       }
     }),
@@ -93,6 +133,30 @@ export const routesRouter = router({
     .input(updateRouteSchema)
     .mutation(async ({ input }) => {
       try {
+        // If hops are being updated, validate the entire route
+        if (input.updates.hops || input.updates.hopAmountRaw) {
+          // Get the existing route to build the complete updated route
+          const existingRoute = await routesService.getRoute(input.id, input.creator);
+          if (!existingRoute) {
+            throw new Error('Route not found');
+          }
+
+          // Build the updated route for validation
+          const updatedRoute = {
+            tokenType: existingRoute.tokenType as 'SPL' | 'SOL',
+            tokenMint: existingRoute.tokenMint || undefined,
+            hopAmountRaw: input.updates.hopAmountRaw || existingRoute.hopAmountRaw,
+            hops: input.updates.hops || existingRoute.hops || [],
+            creator: input.creator
+          };
+
+          // Validate the updated route
+          const validation = await validateRoute(updatedRoute);
+          if (!validation.isValid) {
+            throw new Error(`Route validation failed: ${validation.errors.join('; ')}`);
+          }
+        }
+
         const route = await routesService.updateRoute(input.id, input.creator, input.updates);
         if (!route) {
           throw new Error('Route not found or cannot be updated');
@@ -104,6 +168,12 @@ export const routesRouter = router({
         };
       } catch (error) {
         console.error('Error updating route:', error);
+        
+        // Throw the original error message if it's a validation error
+        if (error instanceof Error && error.message.includes('Route validation failed')) {
+          throw error;
+        }
+        
         throw new Error('Failed to update route');
       }
     }),

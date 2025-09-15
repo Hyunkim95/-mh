@@ -5,6 +5,7 @@ import contractService, {  getRouteStateAccount } from "../../solana/contract.se
 import { utcNow } from '../../utils/timezone';
 import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
+import { getRouteConfiguration } from '../../solana/contract-utils';
 
 interface HopExecutionAttempt {
     hopId: number;
@@ -54,8 +55,16 @@ const triggerHopJob = new CronJob('*/10 * * * * *', async () => { // Run every 1
                 if (!isSynchronized) {
                     console.log(`[HopScheduler] Hop ${hop.id} (route ${hop.routeId}, index ${hop.hopIndex}) is out of sync with contract`);
                     
-                    // Record as failed sync check
-                    recordHopFailure(hop.id, hop.routeId, 'Contract hopIndex out of sync');
+                    continue;
+                }
+
+                // Verify that sufficient time has elapsed according to onchain state
+                const hasTimeElapsed = await verifyOnchainTimeElapsed(hop.routeId, hop.hopIndex);
+                if (!hasTimeElapsed) {
+                    console.log(`[HopScheduler] Hop ${hop.id} (route ${hop.routeId}, index ${hop.hopIndex}) - insufficient time elapsed according to onchain state`);
+                    
+                    // This is not an error, just means the hop is not ready yet
+                    // Skip this hop without recording a failure
                     continue;
                 }
                 
@@ -125,6 +134,72 @@ async function verifyHopIndexSync(routeId: number, expectedHopIndex: number): Pr
         
     } catch (error) {
         console.error(`[HopScheduler] Error verifying hop index sync for route ${routeId}:`, error);
+        return false; // Fail safe - don't execute if we can't verify
+    }
+}
+
+/**
+ * Verifies that sufficient time has elapsed according to onchain state and route configuration
+ */
+async function verifyOnchainTimeElapsed(routeId: number, hopIndex: number): Promise<boolean> {
+    try {
+        // Get the route state and configuration from onchain
+        const [routeState, routeConfig] = await Promise.all([
+            getRouteStateAccount(routeId),
+            getRouteConfiguration(routeId)
+        ]);
+        
+        if (!routeState) {
+            console.warn(`[HopScheduler] Could not fetch route state for route ${routeId}`);
+            return false;
+        }
+        
+        if (!routeConfig) {
+            console.warn(`[HopScheduler] Could not fetch route configuration for route ${routeId}`);
+            return false;
+        }
+        
+        // For the first hop (index 0), check against route start time
+        if (hopIndex === 0) {
+            const routeStartTime = parseInt(routeState.startedAt); // Unix timestamp in seconds
+            const now = Math.floor(Date.now() / 1000); // Current time in seconds
+            
+            // First hop can execute immediately after route is started
+            const canExecute = now >= routeStartTime;
+            
+            console.log(`[HopScheduler] Route ${routeId} first hop - Started at: ${routeStartTime}, Current: ${now}, Can execute: ${canExecute}`);
+            return canExecute;
+        }
+        
+        // For subsequent hops, check against the previous hop's execution time + delay
+        const previousHopIndex = hopIndex - 1;
+        
+        // Get the last hop execution time from onchain state
+        if (previousHopIndex >= routeState.lastHopAt.length) {
+            console.warn(`[HopScheduler] Route ${routeId} - Previous hop ${previousHopIndex} not found in lastHopAt array`);
+            return false;
+        }
+        
+        const previousHopExecutionTime = parseInt(routeState.lastHopAt[previousHopIndex]); // Unix timestamp in seconds
+        
+        // Get the delay for the current hop from route configuration
+        if (hopIndex >= routeConfig.hops.length) {
+            console.warn(`[HopScheduler] Route ${routeId} - Hop ${hopIndex} not found in route configuration`);
+            return false;
+        }
+        
+        const currentHopDelaySeconds = parseInt(routeConfig.hops[hopIndex].delaySeconds);
+        const requiredExecutionTime = previousHopExecutionTime + currentHopDelaySeconds;
+        const now = Math.floor(Date.now() / 1000); // Current time in seconds
+        
+        const canExecute = now >= requiredExecutionTime;
+        
+        console.log(`[HopScheduler] Route ${routeId} hop ${hopIndex} - Previous hop at: ${previousHopExecutionTime}, Delay: ${currentHopDelaySeconds}s, Required time: ${requiredExecutionTime}, Current: ${now}, Can execute: ${canExecute}`);
+        
+        return canExecute;
+        
+    } catch (error) {
+        console.error(`[HopScheduler] Error verifying onchain time elapsed for route ${routeId}, hop ${hopIndex}:`, error);
         return false; // Fail safe - don't execute if we can't verify
     }
 }
@@ -211,4 +286,5 @@ export const hopsSchedulerService = {
     getFailedHopsInfo,
     retryFailedHop,
     verifyHopIndexSync,
+    verifyOnchainTimeElapsed,
 }

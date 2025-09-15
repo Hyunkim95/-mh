@@ -5,6 +5,7 @@ import { RouteDetailView } from './RouteDetailView';
 import { Transaction } from '@solana/web3.js';
 import toast from 'react-hot-toast';
 import { TimestampHopInput } from '../types/route';
+import { useWalletChangeEffect } from '../hooks/useWalletChangeEffect';
 
 interface Route {
   id: number;
@@ -36,6 +37,17 @@ export const HopsTab: React.FC = () => {
   const { connection } = useConnection();
   const [selectedRouteId, setSelectedRouteId] = useState<number | null>(null);
   const [showRouteDetail, setShowRouteDetail] = useState(false);
+  
+  // Handle wallet changes and clear selected route
+  useWalletChangeEffect({
+    onWalletChange: (oldWallet, newWallet) => {
+      // Clear selected route and close detail view when wallet changes
+      setSelectedRouteId(null);
+      setShowRouteDetail(false);
+    },
+    showToast: false, // Don't show toast here since App.tsx already shows it
+    invalidateQueries: false // Don't invalidate here since App.tsx already does it
+  });
 
   // Fetch routes for the current user
   const { data: routesData, isLoading, refetch } = trpc.routes.getByCreator.useQuery(
@@ -60,6 +72,7 @@ export const HopsTab: React.FC = () => {
     setSelectedRouteId(null);
   };
 
+  // TODO: replace with useDeploy hook
   const handleDeploy = async (route: Route) => {
     if (!publicKey || !sendTransaction) {
       toast.error('Please connect your wallet');
@@ -109,11 +122,13 @@ export const HopsTab: React.FC = () => {
 
       toast.loading('Confirming transaction...', { id: 'deploy' });
 
+      const latestBlockhash = await connection.getLatestBlockhash();
+
       // Wait for confirmation
       const confirmation = await connection.confirmTransaction({
         signature: signature,
-        blockhash: transaction.recentBlockhash!,
-        lastValidBlockHeight: transaction.lastValidBlockHeight!,
+        blockhash: latestBlockhash.blockhash,
+        lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
       }, 'confirmed');
 
       if (confirmation.value.err) {

@@ -102,7 +102,7 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
     hopAmountTokens: '0.1',
     splMint: type === 'SPL' ? 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr' : undefined,
     hops: [
-      { recipient: '', scheduledAt: getDefaultScheduledTime(5) }
+      { recipient: '', scheduledAt: new Date().toISOString() } // First hop always set to now
     ]
   });
 
@@ -140,8 +140,16 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
     e.preventDefault();
     
     try {
+      // Ensure the first hop is always set to current time when submitting
+      const routeWithCurrentTime = {
+        ...timestampRoute,
+        hops: timestampRoute.hops.map((hop, index) => 
+          index === 0 ? { ...hop, scheduledAt: new Date().toISOString() } : hop
+        )
+      };
+      
       const internalRouteInput: InitializeRouteInput = convertTimestampToRouteInput(
-        timestampRoute, 
+        routeWithCurrentTime, 
         detectedDecimals
       );
       
@@ -151,7 +159,7 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
         tokenDecimals: detectedDecimals,
         hopAmountTokens: timestampRoute.hopAmountTokens,
         hopAmountRaw: internalRouteInput.hopAmount,
-        hops: timestampRoute.hops.map(hop => ({
+        hops: routeWithCurrentTime.hops.map(hop => ({
           recipient: hop.recipient,
           scheduledAt: hop.scheduledAt,
         })),
@@ -172,6 +180,11 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
   };
 
   const updateHop = (index: number, field: keyof TimestampHopInput, value: string | Date) => {
+    // Don't allow updating the first hop's scheduledAt - it should always be now()
+    if (index === 0 && field === 'scheduledAt') {
+      return;
+    }
+    
     setTimestampRoute(prev => ({
       ...prev,
       hops: prev.hops.map((hop, i) => 
@@ -202,7 +215,7 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
 
   // Calculate delay from previous hop for display
   const calculateDelay = (currentIndex: number): string => {
-    if (currentIndex === 0) return 'Immediate';
+    if (currentIndex === 0) return 'Executes now (when deployed)';
     
     const currentTime = new Date(timestampRoute.hops[currentIndex].scheduledAt).getTime();
     const prevTime = new Date(timestampRoute.hops[currentIndex - 1].scheduledAt).getTime();
@@ -342,75 +355,96 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
                     Scheduled Execution Time
                     <span className="text-xs text-gray-500 ml-2">(Your Timezone)</span>
                   </label>
-                  <TimezoneAwareDatePicker
-                    utcValue={hop.scheduledAt}
-                    onUtcChange={(utcString) => updateHop(index, 'scheduledAt', utcString || getDefaultScheduledTime(5))}
-                    showTimeSelect={true}
-                    minDate={new Date()}
-                    placeholderText="Select date and time"
-                    showTimezoneSelector={false}
-                    className={baseInputStyles}
-                  />
                   
-                  {/* Quick Time Presets */}
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    <span className="text-xs text-gray-600 mr-2 self-center">Quick set:</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const now = new Date();
-                        const in5Min = new Date(now.getTime() + 5 * 60 * 1000);
-                        updateHop(index, 'scheduledAt', in5Min);
-                      }}
-                      className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
-                    >
-                      +5min
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const now = new Date();
-                        const in15Min = new Date(now.getTime() + 15 * 60 * 1000);
-                        updateHop(index, 'scheduledAt', in15Min);
-                      }}
-                      className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
-                    >
-                      +15min
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const now = new Date();
-                        const in1Hour = new Date(now.getTime() + 60 * 60 * 1000);
-                        updateHop(index, 'scheduledAt', in1Hour);
-                      }}
-                      className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
-                    >
-                      +1hr
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const now = new Date();
-                        const in1Day = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-                        updateHop(index, 'scheduledAt', in1Day);
-                      }}
-                      className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
-                    >
-                      +1day
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const now = new Date();
-                        const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-                        updateHop(index, 'scheduledAt', nextWeek);
-                      }}
-                      className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
-                    >
-                      +1week
-                    </button>
-                  </div>
+                  {index === 0 ? (
+                    // First hop: disabled input showing "Now"
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value="Now (when route is deployed)"
+                        disabled
+                        className={`${baseInputStyles} bg-gray-100 text-gray-600 cursor-not-allowed`}
+                      />
+                      <div className="absolute right-3 top-2 text-green-600">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    </div>
+                  ) : (
+                    // Other hops: normal time picker
+                    <TimezoneAwareDatePicker
+                      utcValue={hop.scheduledAt}
+                      onUtcChange={(utcString) => updateHop(index, 'scheduledAt', utcString || getDefaultScheduledTime(5))}
+                      showTimeSelect={true}
+                      minDate={new Date()}
+                      placeholderText="Select date and time"
+                      showTimezoneSelector={false}
+                      className={baseInputStyles}
+                    />
+                  )}
+                  
+                  {/* Quick Time Presets - only show for non-first hops */}
+                  {index > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      <span className="text-xs text-gray-600 mr-2 self-center">Quick set:</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const now = new Date();
+                          const in5Min = new Date(now.getTime() + 5 * 60 * 1000);
+                          updateHop(index, 'scheduledAt', in5Min);
+                        }}
+                        className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                      >
+                        +5min
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const now = new Date();
+                          const in15Min = new Date(now.getTime() + 15 * 60 * 1000);
+                          updateHop(index, 'scheduledAt', in15Min);
+                        }}
+                        className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                      >
+                        +15min
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const now = new Date();
+                          const in1Hour = new Date(now.getTime() + 60 * 60 * 1000);
+                          updateHop(index, 'scheduledAt', in1Hour);
+                        }}
+                        className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                      >
+                        +1hr
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const now = new Date();
+                          const in1Day = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+                          updateHop(index, 'scheduledAt', in1Day);
+                        }}
+                        className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                      >
+                        +1day
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const now = new Date();
+                          const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+                          updateHop(index, 'scheduledAt', nextWeek);
+                        }}
+                        className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                      >
+                        +1week
+                      </button>
+                    </div>
+                  )}
                   
                   <p className="text-xs text-gray-500 mt-2">
                     <strong>{calculateDelay(index)}</strong>
