@@ -855,13 +855,12 @@ const executeHop = async (
     return await sendAndConfirmTransaction(params.connection, transaction, [executorWallet]);
 }
 
-export const getTokenConfigSPL = async (splMint: string, creator: string) => {
+export const getTokenConfigSPL = async (splMint: string) => {
     try {
         const program = buildProgram(params);
         const tokenConfigPda = await getTokenConfigPda(new PublicKey(splMint));
         const tokenConfigAccount = await program.account.tokenConfig.fetch(tokenConfigPda);
         return {
-            creator: creator,
             splMint: tokenConfigAccount.tokenMint.toBase58(),
             pairMint: tokenConfigAccount.pairAddress.toBase58(),
             minTransfer: tokenConfigAccount.minTransfer.toString(),
@@ -878,13 +877,12 @@ export const getTokenConfigSPL = async (splMint: string, creator: string) => {
     }
 }
 
-export const getTokenConfigSOL = async (creator: string) => {
+export const getTokenConfigSOL = async () => {
     try {
         const program = buildProgram(params);
         const tokenConfigPda = await getTokenConfigPda(new PublicKey(NATIVE_MINT.toBase58()));
         const tokenConfigAccount = await program.account.tokenConfig.fetch(tokenConfigPda);
         return {
-            creator: creator,
             splMint: tokenConfigAccount.tokenMint.toBase58(),
             pairMint: tokenConfigAccount.pairAddress.toBase58(),
             minTransfer: tokenConfigAccount.minTransfer.toString(),

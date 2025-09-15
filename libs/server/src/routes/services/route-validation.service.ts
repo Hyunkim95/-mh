@@ -32,19 +32,19 @@ export async function validateRouteAgainstTokenConfig(routeInput: RouteInput): P
         return { isValid: false, errors };
       }
       
-      const result = await getTokenConfigSPL(routeInput.tokenMint, routeInput.creator);
-      if (!result.success || !result.data) {
+      const result = await getTokenConfigSPL(routeInput.tokenMint);
+      if (!result) {
         errors.push(`Token configuration not found for SPL token: ${routeInput.tokenMint}`);
         return { isValid: false, errors };
       }
-      tokenConfig = result.data;
+      tokenConfig = result;
     } else {
-      const result = await getTokenConfigSOL(routeInput.creator);
-      if (!result.success || !result.data) {
+      const result = await getTokenConfigSOL();
+      if (!result) {
         errors.push('SOL token configuration not found');
         return { isValid: false, errors };
       }
-      tokenConfig = result.data;
+      tokenConfig = result; 
     }
 
     // Validate maximum hops
