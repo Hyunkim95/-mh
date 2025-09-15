@@ -151,7 +151,7 @@ function App() {
                         signature: signature,
                         blockhash: latestBlockhash.blockhash,
                         lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
-                      }, 'confirmed');
+                      }, 'processed');
                       
                       if (confirmation.value.err) {
                         throw new Error(`Transaction failed: ${confirmation.value.err}`);
