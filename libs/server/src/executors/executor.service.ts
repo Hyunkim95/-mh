@@ -4,7 +4,7 @@ import crypto from 'crypto';
 
 // Connection for Solana operations
 const connection = new Connection(
-    'https://devnet.helius-rpc.com/?api-key=f6d0c03a-562f-4784-8b78-ebb084b72514',
+    'https://mainnet.helius-rpc.com/?api-key=f6d0c03a-562f-4784-8b78-ebb084b72514',
     { commitment: 'confirmed' }
 );
 

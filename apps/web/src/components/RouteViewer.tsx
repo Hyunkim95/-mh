@@ -305,7 +305,7 @@ export const RouteViewer: React.FC<RouteViewerProps> = () => {
                       Copy
                     </button>
                     <a
-                      href={`https://explorer.solana.com/tx/${triggerData.data?.signature}?cluster=devnet`}
+                      href={`https://explorer.solana.com/tx/${triggerData.data?.signature}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="px-2 py-1 bg-blue-200 text-blue-800 rounded text-xs hover:bg-blue-300 transition-colors"

@@ -62,7 +62,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <QueryClientProvider client={queryClient}>
         <WalletProvider 
           network={'devnet' as any}
-          endpoint={'https://devnet.helius-rpc.com/?api-key=f6d0c03a-562f-4784-8b78-ebb084b72514'}
+          endpoint={'https://mainnet.helius-rpc.com/?api-key=f6d0c03a-562f-4784-8b78-ebb084b72514'}
         >
           <AuthProvider>
             <App />
