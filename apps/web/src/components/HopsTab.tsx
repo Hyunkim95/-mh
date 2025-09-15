@@ -40,7 +40,7 @@ export const HopsTab: React.FC = () => {
   
   // Handle wallet changes and clear selected route
   useWalletChangeEffect({
-    onWalletChange: (oldWallet, newWallet) => {
+    onWalletChange: () => {
       // Clear selected route and close detail view when wallet changes
       setSelectedRouteId(null);
       setShowRouteDetail(false);
