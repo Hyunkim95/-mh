@@ -30,6 +30,10 @@ export class ContractEventProcessor {
     return new Date(unixTimestamp * 1000);
   }
 
+  private convertUnixTimestampToDate(unixTimestamp: number): Date {
+    return new Date(unixTimestamp * 1000);
+  }
+
   /**
    * Process all unprocessed contract events
    */
@@ -369,7 +373,7 @@ export class ContractEventProcessor {
         return;
       }
 
-      const firstHopScheduledAt = this.convertHexTimestampToDate(onchainRouteState.lastHopAt[0]);
+      const firstHopScheduledAt = this.convertUnixTimestampToDate(parseInt(onchainRouteState.lastHopAt[0]));
 
       await this.db
         .update(hopsSchema)
