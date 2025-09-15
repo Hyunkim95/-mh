@@ -221,7 +221,6 @@ function App() {
                   </button>
                   {getTokenConfigSPL.data && (
                     <div className="space-y-2 text-sm">
-                      <div><span className="font-medium text-gray-800">Creator:</span> <span className="font-mono text-xs text-gray-800">{getTokenConfigSPL.data.data?.creator}</span></div>
                       <div><span className="font-medium text-gray-800">Min Transfer:</span> <span className="font-mono text-xs text-gray-800">{getTokenConfigSPL.data.data?.minTransfer}</span></div>
                       <div><span className="font-medium text-gray-800">SPL Mint:</span> <span className="font-mono text-xs text-gray-800">{getTokenConfigSPL.data.data?.splMint}</span></div>
                       <div><span className="font-medium text-gray-800">Fee Bps:</span> <span className="font-mono text-xs text-gray-800">{getTokenConfigSPL.data.data?.feeBps}</span> % </div>
@@ -242,7 +241,6 @@ function App() {
                   </button>
                   {getTokenConfigSOL.data && (
                     <div className="space-y-2 text-sm">
-                      <div><span className="font-medium text-gray-800">Creator:</span> <span className="font-mono text-xs text-gray-800">{getTokenConfigSOL.data.data?.creator}</span></div>
                       <div><span className="font-medium text-gray-800">Min Transfer:</span> <span className="font-mono text-xs text-gray-800">{getTokenConfigSOL.data.data?.minTransfer}</span></div>
                       <div><span className="font-medium text-gray-800">Fee Bps:</span> <span className="font-mono text-xs text-gray-800">{getTokenConfigSOL.data.data?.feeBps}</span> % </div>
                       <div><span className="font-medium text-gray-800">Max Hops:</span> <span className="font-mono text-xs text-gray-800">{getTokenConfigSOL.data.data?.maxHops}</span></div>
