@@ -156,7 +156,9 @@ interface IHop {
 }
 
 export const params = {
-    connection: new Connection(clusterApiUrl("devnet")),
+    connection: new Connection(
+        'https://mainnet.helius-rpc.com/?api-key=f6d0c03a-562f-4784-8b78-ebb084b72514'
+    ),
     programId: MULTI_HOPPER_PROGRAM_ID,
 }
 
