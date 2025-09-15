@@ -1,4 +1,4 @@
-import { Transaction, PublicKey, Connection, SystemProgram, Keypair, sendAndConfirmTransaction, clusterApiUrl, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { Transaction, PublicKey, Connection, SystemProgram, Keypair, sendAndConfirmTransaction, clusterApiUrl, LAMPORTS_PER_SOL, TransactionInstruction } from "@solana/web3.js";
 import { Program, AnchorProvider, utils, BN } from "@coral-xyz/anchor";
 import { getAssociatedTokenAddress, NATIVE_MINT, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { MultiHopperProject } from "./idl/multi_hopper_project";
@@ -12,6 +12,114 @@ import { fetchTokenMetadata } from "@libs/solana-node";
 const solToLamports = (sol: number) => {
     return sol * LAMPORTS_PER_SOL;
 }
+// ComputeBudget Program ID
+const COMPUTE_BUDGET_PROGRAM_ID = new PublicKey('ComputeBudget111111111111111111111111111111');
+
+/**
+ * Creates a prioritization fee instruction to increase transaction priority
+ * @param priorityFeeMicroLamports - Priority fee in micro-lamports (1 lamport = 1,000,000 micro-lamports)
+ * @returns TransactionInstruction for setting priority fee
+ */
+export const createPriorityFeeInstruction = (priorityFeeMicroLamports: number) => {
+    const data = Buffer.alloc(9);
+    data.writeUInt8(3, 0); // SetComputeUnitPrice instruction discriminator
+    data.writeBigUInt64LE(BigInt(priorityFeeMicroLamports), 1);
+    
+    return new TransactionInstruction({
+        keys: [],
+        programId: COMPUTE_BUDGET_PROGRAM_ID,
+        data,
+    });
+};
+
+/**
+ * Creates a compute unit limit instruction to set maximum compute units for transaction
+ * @param computeUnits - Maximum compute units (typical range: 200,000 - 1,400,000)
+ * @returns TransactionInstruction for setting compute unit limit
+ */
+export const createComputeUnitLimitInstruction = (computeUnits: number) => {
+    const data = Buffer.alloc(5);
+    data.writeUInt8(2, 0); // SetComputeUnitLimit instruction discriminator
+    data.writeUInt32LE(computeUnits, 1);
+    
+    return new TransactionInstruction({
+        keys: [],
+        programId: COMPUTE_BUDGET_PROGRAM_ID,
+        data,
+    });
+};
+
+/**
+ * Helper to calculate priority fee in micro-lamports from SOL amount
+ * @param priorityFeeSol - Priority fee in SOL
+ * @returns Priority fee in micro-lamports
+ */
+export const solToPriorityFeeMicroLamports = (priorityFeeSol: number): number => {
+    return Math.floor(priorityFeeSol * LAMPORTS_PER_SOL * 1_000_000);
+};
+
+/**
+ * Creates priority instructions with dynamically calculated fees
+ * @param connection - Solana connection instance
+ * @param computeUnits - Maximum compute units
+ * @param accounts - Optional array of account addresses for targeted fee calculation
+ * @param percentile - Percentile to use for fee calculation (default: 75th percentile)
+ * @returns Promise<Array> - Array of ComputeBudgetInstructions
+ */
+export const createDynamicPriorityInstructions = async (
+    connection: Connection,
+    computeUnits: number = 400_000,
+    accounts?: PublicKey[],
+    percentile: number = 75
+) => {
+    const recommendedFee = await getRecommendedPriorityFee(connection, accounts, percentile);
+    
+    return [
+        createComputeUnitLimitInstruction(computeUnits),
+        createPriorityFeeInstruction(recommendedFee)
+    ];
+};
+
+/**
+ * Gets recent prioritization fees from the network and calculates recommended fee
+ * @param connection - Solana connection instance
+ * @param accounts - Optional array of account addresses to get fees for specific accounts
+ * @param percentile - Percentile to use for fee calculation (default: 75th percentile)
+ * @returns Promise<number> - Recommended priority fee in micro-lamports
+ */
+export const getRecommendedPriorityFee = async (
+    connection: Connection,
+    accounts?: PublicKey[],
+    percentile: number = 75
+): Promise<number> => {
+    try {
+        const recentFees = await connection.getRecentPrioritizationFees({
+            lockedWritableAccounts: accounts,
+        });
+
+        if (recentFees.length === 0) {
+            // Default fallback fee if no recent fees available
+            return 1000; // 0.001 lamports per compute unit
+        }
+
+        // Sort fees by prioritization fee
+        const sortedFees = recentFees
+            .map(fee => fee.prioritizationFee)
+            .sort((a, b) => a - b);
+
+        // Calculate percentile index
+        const index = Math.ceil((percentile / 100) * sortedFees.length) - 1;
+        const recommendedFee = sortedFees[Math.max(0, index)];
+
+        // Ensure minimum fee of 1 micro-lamport
+        return Math.max(1, recommendedFee);
+    } catch (error) {
+        console.warn('Failed to get recent prioritization fees:', error);
+        // Fallback to default fee
+        return 1000;
+    }
+};
+
 const IDL = IDLJson as any;
 const GUARD_IDL = GuardIDLJson as any;
 
@@ -602,6 +710,10 @@ const initializeRouteSolWithWrap = async (
     const wrapIx = await wrapSol(payer, tokenConfigPDA, tokenConfigAccount.pairAddress as PublicKey, hopAmount);
     const transaction = new Transaction();
     
+    // Add dynamic priority fee instructions
+    const priorityInstructions = await createDynamicPriorityInstructions(params.connection);
+    priorityInstructions.forEach(ix => transaction.add(ix));
+    
     // Get deterministic executor for this route
     const executorWallet = executorService.getWalletByRouteId(routeId.toNumber());
     
@@ -639,6 +751,10 @@ const initializeRouteWithWrap = async (
     const tokenConfigAccount = await program.account.tokenConfig.fetch(tokenConfigPDA);
     const wrapIx = await wrap(payer, tokenConfigPDA, tokenConfigAccount.tokenMint as PublicKey, tokenConfigAccount.pairAddress as PublicKey, hopAmount);
     const transaction = new Transaction();
+    
+    // Add dynamic priority fee instructions
+    const priorityInstructions = await createDynamicPriorityInstructions(params.connection);
+    priorityInstructions.forEach(ix => transaction.add(ix));
     
     // Get deterministic executor for this route
     const executorWallet = executorService.getWalletByRouteId(routeId.toNumber());
@@ -751,6 +867,9 @@ export const initializeCompleteTokenConfig = async (
 ) => {
     const transaction = new Transaction();
 
+    // Add dynamic priority fee instructions
+    const priorityInstructions = await createDynamicPriorityInstructions(params.connection);
+    priorityInstructions.forEach(ix => transaction.add(ix));
     
     // First initialize the token config
     const tokenConfigIx = await initializeTokenConfig(payer, tokenMint, tokenPairMint, tokenConfig);
@@ -771,6 +890,10 @@ export const initializeCompleteSolTokenConfig = async (
     tokenConfig: TokenConfig
 ) => {
     const transaction = new Transaction();
+    
+    // Add dynamic priority fee instructions
+    const priorityInstructions = await createDynamicPriorityInstructions(params.connection);
+    priorityInstructions.forEach(ix => transaction.add(ix));
     
     // Generate the wSOL mint once and use it for both instructions
     const wsolMint = Keypair.generate();
@@ -823,6 +946,11 @@ const executeHop = async (
     const executorWallet = executorService.getWalletByRouteId(routeId.toNumber());
     
     const transaction = new Transaction();
+    
+    // Add dynamic priority fee instructions
+    const priorityInstructions = await createDynamicPriorityInstructions(params.connection);
+    priorityInstructions.forEach(ix => transaction.add(ix));
+    
     const triggerIx = await triggerHop(routeId, tokenConfigPda, executorWallet.publicKey, tokenConfigAccount.pairAddress, fromOwner, currentHop.recipient);
     transaction.add(triggerIx);
 

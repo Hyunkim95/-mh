@@ -144,14 +144,14 @@ function App() {
                       });
                       const transaction = Transaction.from(Buffer.from(transactionSignature.data.transaction, "base64"));
                       const signature = await sendTransaction(transaction, connection, {
-                        skipPreflight: false,
+                        skipPreflight: true,
                       });
                       const latestBlockhash = await connection.getLatestBlockhash();
                       const confirmation = await connection.confirmTransaction({
                         signature: signature,
                         blockhash: latestBlockhash.blockhash,
                         lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
-                      }, 'processed');
+                      }, 'confirmed');
                       
                       if (confirmation.value.err) {
                         throw new Error(`Transaction failed: ${confirmation.value.err}`);
