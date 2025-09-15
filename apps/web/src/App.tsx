@@ -144,7 +144,7 @@ function App() {
                       });
                       const transaction = Transaction.from(Buffer.from(transactionSignature.data.transaction, "base64"));
                       const signature = await sendTransaction(transaction, connection, {
-                        skipPreflight: true,
+                        skipPreflight: false,
                       });
                       const latestBlockhash = await connection.getLatestBlockhash();
                       const confirmation = await connection.confirmTransaction({
