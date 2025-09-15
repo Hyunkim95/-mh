@@ -317,6 +317,7 @@ export const contractRouter = router({
           },
         };
       } catch (error) {
+        console.error('Failed to initialize SOL route:', error);
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: error instanceof Error ? error.message : 'Failed to initialize SOL route',
