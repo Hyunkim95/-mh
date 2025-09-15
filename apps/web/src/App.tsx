@@ -9,7 +9,6 @@ import { Transaction } from '@solana/web3.js';
 import { WalletButton } from '@libs/solana-client';
 import { useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
-import { useQueryClient } from '@tanstack/react-query';
 import { useWalletChangeEffect } from './hooks/useWalletChangeEffect';
 
 // const NATIVE_MINT = new PublicKey("So11111111111111111111111111111111111111112");
@@ -21,7 +20,11 @@ function App() {
   const initializeRoute = trpc.contract.initializeRoute.useMutation();
   const initializeRouteSOL = trpc.contract.initializeRouteSOL.useMutation();
   const createRoute = trpc.routes.create.useMutation();
-  const queryClient = useQueryClient();
+  const getRoutes = trpc.routes.getByCreator.useQuery({
+    creator: publicKey?.toBase58() ?? '',
+  }, {
+    enabled: !!publicKey,
+  });
 
   const { sendTransaction } = useWallet();
   const { connection } = useConnection();
@@ -65,7 +68,7 @@ function App() {
       });
 
       toast.success(`${type} Route created successfully!`);
-      await queryClient.invalidateQueries({ queryKey: ['routes.getByCreator', { creator: publicKey?.toBase58() ?? '' }] });
+      await getRoutes.refetch();
     } catch (error) {
       console.error(`${type} Route creation failed:`, error);
       toast.error(`${type} Route creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
