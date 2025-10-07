@@ -1,8 +1,8 @@
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { eq, and, isNull, inArray, gt } from "drizzle-orm";
 import { PublicKey } from "@solana/web3.js";
-import { routesSchema, hopsSchema } from "../db/schema";
-import { contractEvents, ContractEvent } from "./schemas";
+import { routesSchema, hopsSchema } from "../../db/schema";
+import { contractEvents, ContractEvent } from "../schemas";
 import {
   HopCompletedEvent,
   RouteCreatedEvent,
@@ -15,7 +15,7 @@ import {
   MULTI_HOPPER_PROGRAM_ID,
 } from "./contract-utils";
 import { getRouteStateAccount } from "./contract.service";
-import { tokenConfigsService } from "../token-configs/services/token-configs.service";
+import { tokenConfigsService } from "../../token-configs/services/token-configs.service";
 
 export class ContractEventProcessor {
   constructor(private db: NodePgDatabase<any>) {}

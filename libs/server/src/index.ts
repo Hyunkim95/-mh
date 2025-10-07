@@ -1,10 +1,10 @@
 import { config } from "dotenv";
 config();
-import dualDirectionContractEventsService from "./solana/dual-direction-contract-events.service";
+import dualDirectionContractEventsService from "./solana/services/dual-direction-contract-events.service";
 
 export { server, type AppRouter } from "./server";
 export { authService } from "./auth/services/auth.service";
-export * from "./solana/contract.service";
+export * from "./solana/services/contract.service";
 // Export database configurations
 export * from "./db";
 

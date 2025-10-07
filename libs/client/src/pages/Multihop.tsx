@@ -21,13 +21,15 @@ function App() {
     solTokenConfigError,
   } = useInitializeTokenConfig({ publicKey });
   const initializeRoute = trpc.contract.initializeRoute.useMutation();
+  const splTokens = trpc.tokens.getTokenAccounts.useQuery();
+
   const initializeRouteSOL = trpc.contract.initializeRouteSOL.useMutation();
   const { data: tokenConfigs, isLoading: tokenConfigsLoading } =
     trpc.tokenConfigs.getTokenConfigs.useQuery();
   const [activeTab, setActiveTab] = useState<
     "token-config" | "routes" | "hops"
   >("token-config");
-  const { logout } = useSolanaAuth();
+  const { logout, userData } = useSolanaAuth();
   const { handleRouteSubmit } = useSubmitRoute({ publicKey });
 
   return (
@@ -90,6 +92,8 @@ function App() {
             <div className="space-y-8">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <TokenConfigForm
+                  creator={userData?.publicKey || ""}
+                  feeTreasury={userData?.publicKey || ""}
                   type="SPL"
                   onSubmit={async (data) => {
                     await handleIntiaizlizeTokenConfig(data);
@@ -100,6 +104,8 @@ function App() {
 
                 <TokenConfigForm
                   type="SOL"
+                  creator={userData?.publicKey || ""}
+                  feeTreasury={userData?.publicKey || ""}
                   onSubmit={async (data) => {
                     await handleIntiaizlizeTokenConfigSOL(data);
                   }}

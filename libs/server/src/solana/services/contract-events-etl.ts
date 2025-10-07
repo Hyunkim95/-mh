@@ -19,13 +19,13 @@ import {
   contractEvents,
   NewContractTransaction,
   NewContractEvent,
-} from "./schemas";
+} from "../schemas";
 import {
   buildEventParser,
   getRouteIdFromPda,
   MULTI_HOPPER_PROGRAM_ID,
 } from "./contract-utils";
-import * as IDLJson from "./idl/multi_hopper_project.json";
+import * as IDLJson from "../idl/multi_hopper_project.json";
 
 const IDL = IDLJson as any;
 

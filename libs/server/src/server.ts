@@ -6,6 +6,7 @@ import { contractRouter } from "./routers/contract.router";
 import { routesRouter } from "./routers/routes.router";
 import { authRouter } from "./routers/auth.router";
 import { tokenConfigsRouter } from "./routers/token-configs.router";
+import { tokensRouter } from "./routers/tokens.router";
 
 export const appRouter = router({
   hello: helloRouter,
@@ -13,6 +14,7 @@ export const appRouter = router({
   routes: routesRouter,
   auth: authRouter,
   tokenConfigs: tokenConfigsRouter,
+  tokens: tokensRouter,
 });
 
 server.register(cors, {

@@ -1,6 +1,9 @@
-import { ContractEventsScheduler, ContractEventsSchedulerConfig } from './contract-events-scheduler';
-import { db } from '../db';
-import { MULTI_HOPPER_PROGRAM_ID } from './contract-utils';
+import {
+  ContractEventsScheduler,
+  ContractEventsSchedulerConfig,
+} from "./contract-events-scheduler";
+import { db } from "../../db";
+import { MULTI_HOPPER_PROGRAM_ID } from "./contract-utils";
 
 export interface DualDirectionConfig {
   rpcUrl: string;
@@ -27,7 +30,7 @@ export class DualDirectionContractEventsService {
     const forwardConfig: ContractEventsSchedulerConfig = {
       rpcUrl: config.rpcUrl,
       programId: config.programId,
-      direction: 'forward',
+      direction: "forward",
       etlIntervalMs: config.forwardConfig.etlIntervalMs,
       processingIntervalMs: config.forwardConfig.processingIntervalMs,
       enabled: config.forwardConfig.enabled,
@@ -37,7 +40,7 @@ export class DualDirectionContractEventsService {
     const backwardConfig: ContractEventsSchedulerConfig = {
       rpcUrl: config.rpcUrl,
       programId: config.programId,
-      direction: 'backward',
+      direction: "backward",
       etlIntervalMs: config.backwardConfig.etlIntervalMs,
       processingIntervalMs: config.backwardConfig.processingIntervalMs,
       enabled: config.backwardConfig.enabled,
@@ -52,47 +55,66 @@ export class DualDirectionContractEventsService {
    */
   async initialize(): Promise<void> {
     if (this.isInitialized) {
-      console.log('Dual direction contract events service already initialized');
+      console.log("Dual direction contract events service already initialized");
       return;
     }
 
     try {
-      console.log('🚀 Initializing dual direction contract events service...');
+      console.log("🚀 Initializing dual direction contract events service...");
 
       // Start forward scheduler (always enabled for real-time processing)
       if (this.forwardScheduler.config.enabled) {
-        console.log('🔄 Starting forward scheduler (newest → oldest)...');
+        console.log("🔄 Starting forward scheduler (newest → oldest)...");
         await this.forwardScheduler.start();
-        console.log('✅ Forward scheduler started');
+        console.log("✅ Forward scheduler started");
       } else {
-        console.log('⏭️ Forward scheduler disabled');
+        console.log("⏭️ Forward scheduler disabled");
       }
 
       // Start backward scheduler if enabled
       if (this.backwardScheduler.config.enabled) {
         // Add delay between starting schedulers to prevent simultaneous RPC load
-        console.log('⏳ Waiting 5 seconds before starting backward scheduler...');
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        console.log(
+          "⏳ Waiting 5 seconds before starting backward scheduler..."
+        );
+        await new Promise((resolve) => setTimeout(resolve, 5000));
 
-        console.log('🔄 Starting backward scheduler (oldest → newest)...');
+        console.log("🔄 Starting backward scheduler (oldest → newest)...");
         await this.backwardScheduler.start();
-        console.log('✅ Backward scheduler started');
+        console.log("✅ Backward scheduler started");
       } else {
-        console.log('⏭️ Backward scheduler disabled (set CONTRACT_EVENTS_BACKWARD_ENABLED=true to enable)');
+        console.log(
+          "⏭️ Backward scheduler disabled (set CONTRACT_EVENTS_BACKWARD_ENABLED=true to enable)"
+        );
       }
 
       this.isInitialized = true;
 
-      console.log('🎯 Dual direction contract events service initialized successfully');
-      console.log('📊 Configuration:');
-      console.log(`   • Forward: ${this.forwardScheduler.config.enabled ? 'ENABLED' : 'DISABLED'} - Catches new transactions`);
-      console.log(`   • Backward: ${this.backwardScheduler.config.enabled ? 'ENABLED' : 'DISABLED'} - Fills historical gaps`);
-      if (this.forwardScheduler.config.enabled && this.backwardScheduler.config.enabled) {
-        console.log('   • Sequential startup prevents RPC rate limiting');
+      console.log(
+        "🎯 Dual direction contract events service initialized successfully"
+      );
+      console.log("📊 Configuration:");
+      console.log(
+        `   • Forward: ${
+          this.forwardScheduler.config.enabled ? "ENABLED" : "DISABLED"
+        } - Catches new transactions`
+      );
+      console.log(
+        `   • Backward: ${
+          this.backwardScheduler.config.enabled ? "ENABLED" : "DISABLED"
+        } - Fills historical gaps`
+      );
+      if (
+        this.forwardScheduler.config.enabled &&
+        this.backwardScheduler.config.enabled
+      ) {
+        console.log("   • Sequential startup prevents RPC rate limiting");
       }
-
     } catch (error) {
-      console.error('❌ Failed to initialize dual direction contract events service:', error);
+      console.error(
+        "❌ Failed to initialize dual direction contract events service:",
+        error
+      );
       throw error;
     }
   }
@@ -102,12 +124,12 @@ export class DualDirectionContractEventsService {
    */
   async shutdown(): Promise<void> {
     if (!this.isInitialized) {
-      console.log('Dual direction contract events service not initialized');
+      console.log("Dual direction contract events service not initialized");
       return;
     }
 
     try {
-      console.log('🛑 Shutting down dual direction contract events service...');
+      console.log("🛑 Shutting down dual direction contract events service...");
 
       await Promise.all([
         this.forwardScheduler.stop(),
@@ -115,9 +137,14 @@ export class DualDirectionContractEventsService {
       ]);
 
       this.isInitialized = false;
-      console.log('✅ Dual direction contract events service shut down successfully');
+      console.log(
+        "✅ Dual direction contract events service shut down successfully"
+      );
     } catch (error) {
-      console.error('❌ Failed to shutdown dual direction contract events service:', error);
+      console.error(
+        "❌ Failed to shutdown dual direction contract events service:",
+        error
+      );
       throw error;
     }
   }
@@ -135,17 +162,18 @@ export class DualDirectionContractEventsService {
       isInitialized: this.isInitialized,
       forward: {
         ...forwardStatus,
-        description: 'Processes newest transactions first (real-time)',
+        description: "Processes newest transactions first (real-time)",
       },
       backward: {
         ...backwardStatus,
-        description: 'Processes oldest transactions first (historical)',
+        description: "Processes oldest transactions first (historical)",
       },
       coverage: {
-        explanation: 'Forward catches new events, backward fills historical gaps',
+        explanation:
+          "Forward catches new events, backward fills historical gaps",
         cursors: {
-          forward: 'Tracks most recent processed signature',
-          backward: 'Tracks oldest processed signature',
+          forward: "Tracks most recent processed signature",
+          backward: "Tracks oldest processed signature",
         },
       },
     };
@@ -155,18 +183,18 @@ export class DualDirectionContractEventsService {
    * Manually trigger ETL for both directions
    */
   async runEtlNow() {
-    console.log('🔄 Running ETL manually for both directions...');
+    console.log("🔄 Running ETL manually for both directions...");
 
     const [forwardResult, backwardResult] = await Promise.all([
-      this.forwardScheduler.runEtlNow().catch(error => ({
+      this.forwardScheduler.runEtlNow().catch((error) => ({
         success: false,
         error: error.message,
-        direction: 'forward',
+        direction: "forward",
       })),
-      this.backwardScheduler.runEtlNow().catch(error => ({
+      this.backwardScheduler.runEtlNow().catch((error) => ({
         success: false,
         error: error.message,
-        direction: 'backward',
+        direction: "backward",
       })),
     ]);
 
@@ -180,18 +208,18 @@ export class DualDirectionContractEventsService {
    * Process events for both directions
    */
   async processEventsNow() {
-    console.log('⚡ Processing events manually for both directions...');
+    console.log("⚡ Processing events manually for both directions...");
 
     const [forwardResult, backwardResult] = await Promise.all([
-      this.forwardScheduler.processEventsNow().catch(error => ({
+      this.forwardScheduler.processEventsNow().catch((error) => ({
         processed: 0,
         errors: [{ eventId: 0, error: error.message }],
-        direction: 'forward',
+        direction: "forward",
       })),
-      this.backwardScheduler.processEventsNow().catch(error => ({
+      this.backwardScheduler.processEventsNow().catch((error) => ({
         processed: 0,
         errors: [{ eventId: 0, error: error.message }],
-        direction: 'backward',
+        direction: "backward",
       })),
     ]);
 
@@ -199,7 +227,8 @@ export class DualDirectionContractEventsService {
       forward: forwardResult,
       backward: backwardResult,
       total: {
-        processed: (forwardResult.processed || 0) + (backwardResult.processed || 0),
+        processed:
+          (forwardResult.processed || 0) + (backwardResult.processed || 0),
         errors: [
           ...(forwardResult.errors || []),
           ...(backwardResult.errors || []),
@@ -246,47 +275,61 @@ export class DualDirectionContractEventsService {
       });
     }
 
-    console.log('📝 Dual direction configuration updated');
+    console.log("📝 Dual direction configuration updated");
   }
 }
 
 // Create default configuration
 const DEFAULT_DUAL_CONFIG: DualDirectionConfig = {
-  rpcUrl: 'https://mainnet.helius-rpc.com/?api-key=f6d0c03a-562f-4784-8b78-ebb084b72514',
+  rpcUrl:
+    "https://mainnet.helius-rpc.com/?api-key=f6d0c03a-562f-4784-8b78-ebb084b72514",
   programId: MULTI_HOPPER_PROGRAM_ID.toBase58(),
   forwardConfig: {
-    etlIntervalMs: parseInt(process.env.CONTRACT_ETL_FORWARD_INTERVAL_MS || '60000'), // 60 seconds (was 30)
-    processingIntervalMs: parseInt(process.env.CONTRACT_PROCESSING_INTERVAL_MS || '15000'), // 15 seconds (was 10)
+    etlIntervalMs: parseInt(
+      process.env.CONTRACT_ETL_FORWARD_INTERVAL_MS || "60000"
+    ), // 60 seconds (was 30)
+    processingIntervalMs: parseInt(
+      process.env.CONTRACT_PROCESSING_INTERVAL_MS || "15000"
+    ), // 15 seconds (was 10)
     enabled: true, // Enabled by default
   },
   backwardConfig: {
-    etlIntervalMs: parseInt(process.env.CONTRACT_ETL_BACKWARD_INTERVAL_MS || '120000'), // 120 seconds (was 60)
-    processingIntervalMs: parseInt(process.env.CONTRACT_PROCESSING_INTERVAL_MS || '15000'), // 15 seconds (was 10)
-    enabled: true // Disabled by default to prevent duplicate processing
+    etlIntervalMs: parseInt(
+      process.env.CONTRACT_ETL_BACKWARD_INTERVAL_MS || "120000"
+    ), // 120 seconds (was 60)
+    processingIntervalMs: parseInt(
+      process.env.CONTRACT_PROCESSING_INTERVAL_MS || "15000"
+    ), // 15 seconds (was 10)
+    enabled: true, // Disabled by default to prevent duplicate processing
   },
 };
 
 // Export singleton instance
-export const dualDirectionContractEventsService = new DualDirectionContractEventsService(DEFAULT_DUAL_CONFIG);
+export const dualDirectionContractEventsService =
+  new DualDirectionContractEventsService(DEFAULT_DUAL_CONFIG);
 
 // Graceful shutdown handling
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM received, shutting down dual direction contract events service...');
+process.on("SIGTERM", async () => {
+  console.log(
+    "SIGTERM received, shutting down dual direction contract events service..."
+  );
   try {
     await dualDirectionContractEventsService.shutdown();
   } catch (error) {
-    console.error('Error during dual direction service shutdown:', error);
+    console.error("Error during dual direction service shutdown:", error);
   }
 });
 
-process.on('SIGINT', async () => {
-  console.log('SIGINT received, shutting down dual direction contract events service...');
+process.on("SIGINT", async () => {
+  console.log(
+    "SIGINT received, shutting down dual direction contract events service..."
+  );
   try {
     await dualDirectionContractEventsService.shutdown();
   } catch (error) {
-    console.error('Error during dual direction service shutdown:', error);
+    console.error("Error during dual direction service shutdown:", error);
   }
   process.exit(0);
 });
 
-export default dualDirectionContractEventsService; 
+export default dualDirectionContractEventsService;
