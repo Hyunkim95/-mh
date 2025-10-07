@@ -3,7 +3,6 @@ import {
   hopsSchedulerService,
   dualDirectionContractEventsService,
 } from "@trpc-template/server";
-import "./types"; // Import Fastify type extensions
 import { env } from "./env";
 
 const start = async () => {

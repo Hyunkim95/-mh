@@ -1,15 +1,14 @@
 import { useWallet } from "@solana/wallet-adapter-react";
-import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useState } from "react";
 import { Toaster } from "react-hot-toast";
-import { useWalletChangeEffect } from "../hooks/useWalletChangeEffect";
 import { useInitializeTokenConfig } from "../hooks/useInitializeTokenConfig";
 import { trpc } from "../trpc";
 import { TokenConfigForm } from "../components/TokenConfigForm";
 import { RouteCreateForm } from "../components/RouteCreateForm";
-import { ViewTokenConfig } from "../components/ViewTokenConfig";
 import { HopsTab } from "../components/HopsTab";
 import { useSubmitRoute } from "../hooks/useSubmitRoute";
+import { TokenConfigsTable } from "../components/TokenConfigsTable";
+import { useSolanaAuth } from "../hooks/useSolanaAuth";
 
 function App() {
   const { publicKey } = useWallet();
@@ -23,24 +22,13 @@ function App() {
   } = useInitializeTokenConfig({ publicKey });
   const initializeRoute = trpc.contract.initializeRoute.useMutation();
   const initializeRouteSOL = trpc.contract.initializeRouteSOL.useMutation();
-
-  const [splMint, setSplMint] = useState("");
+  const { data: tokenConfigs, isLoading: tokenConfigsLoading } =
+    trpc.tokenConfigs.getTokenConfigs.useQuery();
   const [activeTab, setActiveTab] = useState<
     "token-config" | "routes" | "hops"
   >("token-config");
-
+  const { logout } = useSolanaAuth();
   const { handleRouteSubmit } = useSubmitRoute({ publicKey });
-
-  // Handle wallet changes and automatically refresh data
-  useWalletChangeEffect({
-    onWalletChange: (oldWallet, newWallet) => {
-      console.log("Wallet changed:", oldWallet, newWallet);
-      // Clear splMint state when wallet changes
-      setSplMint("");
-    },
-    showToast: true,
-    invalidateQueries: true,
-  });
 
   return (
     <div className="min-h-screen bg-gray-100 w-full">
@@ -49,7 +37,14 @@ function App() {
         <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <h1 className="text-2xl font-bold text-gray-900">Multihopper</h1>
-            <WalletMultiButton />
+            <button
+              onClick={() => {
+                logout();
+                window.location.reload();
+              }}
+            >
+              Logout
+            </button>
           </div>
         </div>
       </header>
@@ -112,10 +107,10 @@ function App() {
                   error={solTokenConfigError?.message}
                 />
               </div>
-              <ViewTokenConfig
-                publicKey={publicKey!}
-                splMint={splMint}
-                setSplMint={setSplMint}
+
+              <TokenConfigsTable
+                tokenConfigs={tokenConfigs || []}
+                loading={tokenConfigsLoading}
               />
             </div>
           )}

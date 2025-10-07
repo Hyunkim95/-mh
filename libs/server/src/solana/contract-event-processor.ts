@@ -7,6 +7,7 @@ import {
   HopCompletedEvent,
   RouteCreatedEvent,
   RouteFinishedEvent,
+  TokenConfigCreatedEvent,
 } from "./contract-events-etl";
 import {
   getRouteIdFromPda,
@@ -14,6 +15,7 @@ import {
   MULTI_HOPPER_PROGRAM_ID,
 } from "./contract-utils";
 import { getRouteStateAccount } from "./contract.service";
+import { tokenConfigsService } from "../token-configs/services/token-configs.service";
 
 export class ContractEventProcessor {
   constructor(private db: NodePgDatabase<any>) {}
@@ -28,6 +30,15 @@ export class ContractEventProcessor {
     const unixTimestamp = parseInt(hexTimestamp, 16);
     // Convert to milliseconds and create Date
     return new Date(unixTimestamp * 1000);
+  }
+
+  /**
+   * Convert hex string to number
+   * @param hexString - Hex string value (e.g., '0e10', '0f4240')
+   * @returns Number
+   */
+  private convertHexToNumber(hexString: string): number {
+    return parseInt(hexString, 16);
   }
 
   private convertUnixTimestampToDate(unixTimestamp: number): Date {
@@ -501,9 +512,27 @@ export class ContractEventProcessor {
   private async processTokenConfigCreatedEvent(
     event: ContractEvent
   ): Promise<void> {
-    // This could be used to track token config creation
-    // For now, just log it
-    console.log(`tokenConfigCreated: ${event.eventData}`);
+    const eventData = event.eventData as TokenConfigCreatedEvent;
+    tokenConfigsService.create({
+      tokenConfigAddress: eventData.tokenConfig.toString(),
+      creator: eventData.creator.toString(),
+      minTransferAmount: this.convertHexToNumber(
+        eventData.minTransfer.toString()
+      ),
+      feeBps: Number(eventData.feeBps),
+      feeTreasury: eventData.feeTreasury.toString(),
+      maxHops: Number(eventData.maxHops),
+      maxDelaySeconds: this.convertHexToNumber(
+        eventData.maxDelaySeconds.toString()
+      ),
+      timelockSeconds: this.convertHexToNumber(
+        eventData.timelockSeconds.toString()
+      ),
+      flatFeeLamports: this.convertHexToNumber(
+        eventData.flatFeeLamports.toString()
+      ),
+      pairAddress: eventData.pairAddress.toString(),
+    });
   }
 
   /**

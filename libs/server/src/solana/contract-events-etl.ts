@@ -55,6 +55,14 @@ export interface TokenConfigCreatedEvent {
   tokenConfig: string;
   creator: string;
   mint: string;
+  minTransfer: number;
+  feeBps: number;
+  feeTreasury: string;
+  maxHops: number;
+  maxDelaySeconds: string;
+  timelockSeconds: string;
+  pairAddress: string;
+  flatFeeLamports: string;
 }
 
 export type ContractEventData =
@@ -174,6 +182,14 @@ class ContractEventsSchemaMapper
             tokenConfig: eventData.tokenConfig,
             creator: eventData.creator,
             mint: eventData.mint,
+            minTransfer: eventData.minTransfer,
+            feeBps: eventData.feeBps,
+            feeTreasury: eventData.feeTreasury,
+            maxHops: eventData.maxHops,
+            maxDelaySeconds: eventData.maxDelaySeconds,
+            timelockSeconds: eventData.timelockSeconds,
+            flatFeeLamports: eventData.flatFeeLamports,
+            pairAddress: eventData.pairAddress,
           },
         };
 

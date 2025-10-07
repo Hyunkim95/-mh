@@ -11,3 +11,4 @@ export * from "./root";
 export * from "./AppRouter";
 
 export * from "./ViewTokenConfig";
+export * from "./TokenConfigsTable";

@@ -5,12 +5,14 @@ import { helloRouter } from "./routers/hello";
 import { contractRouter } from "./routers/contract.router";
 import { routesRouter } from "./routers/routes.router";
 import { authRouter } from "./routers/auth.router";
+import { tokenConfigsRouter } from "./routers/token-configs.router";
 
 export const appRouter = router({
   hello: helloRouter,
   contract: contractRouter,
   routes: routesRouter,
   auth: authRouter,
+  tokenConfigs: tokenConfigsRouter,
 });
 
 server.register(cors, {
