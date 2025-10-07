@@ -1,19 +1,19 @@
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq, and, isNull, inArray, gt } from 'drizzle-orm';
-import { PublicKey } from '@solana/web3.js';
-import { 
-  contractEvents, 
-  ContractEvent,
-  routesSchema,
-  hopsSchema 
-} from '../db/schema';
-import { HopCompletedEvent, RouteCreatedEvent, RouteFinishedEvent } from './contract-events-etl';
-import { 
-  getRouteIdFromPda, 
+import { NodePgDatabase } from "drizzle-orm/node-postgres";
+import { eq, and, isNull, inArray, gt } from "drizzle-orm";
+import { PublicKey } from "@solana/web3.js";
+import { routesSchema, hopsSchema } from "../db/schema";
+import { contractEvents, ContractEvent } from "./schemas";
+import {
+  HopCompletedEvent,
+  RouteCreatedEvent,
+  RouteFinishedEvent,
+} from "./contract-events-etl";
+import {
+  getRouteIdFromPda,
   getRouteConfiguration,
-  MULTI_HOPPER_PROGRAM_ID 
-} from './contract-utils';
-import { getRouteStateAccount } from './contract.service';
+  MULTI_HOPPER_PROGRAM_ID,
+} from "./contract-utils";
+import { getRouteStateAccount } from "./contract.service";
 
 export class ContractEventProcessor {
   constructor(private db: NodePgDatabase<any>) {}
@@ -50,18 +50,20 @@ export class ContractEventProcessor {
     let processed = 0;
     const errors: Array<{ eventId: number; error: string }> = [];
 
-    console.log(`Processing ${unprocessedEvents.length} unprocessed contract events`);
+    console.log(
+      `Processing ${unprocessedEvents.length} unprocessed contract events`
+    );
 
     for (const event of unprocessedEvents) {
       try {
         await this.processEvent(event);
-        
+
         // Mark event as processed
         await this.db
           .update(contractEvents)
-          .set({ 
-            processed: true, 
-            processedAt: new Date() 
+          .set({
+            processed: true,
+            processedAt: new Date(),
           })
           .where(eq(contractEvents.id, event.id));
 
@@ -83,20 +85,18 @@ export class ContractEventProcessor {
    * Process a single contract event
    */
   private async processEvent(event: ContractEvent): Promise<void> {
-    console.log('Processing event:', event);
+    console.log("Processing event:", event);
     switch (event.eventType) {
-      
-      case 'hopCompleted':
-        
+      case "hopCompleted":
         await this.processHopCompletedEvent(event);
         break;
-      case 'routeCreated':
+      case "routeCreated":
         await this.processRouteCreatedEvent(event);
         break;
-      case 'routeFinished':
+      case "routeFinished":
         await this.processRouteFinishedEvent(event);
         break;
-      case 'tokenConfigCreated':
+      case "tokenConfigCreated":
         await this.processTokenConfigCreatedEvent(event);
         break;
       default:
@@ -109,7 +109,7 @@ export class ContractEventProcessor {
    */
   private async processHopCompletedEvent(event: ContractEvent): Promise<void> {
     const eventData = event.eventData as HopCompletedEvent;
-    
+
     await this.db.transaction(async (tx) => {
       // First, try to find the route by PDA
       let route = await tx
@@ -120,10 +120,15 @@ export class ContractEventProcessor {
 
       if (route.length === 0) {
         // If not found by PDA, try to get route ID from on-chain and find by route ID
-        console.log(`Route not found by PDA: ${event.routePda}, attempting to resolve route ID from chain`);
-        
+        console.log(
+          `Route not found by PDA: ${event.routePda}, attempting to resolve route ID from chain`
+        );
+
         try {
-          const routeId = await getRouteIdFromPda(new PublicKey(event.routePda!), MULTI_HOPPER_PROGRAM_ID);
+          const routeId = await getRouteIdFromPda(
+            new PublicKey(event.routePda!),
+            MULTI_HOPPER_PROGRAM_ID
+          );
           if (routeId !== null) {
             // Try to find route by route ID
             route = await tx
@@ -131,7 +136,7 @@ export class ContractEventProcessor {
               .from(routesSchema)
               .where(eq(routesSchema.routeId, routeId))
               .limit(1);
-              
+
             if (route.length > 0) {
               // Update the route with the discovered PDA
               await tx
@@ -141,12 +146,17 @@ export class ContractEventProcessor {
                   updatedAt: new Date(),
                 })
                 .where(eq(routesSchema.id, route[0].id));
-                
-              console.log(`Updated route ${route[0].id} with PDA ${event.routePda}`);
+
+              console.log(
+                `Updated route ${route[0].id} with PDA ${event.routePda}`
+              );
             }
           }
         } catch (error) {
-          console.warn(`Failed to resolve route ID from PDA ${event.routePda}:`, error);
+          console.warn(
+            `Failed to resolve route ID from PDA ${event.routePda}:`,
+            error
+          );
         }
       }
 
@@ -161,14 +171,18 @@ export class ContractEventProcessor {
       const hop = await tx
         .select()
         .from(hopsSchema)
-        .where(and(
-          eq(hopsSchema.routeId, routeRecord.id),
-          eq(hopsSchema.hopIndex, eventData.hopIndex)
-        ))
+        .where(
+          and(
+            eq(hopsSchema.routeId, routeRecord.id),
+            eq(hopsSchema.hopIndex, eventData.hopIndex)
+          )
+        )
         .limit(1);
 
       if (hop.length === 0) {
-        console.warn(`Hop not found for route ${routeRecord.id}, index ${eventData.hopIndex}`);
+        console.warn(
+          `Hop not found for route ${routeRecord.id}, index ${eventData.hopIndex}`
+        );
         return;
       }
 
@@ -196,12 +210,17 @@ export class ContractEventProcessor {
 
       // DYNAMIC SCHEDULING: Fetch account from onchain and update subsequent hops based on delaySeconds
       // This ensures that subsequent hops are scheduled according to the actual onchain delay configuration
-      
+
       try {
         // Fetch the route configuration from onchain to get the delaySeconds for each hop
-        const onchainRouteConfig = await getRouteConfiguration(routeRecord.routeId!, MULTI_HOPPER_PROGRAM_ID);
+        const onchainRouteConfig = await getRouteConfiguration(
+          routeRecord.routeId!,
+          MULTI_HOPPER_PROGRAM_ID
+        );
         if (!onchainRouteConfig) {
-          console.warn(`No onchain route configuration found for route ${routeRecord.routeId}`);
+          console.warn(
+            `No onchain route configuration found for route ${routeRecord.routeId}`
+          );
           return;
         }
 
@@ -209,15 +228,22 @@ export class ContractEventProcessor {
         const allSubsequentHops = await tx
           .select()
           .from(hopsSchema)
-          .where(and(
-            eq(hopsSchema.routeId, routeRecord.id),
-            gt(hopsSchema.hopIndex, eventData.hopIndex), // All hops after the current one
-            isNull(hopsSchema.executedAt) // Only update if not already executed
-          ))
+          .where(
+            and(
+              eq(hopsSchema.routeId, routeRecord.id),
+              gt(hopsSchema.hopIndex, eventData.hopIndex), // All hops after the current one
+              isNull(hopsSchema.executedAt) // Only update if not already executed
+            )
+          )
           .orderBy(hopsSchema.hopIndex);
 
-        if (allSubsequentHops.length > 0 && onchainRouteConfig.hops.length > 0) {
-          console.log(`Updating ${allSubsequentHops.length} subsequent hops based on onchain delaySeconds`);
+        if (
+          allSubsequentHops.length > 0 &&
+          onchainRouteConfig.hops.length > 0
+        ) {
+          console.log(
+            `Updating ${allSubsequentHops.length} subsequent hops based on onchain delaySeconds`
+          );
 
           let updatedCount = 0;
           let cumulativeTime = executionTime; // Start from the actual execution time of the completed hop
@@ -227,9 +253,11 @@ export class ContractEventProcessor {
             const onchainHop = onchainRouteConfig.hops[subsequentHop.hopIndex];
             if (onchainHop) {
               const delaySeconds = parseInt(onchainHop.delaySeconds);
-              
+
               // Calculate the new scheduled time: previous hop's execution + this hop's delay
-              const newScheduledAt = new Date(cumulativeTime.getTime() + (delaySeconds * 1000));
+              const newScheduledAt = new Date(
+                cumulativeTime.getTime() + delaySeconds * 1000
+              );
 
               // Update the hop's scheduled time
               await tx
@@ -240,43 +268,61 @@ export class ContractEventProcessor {
                 })
                 .where(eq(hopsSchema.id, subsequentHop.id));
 
-              console.log(`Updated hop ${subsequentHop.hopIndex} scheduledAt to ${newScheduledAt.toISOString()} (delay: ${delaySeconds}s)`);
+              console.log(
+                `Updated hop ${
+                  subsequentHop.hopIndex
+                } scheduledAt to ${newScheduledAt.toISOString()} (delay: ${delaySeconds}s)`
+              );
               updatedCount++;
 
               // Update cumulative time for the next hop calculation
               cumulativeTime = newScheduledAt;
             } else {
-              console.warn(`No onchain hop configuration found for hop index ${subsequentHop.hopIndex}`);
+              console.warn(
+                `No onchain hop configuration found for hop index ${subsequentHop.hopIndex}`
+              );
             }
           }
 
           if (updatedCount > 0) {
-            console.log(`Updated ${updatedCount} subsequent hops based on onchain delaySeconds configuration`);
+            console.log(
+              `Updated ${updatedCount} subsequent hops based on onchain delaySeconds configuration`
+            );
           }
         }
       } catch (error) {
-        console.error(`Failed to fetch onchain route configuration for route ${routeRecord.routeId}:`, error);
-        
+        console.error(
+          `Failed to fetch onchain route configuration for route ${routeRecord.routeId}:`,
+          error
+        );
+
         // Fallback: Use the original time shift logic if onchain fetch fails
         const allSubsequentHops = await tx
           .select()
           .from(hopsSchema)
-          .where(and(
-            eq(hopsSchema.routeId, routeRecord.id),
-            gt(hopsSchema.hopIndex, eventData.hopIndex),
-            isNull(hopsSchema.executedAt)
-          ))
+          .where(
+            and(
+              eq(hopsSchema.routeId, routeRecord.id),
+              gt(hopsSchema.hopIndex, eventData.hopIndex),
+              isNull(hopsSchema.executedAt)
+            )
+          )
           .orderBy(hopsSchema.hopIndex);
 
         if (allSubsequentHops.length > 0) {
           const currentHopOriginalScheduledAt = hop[0].scheduledAt;
-          const timeShiftMs = executionTime.getTime() - currentHopOriginalScheduledAt.getTime();
+          const timeShiftMs =
+            executionTime.getTime() - currentHopOriginalScheduledAt.getTime();
 
-          console.log(`Fallback: Applying time shift of ${timeShiftMs}ms to ${allSubsequentHops.length} subsequent hops`);
+          console.log(
+            `Fallback: Applying time shift of ${timeShiftMs}ms to ${allSubsequentHops.length} subsequent hops`
+          );
 
           let updatedCount = 0;
           for (const subsequentHop of allSubsequentHops) {
-            const newScheduledAt = new Date(subsequentHop.scheduledAt.getTime() + timeShiftMs);
+            const newScheduledAt = new Date(
+              subsequentHop.scheduledAt.getTime() + timeShiftMs
+            );
 
             if (Math.abs(timeShiftMs) > 1000) {
               await tx
@@ -287,18 +333,26 @@ export class ContractEventProcessor {
                 })
                 .where(eq(hopsSchema.id, subsequentHop.id));
 
-              console.log(`Fallback: Updated hop ${subsequentHop.hopIndex} scheduledAt from ${subsequentHop.scheduledAt.toISOString()} to ${newScheduledAt.toISOString()}`);
+              console.log(
+                `Fallback: Updated hop ${
+                  subsequentHop.hopIndex
+                } scheduledAt from ${subsequentHop.scheduledAt.toISOString()} to ${newScheduledAt.toISOString()}`
+              );
               updatedCount++;
             }
           }
 
           if (updatedCount > 0) {
-            console.log(`Fallback: Updated ${updatedCount} subsequent hops with time shift of ${timeShiftMs}ms`);
+            console.log(
+              `Fallback: Updated ${updatedCount} subsequent hops with time shift of ${timeShiftMs}ms`
+            );
           }
         }
       }
 
-      console.log(`Processed HopCompleted: route ${routeRecord.id}, hop ${eventData.hopIndex}`);
+      console.log(
+        `Processed HopCompleted: route ${routeRecord.id}, hop ${eventData.hopIndex}`
+      );
     });
   }
 
@@ -307,43 +361,56 @@ export class ContractEventProcessor {
    */
   private async processRouteCreatedEvent(event: ContractEvent): Promise<void> {
     const eventData = event.eventData as RouteCreatedEvent;
-    
+
     // First, try to get the route ID from the on-chain route config
     let onChainRouteId: number | null = null;
     try {
-      onChainRouteId = await getRouteIdFromPda(new PublicKey(eventData.route), MULTI_HOPPER_PROGRAM_ID);
+      onChainRouteId = await getRouteIdFromPda(
+        new PublicKey(eventData.route),
+        MULTI_HOPPER_PROGRAM_ID
+      );
     } catch (error) {
-      console.warn(`Failed to get route ID from PDA ${eventData.route.toString()}:`, error);
+      console.warn(
+        `Failed to get route ID from PDA ${eventData.route.toString()}:`,
+        error
+      );
     }
-    
+
     // Try to find a route by route ID first (most accurate), then by creator
     let route;
     if (onChainRouteId !== null) {
       route = await this.db
         .select()
         .from(routesSchema)
-        .where(and(
-          eq(routesSchema.routeId, onChainRouteId),
-          eq(routesSchema.creator, eventData.creator.toString())
-        ))
+        .where(
+          and(
+            eq(routesSchema.routeId, onChainRouteId),
+            eq(routesSchema.creator, eventData.creator.toString())
+          )
+        )
         .limit(1);
     }
-    
+
     if (!route || route.length === 0) {
       // Fallback to finding by creator and no PDA
       route = await this.db
         .select()
         .from(routesSchema)
-        .where(and(
-          eq(routesSchema.creator, eventData.creator.toString()),
-          isNull(routesSchema.routeConfigPda)
-        ))
+        .where(
+          and(
+            eq(routesSchema.creator, eventData.creator.toString()),
+            isNull(routesSchema.routeConfigPda)
+          )
+        )
         .orderBy(routesSchema.createdAt) // Get the oldest matching route
         .limit(1);
     }
 
-    if (!route || route.length === 0) {new Date(),
-      console.warn(`No matching route found for creator: ${eventData.creator.toString()}, route ID: ${onChainRouteId}`);
+    if (!route || route.length === 0) {
+      new Date(),
+        console.warn(
+          `No matching route found for creator: ${eventData.creator.toString()}, route ID: ${onChainRouteId}`
+        );
       return;
     }
 
@@ -352,7 +419,7 @@ export class ContractEventProcessor {
       .update(routesSchema)
       .set({
         routeConfigPda: eventData.route.toString(),
-        status: 'deployed',
+        status: "deployed",
         deployedAt: new Date(),
         deploymentTxHash: event.signature,
         updatedAt: new Date(),
@@ -369,11 +436,15 @@ export class ContractEventProcessor {
     if (firstHop.length > 0) {
       const onchainRouteState = await getRouteStateAccount(route[0].routeId!);
       if (!onchainRouteState) {
-        console.warn(`No onchain route configuration found for route ${route[0].routeId}`);
+        console.warn(
+          `No onchain route configuration found for route ${route[0].routeId}`
+        );
         return;
       }
 
-      const firstHopScheduledAt = this.convertUnixTimestampToDate(parseInt(onchainRouteState.lastHopAt[0]));
+      const firstHopScheduledAt = this.convertUnixTimestampToDate(
+        parseInt(onchainRouteState.lastHopAt[0])
+      );
 
       await this.db
         .update(hopsSchema)
@@ -383,7 +454,11 @@ export class ContractEventProcessor {
         })
         .where(eq(hopsSchema.id, firstHop[0].id));
     }
-    console.log(`Processed RouteCreated: linked route ${route[0].id} to PDA ${eventData.route.toString()}`);
+    console.log(
+      `Processed RouteCreated: linked route ${
+        route[0].id
+      } to PDA ${eventData.route.toString()}`
+    );
   }
 
   /**
@@ -391,7 +466,7 @@ export class ContractEventProcessor {
    */
   private async processRouteFinishedEvent(event: ContractEvent): Promise<void> {
     const eventData = event.eventData as RouteFinishedEvent;
-    
+
     // Find the route by PDA
     const route = await this.db
       .select()
@@ -408,18 +483,24 @@ export class ContractEventProcessor {
     await this.db
       .update(routesSchema)
       .set({
-        status: 'completed', // Add this status if it doesn't exist
+        status: "completed", // Add this status if it doesn't exist
         updatedAt: new Date(),
       })
       .where(eq(routesSchema.id, route[0].id));
 
-    console.log(`Processed RouteFinished: route ${route[0].id} completed at ${this.convertHexTimestampToDate(eventData.at)}`);
+    console.log(
+      `Processed RouteFinished: route ${
+        route[0].id
+      } completed at ${this.convertHexTimestampToDate(eventData.at)}`
+    );
   }
 
   /**
    * Process TokenConfigCreated event - for future token config tracking
    */
-  private async processTokenConfigCreatedEvent(event: ContractEvent): Promise<void> {
+  private async processTokenConfigCreatedEvent(
+    event: ContractEvent
+  ): Promise<void> {
     // This could be used to track token config creation
     // For now, just log it
     console.log(`tokenConfigCreated: ${event.eventData}`);
@@ -434,11 +515,19 @@ export class ContractEventProcessor {
     unprocessedEvents: number;
     eventsByType: Record<string, number>;
   }> {
-    const [totalResult, processedResult, unprocessedResult] = await Promise.all([
-      this.db.select({ count: contractEvents.id }).from(contractEvents),
-      this.db.select({ count: contractEvents.id }).from(contractEvents).where(eq(contractEvents.processed, true)),
-      this.db.select({ count: contractEvents.id }).from(contractEvents).where(eq(contractEvents.processed, false)),
-    ]);
+    const [totalResult, processedResult, unprocessedResult] = await Promise.all(
+      [
+        this.db.select({ count: contractEvents.id }).from(contractEvents),
+        this.db
+          .select({ count: contractEvents.id })
+          .from(contractEvents)
+          .where(eq(contractEvents.processed, true)),
+        this.db
+          .select({ count: contractEvents.id })
+          .from(contractEvents)
+          .where(eq(contractEvents.processed, false)),
+      ]
+    );
 
     // Get event counts by type
     const eventTypes = await this.db
@@ -466,15 +555,17 @@ export class ContractEventProcessor {
    */
   async reprocessFailedEvents(eventIds?: number[]): Promise<void> {
     let eventsToReprocess;
-    
+
     if (eventIds) {
       eventsToReprocess = await this.db
         .select()
         .from(contractEvents)
-        .where(and(
-          inArray(contractEvents.id, eventIds),
-          eq(contractEvents.processed, false)
-        ));
+        .where(
+          and(
+            inArray(contractEvents.id, eventIds),
+            eq(contractEvents.processed, false)
+          )
+        );
     } else {
       // Reprocess all unprocessed events
       eventsToReprocess = await this.db
@@ -484,16 +575,16 @@ export class ContractEventProcessor {
     }
 
     console.log(`Reprocessing ${eventsToReprocess.length} events`);
-    
+
     for (const event of eventsToReprocess) {
       try {
         await this.processEvent(event);
-        
+
         await this.db
           .update(contractEvents)
-          .set({ 
-            processed: true, 
-            processedAt: new Date() 
+          .set({
+            processed: true,
+            processedAt: new Date(),
           })
           .where(eq(contractEvents.id, event.id));
 
@@ -503,4 +594,4 @@ export class ContractEventProcessor {
       }
     }
   }
-} 
+}

@@ -1,17 +1,31 @@
-import { PublicKey, ParsedTransactionWithMeta, Connection, clusterApiUrl } from '@solana/web3.js';
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { eq } from 'drizzle-orm';
-import { BorshEventCoder } from '@coral-xyz/anchor';
-import { SolanaTransactionEtlJob, SolanaTransactionETLConfig, SolanaTransactionData, SolanaSchemaMapper } from '@libs/solana-node';
-import { EtlJobConfig } from '@libs/etl';
-import { 
-  contractTransactions, 
-  contractEvents, 
-  NewContractTransaction, 
-  NewContractEvent
-} from '../db/schema';
-import { buildEventParser, buildProgram, getRouteIdFromPda, MULTI_HOPPER_PROGRAM_ID } from './contract-utils';
-import * as IDLJson from './idl/multi_hopper_project.json';
+import {
+  PublicKey,
+  ParsedTransactionWithMeta,
+  Connection,
+  clusterApiUrl,
+} from "@solana/web3.js";
+import { NodePgDatabase } from "drizzle-orm/node-postgres";
+import { eq } from "drizzle-orm";
+import { BorshEventCoder } from "@coral-xyz/anchor";
+import {
+  SolanaTransactionEtlJob,
+  SolanaTransactionETLConfig,
+  SolanaTransactionData,
+  SolanaSchemaMapper,
+} from "@libs/solana-node";
+import { EtlJobConfig } from "@libs/etl";
+import {
+  contractTransactions,
+  contractEvents,
+  NewContractTransaction,
+  NewContractEvent,
+} from "./schemas";
+import {
+  buildEventParser,
+  getRouteIdFromPda,
+  MULTI_HOPPER_PROGRAM_ID,
+} from "./contract-utils";
+import * as IDLJson from "./idl/multi_hopper_project.json";
 
 const IDL = IDLJson as any;
 
@@ -43,11 +57,11 @@ export interface TokenConfigCreatedEvent {
   mint: string;
 }
 
-export type ContractEventData = 
-  | { type: 'hopCompleted'; data: HopCompletedEvent }
-  | { type: 'routeCreated'; data: RouteCreatedEvent }
-  | { type: 'routeFinished'; data: RouteFinishedEvent }
-  | { type: 'tokenConfigCreated'; data: TokenConfigCreatedEvent };
+export type ContractEventData =
+  | { type: "hopCompleted"; data: HopCompletedEvent }
+  | { type: "routeCreated"; data: RouteCreatedEvent }
+  | { type: "routeFinished"; data: RouteFinishedEvent }
+  | { type: "tokenConfigCreated"; data: TokenConfigCreatedEvent };
 
 export interface ContractTransactionData {
   signature: string;
@@ -61,18 +75,24 @@ export interface ContractTransactionData {
 }
 
 // Schema mapper that transforms Solana transaction data to our contract format
-class ContractEventsSchemaMapper implements SolanaSchemaMapper<ContractTransactionData> {
+class ContractEventsSchemaMapper
+  implements SolanaSchemaMapper<ContractTransactionData>
+{
   private eventCoder: BorshEventCoder;
 
   constructor() {
     this.eventCoder = new BorshEventCoder(IDL);
   }
 
-  mapTransactionToSchema(txData: SolanaTransactionData): ContractTransactionData {
+  mapTransactionToSchema(
+    txData: SolanaTransactionData
+  ): ContractTransactionData {
     const events: ContractEventData[] = [];
 
     if (txData.transaction?.meta?.logMessages) {
-      events.push(...this.parseEventsFromLogs(txData.transaction.meta.logMessages));
+      events.push(
+        ...this.parseEventsFromLogs(txData.transaction.meta.logMessages)
+      );
     }
 
     return {
@@ -93,30 +113,30 @@ class ContractEventsSchemaMapper implements SolanaSchemaMapper<ContractTransacti
 
   private parseEventsFromLogs(logs: string[]): ContractEventData[] {
     const events: ContractEventData[] = [];
-    const eventParser = buildEventParser(MULTI_HOPPER_PROGRAM_ID, new Connection(process.env.SOLANA_RPC_URL || clusterApiUrl("devnet")));
+    const eventParser = buildEventParser(
+      MULTI_HOPPER_PROGRAM_ID,
+      new Connection(process.env.SOLANA_RPC_URL || clusterApiUrl("devnet"))
+    );
     const decoded = [...eventParser.parseLogs(logs)];
     if (!decoded) return [];
     for (const event of decoded) {
       const parsedEvent = this.parseEvent(event);
       if (parsedEvent) {
-        events.push(
-          parsedEvent
-        );
+        events.push(parsedEvent);
       }
     }
 
     return events;
   }
-  
+
   private parseEvent(event: any): ContractEventData | null {
     const eventName = event.name;
     const eventData = event.data;
 
     switch (eventName) {
-      case 'hopCompleted':
-        
+      case "hopCompleted":
         return {
-          type: 'hopCompleted',
+          type: "hopCompleted",
           data: {
             route: eventData.route,
             hopIndex: eventData.hopIndex || eventData.hop_index || 0,
@@ -124,40 +144,37 @@ class ContractEventsSchemaMapper implements SolanaSchemaMapper<ContractTransacti
             toOwner: eventData.toOwner,
             amount: eventData.amount,
             at: eventData.at,
-          }
+          },
         };
 
-      case 'routeCreated':
-        
+      case "routeCreated":
         return {
-          type: 'routeCreated',
+          type: "routeCreated",
           data: {
             route: eventData.route,
             creator: eventData.creator,
             mint: eventData.mint,
             hops: eventData.hops || 0,
-          }
+          },
         };
 
-      case 'routeFinished':
-        
+      case "routeFinished":
         return {
-          type: 'routeFinished',
+          type: "routeFinished",
           data: {
             route: eventData.route,
             at: eventData.at,
-          }
+          },
         };
 
-      case 'tokenConfigCreated':
-        
+      case "tokenConfigCreated":
         return {
-          type: 'tokenConfigCreated',
+          type: "tokenConfigCreated",
           data: {
             tokenConfig: eventData.tokenConfig,
             creator: eventData.creator,
             mint: eventData.mint,
-          }
+          },
         };
 
       default:
@@ -175,15 +192,15 @@ export class ContractEventsEtlJob extends SolanaTransactionEtlJob<ContractTransa
     db: NodePgDatabase<any>,
     rpcUrl: string,
     programId: string,
-    direction: 'forward' | 'backward' = 'forward'
+    direction: "forward" | "backward" = "forward"
   ) {
     const solanaConfig: SolanaTransactionETLConfig = {
-      type: 'transactions',
+      type: "transactions",
       rpcUrl,
       programId, // Filter transactions for this program
       direction,
       maxSignatures: 100, // Smaller batches for event processing
-      commitment: 'confirmed',
+      commitment: "confirmed",
       delayMs: 200, // Rate limiting
     };
 
@@ -199,12 +216,16 @@ export class ContractEventsEtlJob extends SolanaTransactionEtlJob<ContractTransa
       return {
         success: true,
         processedCount: 0,
-        metadata: { message: 'No data to load' },
+        metadata: { message: "No data to load" },
       };
     }
 
     let processedCount = 0;
-    const errors: Array<{ data: ContractTransactionData; error: Error; index: number }> = [];
+    const errors: Array<{
+      data: ContractTransactionData;
+      error: Error;
+      index: number;
+    }> = [];
 
     try {
       // Process transactions in batches
@@ -215,7 +236,9 @@ export class ContractEventsEtlJob extends SolanaTransactionEtlJob<ContractTransa
             const newTransaction: NewContractTransaction = {
               signature: txData.signature,
               slot: txData.slot,
-              blockTime: txData.blockTime ? new Date(txData.blockTime * 1000) : null,
+              blockTime: txData.blockTime
+                ? new Date(txData.blockTime * 1000)
+                : null,
               fee: txData.fee,
               success: txData.success,
               error: txData.error,
@@ -240,10 +263,10 @@ export class ContractEventsEtlJob extends SolanaTransactionEtlJob<ContractTransa
               .select({ count: contractEvents.id })
               .from(contractEvents)
               .where(eq(contractEvents.signature, txData.signature));
-            
+
             if (txData.events.length > 0 && existingEvents.length === 0) {
               const eventRecords: NewContractEvent[] = [];
-              
+
               for (const event of txData.events) {
                 const routeId = await this.extractRouteId(event);
                 eventRecords.push({
@@ -259,9 +282,13 @@ export class ContractEventsEtlJob extends SolanaTransactionEtlJob<ContractTransa
               }
 
               await tx.insert(contractEvents).values(eventRecords);
-              console.log(`Inserted ${eventRecords.length} new events for transaction ${txData.signature}`);
+              console.log(
+                `Inserted ${eventRecords.length} new events for transaction ${txData.signature}`
+              );
             } else if (existingEvents.length > 0) {
-              console.log(`Skipping events for duplicate transaction ${txData.signature}`);
+              console.log(
+                `Skipping events for duplicate transaction ${txData.signature}`
+              );
             }
           });
 
@@ -287,30 +314,39 @@ export class ContractEventsEtlJob extends SolanaTransactionEtlJob<ContractTransa
         },
       };
     } catch (error) {
-      throw new Error(`Failed to load contract data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to load contract data: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
   }
 
   // Helper methods to extract common fields from events
   private extractRoutePda(event: ContractEventData): string | null {
     switch (event.type) {
-      case 'hopCompleted':
-      case 'routeCreated':
-      case 'routeFinished':
+      case "hopCompleted":
+      case "routeCreated":
+      case "routeFinished":
         return event.data.route.toString();
       default:
         return null;
     }
   }
 
-  private async extractRouteId(event: ContractEventData): Promise<number | null> {
+  private async extractRouteId(
+    event: ContractEventData
+  ): Promise<number | null> {
     try {
       switch (event.type) {
-        case 'hopCompleted':
-        case 'routeCreated':
-        case 'routeFinished':
+        case "hopCompleted":
+        case "routeCreated":
+        case "routeFinished":
           // Derive route ID from the route PDA
-          return await getRouteIdFromPda(new PublicKey(event.data.route), MULTI_HOPPER_PROGRAM_ID);
+          return await getRouteIdFromPda(
+            new PublicKey(event.data.route),
+            MULTI_HOPPER_PROGRAM_ID
+          );
         default:
           return null;
       }
@@ -322,8 +358,8 @@ export class ContractEventsEtlJob extends SolanaTransactionEtlJob<ContractTransa
 
   private extractCreator(event: ContractEventData): string | null {
     switch (event.type) {
-      case 'routeCreated':
-      case 'tokenConfigCreated':
+      case "routeCreated":
+      case "tokenConfigCreated":
         return event.data.creator.toString();
       default:
         return null;
@@ -332,7 +368,7 @@ export class ContractEventsEtlJob extends SolanaTransactionEtlJob<ContractTransa
 
   private extractHopIndex(event: ContractEventData): number | null {
     switch (event.type) {
-      case 'hopCompleted':
+      case "hopCompleted":
         return event.data.hopIndex;
       default:
         return null;
@@ -346,6 +382,10 @@ export class ContractEventsEtlJob extends SolanaTransactionEtlJob<ContractTransa
 
   protected async afterJob(result: any): Promise<void> {
     await super.afterJob(result);
-    console.log(`Contract events ETL completed. Events extracted: ${result.metadata?.eventsExtracted || 0}`);
+    console.log(
+      `Contract events ETL completed. Events extracted: ${
+        result.metadata?.eventsExtracted || 0
+      }`
+    );
   }
 }

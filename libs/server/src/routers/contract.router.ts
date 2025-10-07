@@ -1,9 +1,9 @@
-import { z } from 'zod';
-import { TRPCError } from '@trpc/server';
-import { router, publicProcedure } from '../trpc';
-import { 
-  initializeCompleteTokenConfig, 
-  initializeCompleteSolTokenConfig, 
+import { z } from "zod";
+import { TRPCError } from "@trpc/server";
+import { router, publicProcedure } from "../trpc";
+import {
+  initializeCompleteTokenConfig,
+  initializeCompleteSolTokenConfig,
   getTokenConfigSPL,
   getTokenConfigSOL,
   signAndSerialize,
@@ -12,15 +12,19 @@ import {
   getRouteConfiguration,
   getRouteStateAccount,
   executeHop,
-  params
-} from '../solana/contract.service';
-import { Connection, PublicKey, Keypair, clusterApiUrl } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { BN } from '@coral-xyz/anchor';
-import executorService from '../executors/executor.service';
+  params,
+} from "../solana/contract.service";
+import { Connection, PublicKey, Keypair, clusterApiUrl } from "@solana/web3.js";
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { BN } from "@coral-xyz/anchor";
+import executorService from "../executors/executor.service";
 
 // Input validation schemas
-const publicKeySchema = z.string().min(32).max(44).regex(/^[A-Za-z0-9]+$/, 'Invalid public key format');
+const publicKeySchema = z
+  .string()
+  .min(32)
+  .max(44)
+  .regex(/^[A-Za-z0-9]+$/, "Invalid public key format");
 
 const tokenConfigSchema = z.object({
   minTransfer: z.string(),
@@ -63,7 +67,7 @@ const initializeRouteInputSchema = z.object({
   splMint: publicKeySchema,
   creator: publicKeySchema,
   hopAmount: z.string(),
-  routes: z.array(hopSchema)
+  routes: z.array(hopSchema),
 });
 
 const initializeRouteSolInputSchema = z.object({
@@ -75,11 +79,11 @@ const initializeRouteSolInputSchema = z.object({
 });
 
 const getRouteConfigInputSchema = z.object({
-  routeId: z.number()
+  routeId: z.number(),
 });
 
 const getRouteStateInputSchema = z.object({
-  routeId: z.number()
+  routeId: z.number(),
 });
 
 // Executor operation schemas
@@ -118,7 +122,7 @@ const parseTokenConfig = (tokenConfig: z.infer<typeof tokenConfigSchema>) => {
 
 // Helper to parse hops from input
 const parseHops = (hops: z.infer<typeof hopSchema>[]) => {
-  return hops.map(hop => ({
+  return hops.map((hop) => ({
     recipient: new PublicKey(hop.recipient),
     delaySeconds: new BN(hop.delaySeconds),
   }));
@@ -137,7 +141,7 @@ export const contractRouter = router({
         const tokenMint = new PublicKey(splMint);
         const payer = new PublicKey(creator);
         const parsedConfig = parseTokenConfig(tokenConfig);
-        
+
         const tokenPairMint = Keypair.generate();
         const { transaction } = await initializeCompleteTokenConfig(
           payer,
@@ -145,8 +149,13 @@ export const contractRouter = router({
           tokenPairMint,
           parsedConfig
         );
-        
-        const serializedTransaction = await signAndSerialize(transaction, payer, tokenPairMint, params.connection);
+
+        const serializedTransaction = await signAndSerialize(
+          transaction,
+          payer,
+          tokenPairMint,
+          params.connection
+        );
         // const signature = await sendAndConfirmTransaction(params.connection, transaction, [creatorUser]);
         return {
           success: true,
@@ -157,8 +166,11 @@ export const contractRouter = router({
         };
       } catch (error) {
         throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to initialize token config',
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to initialize token config",
         });
       }
     }),
@@ -174,14 +186,17 @@ export const contractRouter = router({
         const { creator, tokenConfig } = input;
         const creatorKey = new PublicKey(creator);
         const parsedConfig = parseTokenConfig(tokenConfig);
-        
-        const { transaction, wsolMint } = await initializeCompleteSolTokenConfig(
+
+        const { transaction, wsolMint } =
+          await initializeCompleteSolTokenConfig(creatorKey, parsedConfig);
+
+        const serializedTransaction = await signAndSerialize(
+          transaction,
           creatorKey,
-          parsedConfig
+          wsolMint,
+          params.connection
         );
-        
-        const serializedTransaction = await signAndSerialize(transaction, creatorKey, wsolMint, params.connection);
-        
+
         return {
           success: true,
           data: {
@@ -191,8 +206,11 @@ export const contractRouter = router({
         };
       } catch (error) {
         throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to initialize SOL token config',
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to initialize SOL token config",
         });
       }
     }),
@@ -206,16 +224,19 @@ export const contractRouter = router({
     .query(async ({ input }) => {
       try {
         const { splMint, creator } = input;
-        const result = await getTokenConfigSPL(splMint, creator);
-        
+        const result = await getTokenConfigSPL(splMint);
+
         return {
           success: true,
           data: result,
         };
       } catch (error) {
         throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to get SPL token config',
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to get SPL token config",
         });
       }
     }),
@@ -229,16 +250,19 @@ export const contractRouter = router({
     .query(async ({ input }) => {
       try {
         const { creator } = input;
-        const result = await getTokenConfigSOL(creator);
-        
+        const result = await getTokenConfigSOL();
+
         return {
           success: true,
           data: result,
         };
       } catch (error) {
         throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to get SOL token config',
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to get SOL token config",
         });
       }
     }),
@@ -254,7 +278,7 @@ export const contractRouter = router({
         const { routeId, routes } = input;
         const creatorKey = new PublicKey(input.creator);
         const parsedHops = parseHops(routes);
-        
+
         const transaction = await initializeRouteWithWrap(
           creatorKey,
           creatorKey,
@@ -264,11 +288,16 @@ export const contractRouter = router({
           input.splMint,
           TOKEN_PROGRAM_ID
         );
-        
+
         // Get executor keypair for signing since we're now triggering the first hop
         const executorWallet = executorService.getWalletByRouteId(routeId);
-        const serializedTransaction = await signAndSerialize(transaction, creatorKey, executorWallet, params.connection);
-        
+        const serializedTransaction = await signAndSerialize(
+          transaction,
+          creatorKey,
+          executorWallet,
+          params.connection
+        );
+
         return {
           success: true,
           data: {
@@ -279,8 +308,11 @@ export const contractRouter = router({
         };
       } catch (error) {
         throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to initialize route',
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to initialize route",
         });
       }
     }),
@@ -293,21 +325,26 @@ export const contractRouter = router({
     .input(initializeRouteSolInputSchema)
     .mutation(async ({ input }) => {
       try {
-        const { routeId, routes, hopAmount, } = input;
+        const { routeId, routes, hopAmount } = input;
         const creatorKey = new PublicKey(input.creator);
         const parsedHops = parseHops(routes);
-        
+
         const transaction = await initializeRouteSolWithWrap(
           creatorKey,
           new BN(routeId),
           new BN(hopAmount),
           parsedHops
         );
-        
+
         // Get executor keypair for signing since we're now triggering the first hop
         const executorWallet = executorService.getWalletByRouteId(routeId);
-        const serializedTransaction = await signAndSerialize(transaction, creatorKey, executorWallet, params.connection);
-        
+        const serializedTransaction = await signAndSerialize(
+          transaction,
+          creatorKey,
+          executorWallet,
+          params.connection
+        );
+
         return {
           success: true,
           data: {
@@ -317,10 +354,13 @@ export const contractRouter = router({
           },
         };
       } catch (error) {
-        console.error('Failed to initialize SOL route:', error);
+        console.error("Failed to initialize SOL route:", error);
         throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to initialize SOL route',
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to initialize SOL route",
         });
       }
     }),
@@ -334,24 +374,27 @@ export const contractRouter = router({
     .query(async ({ input }) => {
       try {
         const { routeId } = input;
-        
+
         const result = await getRouteConfiguration(routeId);
-        
+
         if (!result) {
           return {
             success: false,
             data: null,
           };
         }
-        
+
         return {
           success: true,
           data: result,
         };
       } catch (error) {
         throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to get route configuration',
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to get route configuration",
         });
       }
     }),
@@ -366,22 +409,25 @@ export const contractRouter = router({
       try {
         const { routeId } = input;
         const result = await getRouteStateAccount(routeId);
-        
+
         if (!result) {
           return {
             success: false,
             data: null,
           };
         }
-        
+
         return {
           success: true,
           data: result,
         };
       } catch (error) {
         throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to get route state',
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to get route state",
         });
       }
     }),
@@ -396,7 +442,7 @@ export const contractRouter = router({
       try {
         const { routeId } = input;
         const publicKey = executorService.getExecutorPublicKey(routeId);
-        
+
         return {
           success: true,
           data: {
@@ -406,8 +452,11 @@ export const contractRouter = router({
         };
       } catch (error) {
         throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to get executor info',
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to get executor info",
         });
       }
     }),
@@ -422,7 +471,7 @@ export const contractRouter = router({
       try {
         const { routeId } = input;
         const balance = await executorService.balance(routeId);
-        
+
         return {
           success: true,
           data: {
@@ -433,8 +482,11 @@ export const contractRouter = router({
         };
       } catch (error) {
         throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to get executor balance',
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to get executor balance",
         });
       }
     }),
@@ -449,9 +501,13 @@ export const contractRouter = router({
       try {
         const { routeId, to, amount } = input;
         const amountBN = new BN(amount);
-        
-        const signature = await executorService.withdrawOnBehalf(routeId, to, amountBN);
-        
+
+        const signature = await executorService.withdrawOnBehalf(
+          routeId,
+          to,
+          amountBN
+        );
+
         return {
           success: true,
           data: {
@@ -463,8 +519,11 @@ export const contractRouter = router({
         };
       } catch (error) {
         throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to withdraw on behalf',
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to withdraw on behalf",
         });
       }
     }),
@@ -478,14 +537,14 @@ export const contractRouter = router({
     .mutation(async ({ input }) => {
       try {
         const { routeId, creator, splMint } = input;
-        
+
         // Execute the hop using the simplified signature
         const signature = await executeHop(
           new PublicKey(creator),
           new BN(routeId),
           new PublicKey(splMint)
         );
-        
+
         return {
           success: true,
           data: {
@@ -494,10 +553,11 @@ export const contractRouter = router({
           },
         };
       } catch (error) {
-        console.error('Trigger hop error:', error);
+        console.error("Trigger hop error:", error);
         throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to trigger hop',
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error ? error.message : "Failed to trigger hop",
         });
       }
     }),

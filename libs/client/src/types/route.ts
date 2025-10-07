@@ -1,21 +1,21 @@
-import { PublicKey } from '@solana/web3.js';
-import { BN } from '@coral-xyz/anchor';
+import { PublicKey } from "@solana/web3.js";
+import { BN } from "bn.js";
 
 export interface IHop {
   recipient: PublicKey;
-  delaySeconds: BN;
+  delaySeconds: typeof BN;
 }
 
 export interface RouteConfig {
   creator: PublicKey;
-  routeId: BN;
+  routeId: typeof BN;
   tokenConfig: PublicKey;
   sourceOwner: PublicKey;
   executor: PublicKey;
   hops: IHop[];
-  hopAmount: BN;
+  hopAmount: typeof BN;
   isFinalized: boolean;
-  createdAt: BN;
+  createdAt: typeof BN;
 }
 
 export interface RouteStateAccount {
@@ -66,7 +66,7 @@ export interface IHopInput {
 // New timestamp-based interface for hop input
 export interface TimestampHopInput {
   recipient: string;
-  scheduledAt: Date; // When this hop should execute
+  scheduledAt: string; // UTC ISO string - when this hop should execute
 }
 
 // Legacy delay-based interface (for backwards compatibility)
@@ -128,27 +128,34 @@ export const convertTimestampToRouteInput = (
   tokenDecimals: number = 6
 ): InitializeRouteInput => {
   // Convert human readable hop amount to raw token units
-  const hopAmountRaw = Math.floor(parseFloat(timestampInput.hopAmountTokens) * Math.pow(10, tokenDecimals));
-  
+  const hopAmountRaw = Math.floor(
+    parseFloat(timestampInput.hopAmountTokens) * Math.pow(10, tokenDecimals)
+  );
+
   // Calculate delays from timestamps
-  const convertedHops: IHopInput[] = timestampInput.hops.map((hop, index, hops) => {
-    let delaySeconds: number;
-    
-    if (index === 0) {
-      // First hop executes immediately
-      delaySeconds = 0;
-    } else {
-      // Calculate delay from previous hop
-      const prevHopTime = hops[index - 1].scheduledAt.getTime();
-      const currentHopTime = hop.scheduledAt.getTime();
-      delaySeconds = Math.max(0, Math.floor((currentHopTime - prevHopTime) / 1000));
+  const convertedHops: IHopInput[] = timestampInput.hops.map(
+    (hop, index, hops) => {
+      let delaySeconds: number;
+
+      if (index === 0) {
+        // First hop executes immediately
+        delaySeconds = 0;
+      } else {
+        // Calculate delay from previous hop
+        const prevHopTime = new Date(hops[index - 1].scheduledAt).getTime();
+        const currentHopTime = new Date(hop.scheduledAt).getTime();
+        delaySeconds = Math.max(
+          0,
+          Math.floor((currentHopTime - prevHopTime) / 1000)
+        );
+      }
+
+      return {
+        recipient: hop.recipient,
+        delaySeconds: delaySeconds.toString(),
+      };
     }
-    
-    return {
-      recipient: hop.recipient,
-      delaySeconds: delaySeconds.toString(),
-    };
-  });
+  );
 
   return {
     routes: convertedHops,
@@ -162,11 +169,13 @@ export const convertHumanReadableToRouteInput = (
   humanInput: HumanReadableRouteInput,
   tokenDecimals: number = 6
 ): InitializeRouteInput => {
-  const hopAmountRaw = Math.floor(parseFloat(humanInput.hopAmountTokens) * Math.pow(10, tokenDecimals));
-  
-  const convertedHops: IHopInput[] = humanInput.hops.map(hop => ({
+  const hopAmountRaw = Math.floor(
+    parseFloat(humanInput.hopAmountTokens) * Math.pow(10, tokenDecimals)
+  );
+
+  const convertedHops: IHopInput[] = humanInput.hops.map((hop) => ({
     recipient: hop.recipient,
-    delaySeconds: (parseFloat(hop.delayMinutes) * 60).toString()
+    delaySeconds: (parseFloat(hop.delayMinutes) * 60).toString(),
   }));
 
   return {
@@ -180,11 +189,13 @@ export const convertRouteInputToHumanReadable = (
   input: InitializeRouteInput,
   tokenDecimals: number = 6
 ): HumanReadableRouteInput => {
-  const hopAmountTokens = (parseFloat(input.hopAmount) / Math.pow(10, tokenDecimals)).toString();
-  
-  const convertedHops: HumanReadableHopInput[] = input.routes.map(hop => ({
+  const hopAmountTokens = (
+    parseFloat(input.hopAmount) / Math.pow(10, tokenDecimals)
+  ).toString();
+
+  const convertedHops: HumanReadableHopInput[] = input.routes.map((hop) => ({
     recipient: hop.recipient,
-    delayMinutes: (parseFloat(hop.delaySeconds) / 60).toString()
+    delayMinutes: (parseFloat(hop.delaySeconds) / 60).toString(),
   }));
 
   return {
@@ -195,26 +206,33 @@ export const convertRouteInputToHumanReadable = (
 };
 
 // Convert database hops to timestamp format
-export const convertDatabaseHopsToTimestamp = (hops: DatabaseHop[]): TimestampHopInput[] => {
-  return hops.map(hop => ({
+export const convertDatabaseHopsToTimestamp = (
+  hops: DatabaseHop[]
+): TimestampHopInput[] => {
+  return hops.map((hop) => ({
     recipient: hop.recipient,
-    scheduledAt: new Date(hop.scheduledAt),
+    scheduledAt: hop.scheduledAt, // Already a UTC ISO string
   }));
 };
 
 // Convert timestamp hops to IHopInput format with calculated delays
-export const convertTimestampHopsToIHopInput = (hops: TimestampHopInput[]): IHopInput[] => {
+export const convertTimestampHopsToIHopInput = (
+  hops: TimestampHopInput[]
+): IHopInput[] => {
   return hops.map((hop, index, hops) => {
     let delaySeconds: number;
-    
+
     if (index === 0) {
       delaySeconds = 0;
     } else {
-      const prevHopTime = hops[index - 1].scheduledAt.getTime();
-      const currentHopTime = hop.scheduledAt.getTime();
-      delaySeconds = Math.max(0, Math.floor((currentHopTime - prevHopTime) / 1000));
+      const prevHopTime = new Date(hops[index - 1].scheduledAt).getTime();
+      const currentHopTime = new Date(hop.scheduledAt).getTime();
+      delaySeconds = Math.max(
+        0,
+        Math.floor((currentHopTime - prevHopTime) / 1000)
+      );
     }
-    
+
     return {
       recipient: hop.recipient,
       delaySeconds: delaySeconds.toString(),
@@ -223,16 +241,21 @@ export const convertTimestampHopsToIHopInput = (hops: TimestampHopInput[]): IHop
 };
 
 // Legacy conversion functions (for backwards compatibility)
-export const convertDatabaseHopsToHumanReadable = (hops: DatabaseHop[]): HumanReadableHopInput[] => {
+export const convertDatabaseHopsToHumanReadable = (
+  hops: DatabaseHop[]
+): HumanReadableHopInput[] => {
   return hops.map((hop, index, hops) => {
     let delayMinutes: number = 0;
-    
+
     if (index > 0) {
       const prevHopTime = new Date(hops[index - 1].scheduledAt).getTime();
       const currentHopTime = new Date(hop.scheduledAt).getTime();
-      delayMinutes = Math.max(0, Math.floor((currentHopTime - prevHopTime) / (1000 * 60)));
+      delayMinutes = Math.max(
+        0,
+        Math.floor((currentHopTime - prevHopTime) / (1000 * 60))
+      );
     }
-    
+
     return {
       recipient: hop.recipient,
       delayMinutes: delayMinutes.toString(),
@@ -240,8 +263,10 @@ export const convertDatabaseHopsToHumanReadable = (hops: DatabaseHop[]): HumanRe
   });
 };
 
-export const convertHumanReadableHopsToIHopInput = (hops: HumanReadableHopInput[]): IHopInput[] => {
-  return hops.map(hop => ({
+export const convertHumanReadableHopsToIHopInput = (
+  hops: HumanReadableHopInput[]
+): IHopInput[] => {
+  return hops.map((hop) => ({
     recipient: hop.recipient,
     delaySeconds: (parseFloat(hop.delayMinutes) * 60).toString(),
   }));

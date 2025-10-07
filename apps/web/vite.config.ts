@@ -1,39 +1,70 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { nodePolyfills } from 'vite-plugin-node-polyfills'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import { nodePolyfills } from "vite-plugin-node-polyfills";
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react(),
     nodePolyfills({
-      // Whether to polyfill `node:` protocol imports.
-      protocolImports: true,
+      globals: {
+        Buffer: true,
+        global: true,
+        process: true,
+      },
+      include: [
+        "zlib",
+        "util",
+        "buffer",
+        "crypto",
+        "stream",
+        "assert",
+        "os",
+        "path",
+        "fs",
+        "http",
+        "https",
+        "url",
+      ],
     }),
   ],
   server: {
-    host: '0.0.0.0',
+    host: "0.0.0.0",
     port: 5173,
   },
   define: {
-    global: 'globalThis',
+    global: "globalThis",
   },
   resolve: {
     alias: {
       // This is required for some packages to work in the browser
-      stream: 'stream-browserify',
-      crypto: 'crypto-browserify',
-      buffer: 'buffer',
+      stream: "stream-browserify",
+      crypto: "crypto-browserify",
+      buffer: "buffer",
     },
   },
   optimizeDeps: {
-    include: ['@trpc-template/client'],
-    exclude: ['@trpc-template/server']
+    include: ["@solana/web3.js"],
+    exclude: ["@trpc-template/server"],
+    esbuildOptions: {
+      target: "esnext",
+      define: {
+        global: "globalThis",
+      },
+    },
   },
   build: {
+    target: "esnext",
+    rollupOptions: {
+      external: [],
+      output: {
+        manualChunks: {
+          solana: ["@solana/web3.js", "@coral-xyz/anchor", "@coral-xyz/borsh"],
+        },
+      },
+    },
     commonjsOptions: {
-      include: [/node_modules/],
-      transformMixedEsModules: true
-    }
-  }
-})
+      transformMixedEsModules: true,
+    },
+  },
+});

@@ -22,6 +22,6 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*", "../../apps/api/src/env.ts"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

@@ -1,19 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  TokenConfigInput, 
-  HumanReadableTokenConfigInput, 
-  convertHumanReadableToTokenConfigInput 
-} from '../types/tokenConfig';
+import React, { useState, useEffect } from "react";
+import {
+  TokenConfigInput,
+  HumanReadableTokenConfigInput,
+  convertHumanReadableToTokenConfigInput,
+} from "../types/tokenConfig";
+import { useConnection } from "@solana/wallet-adapter-react";
+import { PublicKey } from "@solana/web3.js";
+import { getMint } from "@solana/spl-token";
 
-// We'll need these imports to be passed in or use a connection prop
-interface TokenConfigFormProps {
-  type: 'SPL' | 'SOL';
+export interface TokenConfigFormProps {
+  type: "SPL" | "SOL";
   onSubmit: (data: { address: string; tokenConfig: TokenConfigInput }) => void;
   isLoading?: boolean;
   error?: string;
   tokenDecimals?: number; // For SPL tokens, allows customization of decimal places
-  connection?: any; // Solana connection for detecting decimals
-  onDecimalsDetected?: (decimals: number) => void; // Callback when decimals are detected
 }
 
 export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
@@ -22,50 +22,49 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
   isLoading = false,
   error,
   tokenDecimals = 6,
-  connection,
-  onDecimalsDetected
 }) => {
-  const [address, setAddress] = useState('');
-  const [detectedDecimals, setDetectedDecimals] = useState<number>(tokenDecimals);
+  const [address, setAddress] = useState(
+    "Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr"
+  );
+  const [detectedDecimals, setDetectedDecimals] =
+    useState<number>(tokenDecimals);
   const [isDetectingDecimals, setIsDetectingDecimals] = useState(false);
-  const [decimalsError, setDecimalsError] = useState<string>('');
-  
-  const [humanReadableConfig, setHumanReadableConfig] = useState<HumanReadableTokenConfigInput>({
-    minTransferAmount: '0.001', // Human readable: 0.001 tokens
-    feePercentage: '5', // Human readable: 5%
-    feeTreasury: '',
-    maxHops: '5',
-    maxDelayHours: '1', // Human readable: 1 hour
-    timelockHours: '0', // Human readable: 0 hours
-    flatFeeSol: '0.001', // Human readable: 0.001 SOL
-  });
+  const [decimalsError, setDecimalsError] = useState<string>("");
+  const { connection } = useConnection();
+
+  const [humanReadableConfig, setHumanReadableConfig] =
+    useState<HumanReadableTokenConfigInput>({
+      minTransferAmount: "0.001", // Human readable: 0.001 tokens
+      feePercentage: "5", // Human readable: 5%
+      feeTreasury: "4jLPFoW7at66h6WhyCZmcskpn3jgR1uQ9CJdTLfe9hVH",
+      maxHops: "5",
+      maxDelayHours: "1", // Human readable: 1 hour
+      timelockHours: "0", // Human readable: 0 hours
+      flatFeeSol: "0.001", // Human readable: 0.001 SOL
+    });
 
   // Detect token decimals when address changes (for SPL tokens only)
   useEffect(() => {
     const detectDecimals = async () => {
-      if (type !== 'SPL' || !address || !connection) {
-        const defaultDecimals = type === 'SOL' ? 9 : 6;
-        setDetectedDecimals(defaultDecimals);
+      if (type !== "SPL" || !address || !connection) {
+        setDetectedDecimals(type === "SOL" ? 9 : 6);
         return;
       }
 
       try {
         setIsDetectingDecimals(true);
-        setDecimalsError('');
-        
-        // Dynamic import to avoid bundling issues
-        const { PublicKey } = await import('@solana/web3.js');
-        const { getMint } = await import('@solana/spl-token');
-        
+        setDecimalsError("");
+
         const mintPublicKey = new PublicKey(address);
         const mintInfo = await getMint(connection, mintPublicKey);
-        
+
         setDetectedDecimals(mintInfo.decimals);
-        onDecimalsDetected?.(mintInfo.decimals);
-        console.log(`Detected ${mintInfo.decimals} decimals for token ${address}`);
+        console.log(
+          `Detected ${mintInfo.decimals} decimals for token ${address}`
+        );
       } catch (error) {
-        console.warn('Could not fetch token decimals:', error);
-        setDecimalsError('Could not detect token decimals. Using default (6).');
+        console.warn("Could not fetch token decimals:", error);
+        setDecimalsError("Could not detect token decimals. Using default (6).");
         setDetectedDecimals(6);
       } finally {
         setIsDetectingDecimals(false);
@@ -75,52 +74,65 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
     // Debounce the detection to avoid too many API calls
     const timeoutId = setTimeout(detectDecimals, 500);
     return () => clearTimeout(timeoutId);
-  }, [address, type, connection, onDecimalsDetected]);
+  }, [address, type, connection]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // Convert human-readable input to the internal format using detected decimals
-    const tokenConfig = convertHumanReadableToTokenConfigInput(humanReadableConfig, detectedDecimals);
+    const tokenConfig = convertHumanReadableToTokenConfigInput(
+      humanReadableConfig,
+      detectedDecimals
+    );
     onSubmit({ address, tokenConfig });
   };
 
-  const handleConfigChange = (field: keyof HumanReadableTokenConfigInput, value: string) => {
-    setHumanReadableConfig(prev => ({
+  const handleConfigChange = (
+    field: keyof HumanReadableTokenConfigInput,
+    value: string
+  ) => {
+    setHumanReadableConfig((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
-  const baseInputStyles = 'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500';
-  const labelStyles = 'block text-sm font-medium text-gray-700 mb-1';
-  const containerStyles = 'mb-4';
+  const baseInputStyles =
+    "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500";
+  const labelStyles = "block text-sm font-medium text-gray-700 mb-1";
+  const containerStyles = "mb-4";
 
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-md">
       <h2 className="text-2xl font-bold mb-6">
         Initialize {type} Token Config
       </h2>
-      
+
       <form onSubmit={handleSubmit}>
         {/* Address Input */}
         <div className={containerStyles}>
           <label className={labelStyles}>
-            {type === 'SPL' ? 'SPL Token Address' : 'Creator Address'}
+            {type === "SPL" ? "SPL Token Address" : "Creator Address"}
           </label>
           <input
             type="text"
             value={address}
             onChange={(e) => setAddress(e.target.value)}
-            placeholder={type === 'SPL' ? 'Enter SPL token mint address' : 'Enter creator wallet address'}
+            placeholder={
+              type === "SPL"
+                ? "Enter SPL token mint address"
+                : "Enter creator wallet address"
+            }
             className={baseInputStyles}
             required
           />
-          
+
           {/* Token Decimals Detection Info */}
-          {type === 'SPL' && connection && (
+          {type === "SPL" && (
             <div className="mt-2">
               {isDetectingDecimals ? (
-                <p className="text-xs text-blue-600">🔍 Detecting token decimals...</p>
+                <p className="text-xs text-blue-600">
+                  🔍 Detecting token decimals...
+                </p>
               ) : decimalsError ? (
                 <p className="text-xs text-orange-600">⚠️ {decimalsError}</p>
               ) : detectedDecimals !== 6 ? (
@@ -142,22 +154,27 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
             <label className={labelStyles}>
               Minimum Transfer Amount
               <span className="text-xs text-gray-500 ml-1">
-                ({type === 'SPL' ? 'tokens' : 'SOL'})
+                ({type === "SPL" ? "tokens" : "SOL"})
               </span>
             </label>
             <input
               type="number"
               step="any"
               value={humanReadableConfig.minTransferAmount}
-              onChange={(e) => handleConfigChange('minTransferAmount', e.target.value)}
+              onChange={(e) =>
+                handleConfigChange("minTransferAmount", e.target.value)
+              }
               placeholder="0.001"
               className={baseInputStyles}
               required
             />
             <p className="text-xs text-gray-500 mt-1">
               Minimum amount that can be transferred in a single hop
-              {type === 'SPL' && detectedDecimals !== 6 && (
-                <span className="text-blue-600"> (using {detectedDecimals} decimals)</span>
+              {type === "SPL" && detectedDecimals !== 6 && (
+                <span className="text-blue-600">
+                  {" "}
+                  (using {detectedDecimals} decimals)
+                </span>
               )}
             </p>
           </div>
@@ -173,7 +190,9 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
               min="0"
               max="100"
               value={humanReadableConfig.feePercentage}
-              onChange={(e) => handleConfigChange('feePercentage', e.target.value)}
+              onChange={(e) =>
+                handleConfigChange("feePercentage", e.target.value)
+              }
               placeholder="5.0"
               className={baseInputStyles}
               required
@@ -188,7 +207,9 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
             <input
               type="text"
               value={humanReadableConfig.feeTreasury}
-              onChange={(e) => handleConfigChange('feeTreasury', e.target.value)}
+              onChange={(e) =>
+                handleConfigChange("feeTreasury", e.target.value)
+              }
               placeholder="Treasury wallet address"
               className={baseInputStyles}
               required
@@ -205,7 +226,7 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
               min="1"
               max="10"
               value={humanReadableConfig.maxHops}
-              onChange={(e) => handleConfigChange('maxHops', e.target.value)}
+              onChange={(e) => handleConfigChange("maxHops", e.target.value)}
               placeholder="5"
               className={baseInputStyles}
               required
@@ -225,7 +246,9 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
               step="0.1"
               min="0"
               value={humanReadableConfig.maxDelayHours}
-              onChange={(e) => handleConfigChange('maxDelayHours', e.target.value)}
+              onChange={(e) =>
+                handleConfigChange("maxDelayHours", e.target.value)
+              }
               placeholder="1.0"
               className={baseInputStyles}
               required
@@ -245,7 +268,9 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
               step="0.1"
               min="0"
               value={humanReadableConfig.timelockHours}
-              onChange={(e) => handleConfigChange('timelockHours', e.target.value)}
+              onChange={(e) =>
+                handleConfigChange("timelockHours", e.target.value)
+              }
               placeholder="0"
               className={baseInputStyles}
               required
@@ -265,7 +290,7 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
               step="any"
               min="0"
               value={humanReadableConfig.flatFeeSol}
-              onChange={(e) => handleConfigChange('flatFeeSol', e.target.value)}
+              onChange={(e) => handleConfigChange("flatFeeSol", e.target.value)}
               placeholder="0.001"
               className={baseInputStyles}
               required
@@ -286,16 +311,18 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={isLoading || (type === 'SPL' && isDetectingDecimals)}
+          disabled={isLoading || (type === "SPL" && isDetectingDecimals)}
           className={`w-full py-2 px-4 rounded-md font-medium transition-colors ${
-            isLoading || (type === 'SPL' && isDetectingDecimals)
-              ? 'bg-gray-400 cursor-not-allowed'
-              : 'bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500'
+            isLoading || (type === "SPL" && isDetectingDecimals)
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
           } text-white`}
         >
-          {isLoading ? 'Creating...' : 
-           (type === 'SPL' && isDetectingDecimals) ? 'Detecting decimals...' :
-           `Initialize ${type} Token Config`}
+          {isLoading
+            ? "Creating..."
+            : type === "SPL" && isDetectingDecimals
+            ? "Detecting decimals..."
+            : `Initialize ${type} Token Config`}
         </button>
       </form>
     </div>

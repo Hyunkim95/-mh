@@ -1,37 +1,18 @@
-import React, { useState } from 'react';
-import { useExecutor } from '../hooks/useExecutor';
-import { BN } from '@coral-xyz/anchor';
-
-// TrpcClient interface (should match the one in useExecutor)
-interface TrpcClient {
-  contract: {
-    getExecutorInfo: {
-      query: (input: { routeId: number }) => Promise<{ data: { routeId: number; publicKey: string; } }>;
-    };
-    getExecutorBalance: {
-      query: (input: { routeId: number }) => Promise<{ data: { routeId: number; balance: string; balanceSOL: string; } }>;
-    };
-    withdrawOnBehalf: {
-      mutate: (input: { routeId: number; to: string; amount: string }) => Promise<{ data: { signature: string; routeId: number; to: string; amount: string; } }>;
-    };
-  };
-}
+import React, { useState } from "react";
+import { useExecutor } from "../hooks/useExecutor";
+import { BN } from "bn.js";
 
 export interface ExecutorWalletProps {
   routeId: number;
-  trpcClient: TrpcClient;
   className?: string;
-  enabled?: boolean;
 }
 
 export const ExecutorWallet: React.FC<ExecutorWalletProps> = ({
   routeId,
-  trpcClient,
-  className = '',
-  enabled = true
+  className = "",
 }) => {
-  const [withdrawTo, setWithdrawTo] = useState('');
-  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawTo, setWithdrawTo] = useState("");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
   const [showWithdrawForm, setShowWithdrawForm] = useState(false);
 
   const {
@@ -43,7 +24,7 @@ export const ExecutorWallet: React.FC<ExecutorWalletProps> = ({
     isWithdrawing,
     error,
     refetchBalance,
-  } = useExecutor({ routeId, trpcClient, enabled });
+  } = useExecutor(routeId);
 
   const handleWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,25 +33,28 @@ export const ExecutorWallet: React.FC<ExecutorWalletProps> = ({
     try {
       // Convert SOL to lamports for withdrawal
       const lamports = new BN(parseFloat(withdrawAmount) * 1e9);
-      await withdraw(withdrawTo, lamports);
-      
+      await withdraw(withdrawTo, lamports.toString());
+
       // Reset form
-      setWithdrawTo('');
-      setWithdrawAmount('');
+      setWithdrawTo("");
+      setWithdrawAmount("");
       setShowWithdrawForm(false);
     } catch (err) {
-      console.error('Withdrawal failed:', err);
+      console.error("Withdrawal failed:", err);
     }
   };
 
   const formatPublicKey = (key: string | null) => {
-    if (!key) return 'Loading...';
-    return `${key.slice(0, 8)}...${key.slice(-8)}`;
+    console.log("key", key);
+    if (!key) return "Loading...";
+    return key;
   };
 
-  const baseInputStyles = 'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500';
-  const labelStyles = 'block text-sm font-medium text-gray-700 mb-1';
-  const buttonStyles = 'px-4 py-2 rounded-md font-medium transition-colors focus:outline-none focus:ring-2';
+  const baseInputStyles =
+    "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500";
+  const labelStyles = "block text-sm font-medium text-gray-700 mb-1";
+  const buttonStyles =
+    "px-4 py-2 rounded-md font-medium transition-colors focus:outline-none focus:ring-2";
 
   if (isLoading) {
     return (
@@ -87,25 +71,21 @@ export const ExecutorWallet: React.FC<ExecutorWalletProps> = ({
   return (
     <div className={`p-6 bg-white rounded-lg shadow-md ${className}`}>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xl font-bold text-gray-800">
-          Executor Wallet
-        </h3>
-        <span className="text-sm text-gray-500">
-          Route #{routeId}
-        </span>
+        <h3 className="text-xl font-bold text-gray-800">Executor Wallet</h3>
+        <span className="text-sm text-gray-500">Route #{routeId}</span>
       </div>
 
-      {error ? (
+      {error && (
         <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-          Error: {error instanceof Error ? error.message : String(error)}
+          Error: {error.message}
         </div>
-      ) : null}
+      )}
 
       {/* Wallet Info */}
       <div className="space-y-4 mb-6">
         <div>
           <label className={labelStyles}>Public Key</label>
-          <div className="p-3 bg-gray-50 rounded-md font-mono text-sm">
+          <div className="p-3 bg-gray-50 rounded-md font-mono text-sm text-gray-800">
             {formatPublicKey(publicKey)}
           </div>
           {publicKey && (
@@ -121,14 +101,16 @@ export const ExecutorWallet: React.FC<ExecutorWalletProps> = ({
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className={labelStyles}>Balance (SOL)</label>
-            <div className="p-3 bg-gray-50 rounded-md font-mono text-lg">
-              {balanceSOL !== null ? `${balanceSOL.toFixed(9)} SOL` : 'Loading...'}
+            <div className="p-3 bg-gray-50 rounded-md font-mono text-lg text-gray-800">
+              {balanceSOL !== null
+                ? `${balanceSOL.toFixed(9)} SOL`
+                : "Loading..."}
             </div>
           </div>
           <div>
             <label className={labelStyles}>Balance (Lamports)</label>
-            <div className="p-3 bg-gray-50 rounded-md font-mono text-sm">
-              {balance !== null ? balance.toString() : 'Loading...'}
+            <div className="p-3 bg-gray-50 rounded-md font-mono text-sm text-gray-800">
+              {balance !== null ? balance.toString() : "Loading..."}
             </div>
           </div>
         </div>
@@ -140,7 +122,7 @@ export const ExecutorWallet: React.FC<ExecutorWalletProps> = ({
           onClick={() => refetchBalance()}
           disabled={isLoading}
           className={`${buttonStyles} bg-blue-500 hover:bg-blue-600 focus:ring-blue-500 text-white ${
-            isLoading ? 'opacity-50 cursor-not-allowed' : ''
+            isLoading ? "opacity-50 cursor-not-allowed" : ""
           }`}
         >
           Refresh Balance
@@ -150,10 +132,12 @@ export const ExecutorWallet: React.FC<ExecutorWalletProps> = ({
           onClick={() => setShowWithdrawForm(!showWithdrawForm)}
           disabled={isLoading || !balance || balance.isZero()}
           className={`${buttonStyles} bg-green-500 hover:bg-green-600 focus:ring-green-500 text-white ${
-            isLoading || !balance || balance.isZero() ? 'opacity-50 cursor-not-allowed' : ''
+            isLoading || !balance || balance.isZero()
+              ? "opacity-50 cursor-not-allowed"
+              : ""
           }`}
         >
-          {showWithdrawForm ? 'Cancel' : 'Withdraw'}
+          {showWithdrawForm ? "Cancel" : "Withdraw"}
         </button>
       </div>
 
@@ -161,7 +145,7 @@ export const ExecutorWallet: React.FC<ExecutorWalletProps> = ({
       {showWithdrawForm && (
         <form onSubmit={handleWithdraw} className="border-t pt-6">
           <h4 className="font-semibold text-gray-800 mb-4">Withdraw Funds</h4>
-          
+
           <div className="space-y-4">
             <div>
               <label className={labelStyles}>Recipient Address</label>
@@ -202,10 +186,12 @@ export const ExecutorWallet: React.FC<ExecutorWalletProps> = ({
                 type="submit"
                 disabled={isWithdrawing || !withdrawTo || !withdrawAmount}
                 className={`${buttonStyles} bg-red-500 hover:bg-red-600 focus:ring-red-500 text-white ${
-                  isWithdrawing || !withdrawTo || !withdrawAmount ? 'opacity-50 cursor-not-allowed' : ''
+                  isWithdrawing || !withdrawTo || !withdrawAmount
+                    ? "opacity-50 cursor-not-allowed"
+                    : ""
                 }`}
               >
-                {isWithdrawing ? 'Withdrawing...' : 'Confirm Withdrawal'}
+                {isWithdrawing ? "Withdrawing..." : "Confirm Withdrawal"}
               </button>
 
               <button
