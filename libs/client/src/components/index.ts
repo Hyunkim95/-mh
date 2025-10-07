@@ -5,6 +5,7 @@ export * from "./ExecutorWallet";
 export * from "./HopsTab";
 export * from "./RouteCreateForm";
 export * from "./TokenConfigForm";
+export * from "./TokenSelector";
 export * from "./RouteDetailView";
 export * from "./WalletConnectPrompt";
 export * from "./root";

@@ -515,6 +515,7 @@ export class ContractEventProcessor {
     const eventData = event.eventData as TokenConfigCreatedEvent;
     tokenConfigsService.create({
       tokenConfigAddress: eventData.tokenConfig.toString(),
+      tokenMint: eventData.mint.toString(),
       creator: eventData.creator.toString(),
       minTransferAmount: this.convertHexToNumber(
         eventData.minTransfer.toString()

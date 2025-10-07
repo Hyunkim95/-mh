@@ -1,18 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { PublicKey } from "@solana/web3.js";
 import {
   TimestampRouteInput,
   TimestampHopInput,
   convertTimestampToRouteInput,
   InitializeRouteInput,
 } from "../types/route";
-import { useConnection } from "@solana/wallet-adapter-react";
-import { getMint } from "@solana/spl-token";
 import {
   TimezoneAwareDatePicker,
   TimezoneAwareDateDisplay,
 } from "./TimezoneAwareDatePicker";
 import { useTimezone } from "../hooks/useTimezone";
+import { TokenSelector } from "./TokenSelector";
 
 // Custom styles for react-datepicker
 const datePickerStyles = `
@@ -90,9 +88,6 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
   const [detectedDecimals, setDetectedDecimals] = useState<number>(
     type === "SOL" ? 9 : 6
   );
-  const [isDetectingDecimals, setIsDetectingDecimals] = useState(false);
-  const [decimalsError, setDecimalsError] = useState<string>("");
-  const { connection } = useConnection();
   const { scheduleFromNow } = useTimezone();
 
   const [isCreatingRoute, setIsCreatingRoute] = useState(false);
@@ -114,37 +109,13 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
     ],
   });
 
-  // Detect token decimals when SPL mint address changes
-  useEffect(() => {
-    const detectDecimals = async () => {
-      if (type !== "SPL" || !timestampRoute.splMint || !connection) {
-        setDetectedDecimals(type === "SOL" ? 9 : 6);
-        return;
-      }
-
-      try {
-        setIsDetectingDecimals(true);
-        setDecimalsError("");
-
-        const mintPublicKey = new PublicKey(timestampRoute.splMint);
-        const mintInfo = await getMint(connection, mintPublicKey);
-
-        setDetectedDecimals(mintInfo.decimals);
-        console.log(
-          `Detected ${mintInfo.decimals} decimals for token ${timestampRoute.splMint}`
-        );
-      } catch (error) {
-        console.warn("Could not fetch token decimals:", error);
-        setDecimalsError("Could not detect token decimals. Using default (6).");
-        setDetectedDecimals(6);
-      } finally {
-        setIsDetectingDecimals(false);
-      }
-    };
-
-    const timeoutId = setTimeout(detectDecimals, 500);
-    return () => clearTimeout(timeoutId);
-  }, [timestampRoute.splMint, type, connection]);
+  const handleTokenChange = (tokenMint: string, tokenDecimals: number) => {
+    setTimestampRoute((prev) => ({
+      ...prev,
+      splMint: tokenMint,
+    }));
+    setDetectedDecimals(tokenDecimals);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -295,37 +266,15 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
         <div className="mb-6">
           {type === "SPL" && (
             <div>
-              <label className={labelStyles}>SPL Token Mint Address</label>
-              <input
-                type="text"
+              <label className={labelStyles}>SPL Token</label>
+              <TokenSelector
                 value={timestampRoute.splMint || ""}
-                onChange={(e) =>
-                  setTimestampRoute((prev) => ({
-                    ...prev,
-                    splMint: e.target.value,
-                  }))
-                }
-                placeholder="Token mint address"
-                className={baseInputStyles}
+                onChange={handleTokenChange}
+                placeholder="Select a configured token from your wallet"
                 required
+                className="w-full"
+                useConfiguredTokensOnly={true}
               />
-              <div className="mt-2">
-                {isDetectingDecimals ? (
-                  <p className="text-xs text-blue-600">
-                    🔍 Detecting token decimals...
-                  </p>
-                ) : decimalsError ? (
-                  <p className="text-xs text-orange-600">⚠️ {decimalsError}</p>
-                ) : detectedDecimals !== 6 ? (
-                  <p className="text-xs text-green-600">
-                    ✅ Detected {detectedDecimals} decimal places for this token
-                  </p>
-                ) : (
-                  <p className="text-xs text-gray-500">
-                    Using {detectedDecimals} decimal places
-                  </p>
-                )}
-              </div>
             </div>
           )}
         </div>
@@ -544,23 +493,17 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
           disabled={
             isLoading ||
             isCreatingRoute ||
-            (type === "SPL" && isDetectingDecimals) ||
             timestampRoute.hops.some((hop) => !hop.recipient)
           }
           className={`w-full py-3 px-4 rounded-md font-medium transition-colors ${
             isLoading ||
             isCreatingRoute ||
-            (type === "SPL" && isDetectingDecimals) ||
             timestampRoute.hops.some((hop) => !hop.recipient)
               ? "bg-gray-400 cursor-not-allowed"
               : "bg-green-500 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
           } text-white`}
         >
-          {isLoading || isCreatingRoute
-            ? "Saving Route..."
-            : type === "SPL" && isDetectingDecimals
-            ? "Detecting decimals..."
-            : `Save ${type} Route`}
+          {isLoading || isCreatingRoute ? "Saving Route..." : `Save ${type} Route`}
         </button>
 
         <p className="text-sm text-gray-500 mt-2 text-center">
