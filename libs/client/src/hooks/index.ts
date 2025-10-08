@@ -6,3 +6,4 @@ export * from "./useWalletConnection";
 export * from "./useTriggerHop";
 export * from "./useSubmitRoute";
 export * from "./useInitializeTokenConfig";
+export * from "./useUpdateTokenConfig";

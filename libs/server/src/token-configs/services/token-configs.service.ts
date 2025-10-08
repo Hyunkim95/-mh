@@ -5,6 +5,19 @@ const create = async (tokenConfig: NewTokenConfig) => {
   return await db.insert(tokenConfigsSchema).values(tokenConfig).returning();
 };
 
+const findById = async (id: number) => {
+  const config = await db
+    .select()
+    .from(tokenConfigsSchema)
+    .where(eq(tokenConfigsSchema.id, id));
+
+  if (config.length === 0) {
+    return null;
+  }
+
+  return config[0];
+};
+
 const hasPair = async (tokenConfig: TokenConfig) => {
   const configs = await db
     .select()
@@ -25,12 +38,17 @@ const findIn = async (mints: string[]) => {
   return await db
     .select()
     .from(tokenConfigsSchema)
-    .where(
-      inArray(
-        tokenConfigsSchema.tokenMint,
-        mints.map((m) => `%${m.toLowerCase()}%`)
-      )
-    );
+    .where(inArray(tokenConfigsSchema.tokenMint, mints));
+};
+
+const update = async (
+  tokenConfigAddress: string,
+  tokenConfig: Partial<TokenConfig>
+) => {
+  return await db
+    .update(tokenConfigsSchema)
+    .set(tokenConfig)
+    .where(ilike(tokenConfigsSchema.tokenConfigAddress, tokenConfigAddress));
 };
 
 export const tokenConfigsService = {
@@ -38,4 +56,6 @@ export const tokenConfigsService = {
   hasPair,
   findByCreator,
   findIn,
+  findById,
+  update,
 };

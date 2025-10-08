@@ -8,6 +8,7 @@ import {
   RouteCreatedEvent,
   RouteFinishedEvent,
   TokenConfigCreatedEvent,
+  TokenConfigUpdatedEvent,
 } from "./contract-events-etl";
 import {
   getRouteIdFromPda,
@@ -110,9 +111,34 @@ export class ContractEventProcessor {
       case "tokenConfigCreated":
         await this.processTokenConfigCreatedEvent(event);
         break;
+      case "tokenConfigUpdated":
+        await this.processTokenConfigUpdatedEvent(event);
+        break;
       default:
         console.log(`Unknown event type: ${event.eventType}`);
     }
+  }
+
+  async processTokenConfigUpdatedEvent(event: ContractEvent): Promise<void> {
+    const eventData = event.eventData as TokenConfigUpdatedEvent;
+    tokenConfigsService.update(eventData.tokenConfig.toString(), {
+      tokenMint: eventData.tokenMint.toString(),
+      minTransferAmount: this.convertHexToNumber(
+        eventData.minTransfer.toString()
+      ),
+      feeBps: Number(eventData.feeBps),
+      feeTreasury: eventData.feeTreasury.toString(),
+      maxHops: Number(eventData.maxHops),
+      maxDelaySeconds: this.convertHexToNumber(
+        eventData.maxDelaySeconds.toString()
+      ),
+      timelockSeconds: this.convertHexToNumber(
+        eventData.timelockSeconds.toString()
+      ),
+      flatFeeLamports: this.convertHexToNumber(
+        eventData.flatFeeLamports.toString()
+      ),
+    });
   }
 
   /**
@@ -515,7 +541,7 @@ export class ContractEventProcessor {
     const eventData = event.eventData as TokenConfigCreatedEvent;
     tokenConfigsService.create({
       tokenConfigAddress: eventData.tokenConfig.toString(),
-      tokenMint: eventData.mint.toString(),
+      tokenMint: eventData.tokenMint.toString(),
       creator: eventData.creator.toString(),
       minTransferAmount: this.convertHexToNumber(
         eventData.minTransfer.toString()

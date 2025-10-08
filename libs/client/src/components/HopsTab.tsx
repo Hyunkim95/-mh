@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { TimestampHopInput } from "../types/route";
 import { useWalletChangeEffect } from "../hooks/useWalletChangeEffect";
 import { Transaction } from "@solana/web3.js";
+import { useSolanaAuth } from "../hooks/useSolanaAuth";
 
 interface Route {
   id: number;
@@ -33,6 +34,7 @@ interface Route {
 }
 
 export const HopsTab: React.FC = () => {
+  const { userData } = useSolanaAuth();
   const { publicKey, sendTransaction } = useWallet();
   const { connection } = useConnection();
   const [selectedRouteId, setSelectedRouteId] = useState<number | null>(null);
@@ -55,8 +57,8 @@ export const HopsTab: React.FC = () => {
     isLoading,
     refetch,
   } = trpc.routes.getByCreator.useQuery(
-    { creator: publicKey?.toBase58() ?? "" },
-    { enabled: !!publicKey }
+    { creator: userData?.publicKey ?? "" },
+    { enabled: !!userData?.publicKey }
   );
 
   // Deploy route mutations

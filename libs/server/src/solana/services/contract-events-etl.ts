@@ -54,7 +54,7 @@ export interface RouteFinishedEvent {
 export interface TokenConfigCreatedEvent {
   tokenConfig: string;
   creator: string;
-  mint: string;
+  tokenMint: string;
   minTransfer: number;
   feeBps: number;
   feeTreasury: string;
@@ -65,11 +65,25 @@ export interface TokenConfigCreatedEvent {
   flatFeeLamports: string;
 }
 
+export interface TokenConfigUpdatedEvent {
+  tokenConfig: string;
+  creator: string;
+  tokenMint: string;
+  minTransfer: number;
+  feeBps: number;
+  feeTreasury: string;
+  maxHops: number;
+  maxDelaySeconds: string;
+  timelockSeconds: string;
+  flatFeeLamports: string;
+}
+
 export type ContractEventData =
   | { type: "hopCompleted"; data: HopCompletedEvent }
   | { type: "routeCreated"; data: RouteCreatedEvent }
   | { type: "routeFinished"; data: RouteFinishedEvent }
-  | { type: "tokenConfigCreated"; data: TokenConfigCreatedEvent };
+  | { type: "tokenConfigCreated"; data: TokenConfigCreatedEvent }
+  | { type: "tokenConfigUpdated"; data: TokenConfigUpdatedEvent };
 
 export interface ContractTransactionData {
   signature: string;
@@ -176,12 +190,13 @@ class ContractEventsSchemaMapper
         };
 
       case "tokenConfigCreated":
+        console.log("tokenConfigCreated", eventData);
         return {
           type: "tokenConfigCreated",
           data: {
             tokenConfig: eventData.tokenConfig,
             creator: eventData.creator,
-            mint: eventData.mint,
+            tokenMint: eventData.tokenMint,
             minTransfer: eventData.minTransfer,
             feeBps: eventData.feeBps,
             feeTreasury: eventData.feeTreasury,
@@ -192,7 +207,11 @@ class ContractEventsSchemaMapper
             pairAddress: eventData.pairAddress,
           },
         };
-
+      case "tokenConfigUpdated":
+        return {
+          type: "tokenConfigUpdated",
+          data: eventData,
+        };
       default:
         console.log(`Unknown event type: ${eventName}`);
         return null;

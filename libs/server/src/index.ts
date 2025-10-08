@@ -1,5 +1,8 @@
 import { config } from "dotenv";
-config();
+config({
+  path: "../../.env",
+});
+
 import dualDirectionContractEventsService from "./solana/services/dual-direction-contract-events.service";
 
 export { server, type AppRouter } from "./server";
@@ -15,3 +18,4 @@ export { default as executorService } from "./executors/executor.service";
 export * from "./utils/timezone";
 export * from "./hops/services/hops-scheduler.service";
 export { dualDirectionContractEventsService };
+export { type HelisuTokenResponse } from "./solana/services/tokens.service";

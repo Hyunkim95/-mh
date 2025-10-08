@@ -6,29 +6,21 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { Transaction } from "@solana/web3.js";
 
-export const useInitializeTokenConfig = ({
+export const useUpdateTokenConfig = ({
   publicKey,
 }: {
   publicKey: PublicKey | null;
 }) => {
-  const { sendTransaction, connect } = useWallet();
+  const { sendTransaction } = useWallet();
   const { connection } = useConnection();
 
-  const initializeTokenConfig =
-    trpc.contract.initializeTokenConfig.useMutation();
-  const initializeTokenConfigSOL =
-    trpc.contract.initializeTokenConfigSOL.useMutation();
+  const updateTokenConfig = trpc.contract.updateTokenConfig.useMutation();
+  const updateTokenConfigSOL = trpc.contract.updateTokenConfigSOL.useMutation();
 
-  const handleIntiaizlizeTokenConfig = async (data: any) => {
+  const handleUpdateTokenConfig = async (data: any) => {
     try {
-      if (!publicKey) {
-        // try connect with solana wallet
-        await connect();
-      }
-      console.log(connection);
       const { address, tokenConfig } = data;
-
-      const transactionSignature = await initializeTokenConfig.mutateAsync({
+      const transactionSignature = await updateTokenConfig.mutateAsync({
         splMint: address,
         tokenConfig,
         creator: publicKey?.toBase58() ?? "",
@@ -54,15 +46,15 @@ export const useInitializeTokenConfig = ({
       }
 
       toast.success(
-        `SPL Token config created successfully! Signature: ${signature.slice(
+        `SPL Token config updated successfully! Signature: ${signature.slice(
           0,
           8
         )}...`
       );
     } catch (error) {
-      console.error("SPL Token config creation failed:", error);
+      console.error("SPL Token config update failed:", error);
       toast.error(
-        `SPL Token config creation failed: ${
+        `SPL Token config update failed: ${
           error instanceof Error ? error.message : "Unknown error"
         }`
       );
@@ -70,14 +62,10 @@ export const useInitializeTokenConfig = ({
     }
   };
 
-  const handleIntiaizlizeTokenConfigSOL = async (data: any) => {
+  const handleUpdateTokenConfigSOL = async (data: any) => {
     try {
-      if (!publicKey) {
-        // try connect with solana wallet
-        await connect();
-      }
       const { tokenConfig } = data;
-      const transactionSignature = await initializeTokenConfigSOL.mutateAsync({
+      const transactionSignature = await updateTokenConfigSOL.mutateAsync({
         tokenConfig,
         creator: publicKey?.toBase58() ?? "",
       });
@@ -103,15 +91,15 @@ export const useInitializeTokenConfig = ({
       }
 
       toast.success(
-        `SOL Token config created successfully! Signature: ${signature.slice(
+        `SOL Token config updated successfully! Signature: ${signature.slice(
           0,
           8
         )}...`
       );
     } catch (error) {
-      console.error("SOL Token config creation failed:", error);
+      console.error("SOL Token config update failed:", error);
       toast.error(
-        `SOL Token config creation failed: ${
+        `SOL Token config update failed: ${
           error instanceof Error ? error.message : "Unknown error"
         }`
       );
@@ -120,11 +108,11 @@ export const useInitializeTokenConfig = ({
   };
 
   return {
-    handleIntiaizlizeTokenConfig,
-    handleIntiaizlizeTokenConfigSOL,
-    tokenConfigPending: initializeTokenConfig.isPending,
-    solTokenConfigPending: initializeTokenConfigSOL.isPending,
-    tokenConfigError: initializeTokenConfig.error,
-    solTokenConfigError: initializeTokenConfigSOL.error,
+    handleUpdateTokenConfig,
+    handleUpdateTokenConfigSOL,
+    tokenConfigPending: updateTokenConfig.isPending,
+    solTokenConfigPending: updateTokenConfigSOL.isPending,
+    tokenConfigError: updateTokenConfig.error,
+    solTokenConfigError: updateTokenConfigSOL.error,
   };
 };

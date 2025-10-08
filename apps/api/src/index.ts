@@ -6,6 +6,7 @@ import {
 import { env } from "./env";
 
 const start = async () => {
+  console.log("env", process.env);
   try {
     const port = process.env.PORT ? parseInt(process.env.PORT) : 3001;
     const host = process.env.HOST || "0.0.0.0";
@@ -20,12 +21,12 @@ const start = async () => {
   }
 };
 
-if (env.SCHEDULER_ENABLED === "true") {
+if (true) {
   console.log("Starting hops scheduler service");
   hopsSchedulerService.triggerHopJob.start();
 }
 
-if (env.DUAL_DIRECTION_ENABLED === "true") {
+if (true) {
   console.log("Starting dual direction contract events service");
   dualDirectionContractEventsService.initialize();
 }

@@ -23,6 +23,7 @@ import * as GuardIDLJson from "../idl/transfer_hook_guard.json";
 import bs58 from "bs58";
 import executorService from "../../executors/executor.service";
 import { fetchTokenMetadata } from "@libs/solana-node";
+import { config } from "../../config/config";
 
 const solToLamports = (sol: number) => {
   return sol * LAMPORTS_PER_SOL;
@@ -154,9 +155,9 @@ const TRANSFER_HOOK_GUARD_PROGRAM_ID = new PublicKey(GuardIDLJson.address);
 
 interface TokenConfig {
   minTransfer: BN;
-  feeBps: BN;
+  feeBps: number;
   feeTreasury: PublicKey;
-  maxHops: BN;
+  maxHops: number;
   maxDelaySeconds: BN;
   timelockSeconds: BN;
   flatFeeLamports: BN;
@@ -181,9 +182,7 @@ interface IHop {
 }
 
 export const params = {
-  connection: new Connection(
-    "https://mainnet.helius-rpc.com/?api-key=f6d0c03a-562f-4784-8b78-ebb084b72514"
-  ),
+  connection: new Connection(config.solanaRpcUrl || ""),
   programId: MULTI_HOPPER_PROGRAM_ID,
 };
 
@@ -235,9 +234,9 @@ const initializeTokenConfig = async (
   return await program.methods
     .initializeTokenConfig(
       tokenConfig.minTransfer,
-      tokenConfig.feeBps.toNumber(),
+      tokenConfig.feeBps,
       tokenConfig.feeTreasury,
-      tokenConfig.maxHops.toNumber(),
+      tokenConfig.maxHops,
       tokenConfig.maxDelaySeconds,
       tokenConfig.timelockSeconds,
       tokenConfig.flatFeeLamports,
@@ -289,9 +288,9 @@ const initializeTokenConfigSol = async (
   return await program.methods
     .initializeSolTokenConfig(
       tokenConfig.minTransfer,
-      tokenConfig.feeBps.toNumber(),
+      tokenConfig.feeBps,
       tokenConfig.feeTreasury,
-      tokenConfig.maxHops.toNumber(),
+      tokenConfig.maxHops,
       tokenConfig.maxDelaySeconds,
       tokenConfig.timelockSeconds,
       tokenConfig.flatFeeLamports,
@@ -1236,6 +1235,127 @@ export const getTokenConfigSOL = async () => {
   }
 };
 
+const updateSolTokenConfig = async (
+  payer: PublicKey,
+  tokenConfigParams: {
+    minTransfer?: BN;
+    feeBps?: number;
+    feeTreasury?: PublicKey;
+    maxHops?: number;
+    maxDelaySeconds?: BN;
+    timelockSeconds?: BN;
+    flatFeeLamports?: BN;
+  }
+) => {
+  const program = buildProgram(params);
+  const NATIVE_MINT = new PublicKey(
+    "So11111111111111111111111111111111111111112"
+  );
+  const tokenConfigPda = await getTokenConfigPda(NATIVE_MINT);
+
+  return await program.methods
+    .updateSolTokenConfig(
+      tokenConfigParams.minTransfer || null,
+      tokenConfigParams.feeBps || null,
+      tokenConfigParams.feeTreasury || null,
+      tokenConfigParams.maxHops || null,
+      tokenConfigParams.maxDelaySeconds || null,
+      tokenConfigParams.timelockSeconds || null,
+      tokenConfigParams.flatFeeLamports || null
+    )
+    .accountsPartial({
+      tokenConfig: tokenConfigPda,
+      creator: payer,
+    })
+    .instruction();
+};
+
+const updateTokenConfig = async (
+  payer: PublicKey,
+  tokenMint: PublicKey,
+  tokenConfigParams: {
+    minTransfer?: BN;
+    feeBps?: number;
+    feeTreasury?: PublicKey;
+    maxHops?: number;
+    maxDelaySeconds?: BN;
+    timelockSeconds?: BN;
+    flatFeeLamports?: BN;
+  }
+) => {
+  const program = buildProgram(params);
+  const tokenConfigPda = await getTokenConfigPda(tokenMint);
+
+  return await program.methods
+    .updateTokenConfig(
+      tokenConfigParams.minTransfer || null,
+      tokenConfigParams.feeBps || null,
+      tokenConfigParams.feeTreasury || null,
+      tokenConfigParams.maxHops || null,
+      tokenConfigParams.maxDelaySeconds || null,
+      tokenConfigParams.timelockSeconds || null,
+      tokenConfigParams.flatFeeLamports || null
+    )
+    .accountsPartial({
+      tokenConfig: tokenConfigPda,
+      creator: payer,
+    })
+    .instruction();
+};
+
+const updateSolTokenConfigWithTransaction = async (
+  payer: PublicKey,
+  tokenConfigParams: {
+    minTransfer?: BN;
+    feeBps?: number;
+    feeTreasury?: PublicKey;
+    maxHops?: number;
+    maxDelaySeconds?: BN;
+    timelockSeconds?: BN;
+    flatFeeLamports?: BN;
+  }
+) => {
+  const transaction = new Transaction();
+
+  // Add dynamic priority fee instructions
+  const priorityInstructions = await createDynamicPriorityInstructions(
+    params.connection
+  );
+  priorityInstructions.forEach((ix) => transaction.add(ix));
+
+  const updateIx = await updateSolTokenConfig(payer, tokenConfigParams);
+  transaction.add(updateIx);
+
+  return transaction;
+};
+
+const updateTokenConfigWithTransaction = async (
+  payer: PublicKey,
+  tokenMint: PublicKey,
+  tokenConfigParams: {
+    minTransfer?: BN;
+    feeBps?: number;
+    feeTreasury?: PublicKey;
+    maxHops?: number;
+    maxDelaySeconds?: BN;
+    timelockSeconds?: BN;
+    flatFeeLamports?: BN;
+  }
+) => {
+  const transaction = new Transaction();
+
+  // Add dynamic priority fee instructions
+  const priorityInstructions = await createDynamicPriorityInstructions(
+    params.connection
+  );
+  priorityInstructions.forEach((ix) => transaction.add(ix));
+
+  const updateIx = await updateTokenConfig(payer, tokenMint, tokenConfigParams);
+  transaction.add(updateIx);
+
+  return transaction;
+};
+
 const contractService = {
   initializeCompleteTokenConfig,
   initializeCompleteSolTokenConfig,
@@ -1245,6 +1365,8 @@ const contractService = {
   executeHop,
   getTokenConfigSPL,
   getTokenConfigSOL,
+  updateSolTokenConfigWithTransaction,
+  updateTokenConfigWithTransaction,
   calculateExecutorFunding,
   createExecutorFundingInstruction,
 };
@@ -1339,6 +1461,8 @@ export {
   initializeRouteWithWrap,
   initializeRouteSolWithWrap,
   executeHop,
+  updateSolTokenConfigWithTransaction,
+  updateTokenConfigWithTransaction,
   calculateExecutorFunding,
   createExecutorFundingInstruction,
 };
@@ -1363,9 +1487,9 @@ export const createSPLTokenConfig = async () => {
     pairMint,
     {
       minTransfer: new BN(solToLamports(0.0001)),
-      feeBps: new BN(500),
+      feeBps: 500,
       feeTreasury: treasury,
-      maxHops: new BN(5),
+      maxHops: 5,
       maxDelaySeconds: new BN(100),
       timelockSeconds: new BN(10),
       flatFeeLamports: new BN(solToLamports(0.0001)),
@@ -1398,9 +1522,9 @@ export const createSolTokenConfig = async () => {
   console.log("Creating SOL token config");
   const config = {
     minTransfer: new BN(solToLamports(0.0001)),
-    feeBps: new BN(500),
+    feeBps: 500,
     feeTreasury: treasury,
-    maxHops: new BN(5),
+    maxHops: 5,
     maxDelaySeconds: new BN(100),
     timelockSeconds: new BN(10),
     flatFeeLamports: new BN(solToLamports(0.0001)),

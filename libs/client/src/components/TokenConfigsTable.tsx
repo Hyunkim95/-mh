@@ -5,6 +5,7 @@ interface TokenConfigsTableProps {
     id: number;
     tokenConfigAddress: string;
     creator: string;
+    tokenMint: string;
     minTransferAmount: number;
     feeBps: number;
     feeTreasury: string;
@@ -15,11 +16,25 @@ interface TokenConfigsTableProps {
     pairAddress: string;
   }>;
   loading?: boolean;
+  onView?: (config: {
+    id: number;
+    tokenConfigAddress: string;
+    creator: string;
+    minTransferAmount: number;
+    feeBps: number;
+    feeTreasury: string;
+    maxHops: number;
+    maxDelaySeconds: number;
+    timelockSeconds: number;
+    flatFeeLamports: number;
+    pairAddress: string;
+  }) => void;
 }
 
 export const TokenConfigsTable: React.FC<TokenConfigsTableProps> = ({
   tokenConfigs,
   loading = false,
+  onView,
 }) => {
   const formatAddress = (address: string) => {
     return `${address.slice(0, 8)}...${address.slice(-8)}`;
@@ -29,7 +44,7 @@ export const TokenConfigsTable: React.FC<TokenConfigsTableProps> = ({
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const remainingSeconds = seconds % 60;
-    
+
     if (hours > 0) {
       return `${hours}h ${minutes}m ${remainingSeconds}s`;
     } else if (minutes > 0) {
@@ -75,6 +90,9 @@ export const TokenConfigsTable: React.FC<TokenConfigsTableProps> = ({
               Config Address
             </th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Token Mint
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Creator
             </th>
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -101,6 +119,9 @@ export const TokenConfigsTable: React.FC<TokenConfigsTableProps> = ({
             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Pair Address
             </th>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Actions
+            </th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
@@ -112,6 +133,11 @@ export const TokenConfigsTable: React.FC<TokenConfigsTableProps> = ({
               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                 <span className="font-mono" title={config.tokenConfigAddress}>
                   {formatAddress(config.tokenConfigAddress)}
+                </span>
+              </td>
+              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                <span className="font-mono" title={config.tokenMint}>
+                  {formatAddress(config.tokenMint)}
                 </span>
               </td>
               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -146,6 +172,16 @@ export const TokenConfigsTable: React.FC<TokenConfigsTableProps> = ({
                 <span className="font-mono" title={config.pairAddress}>
                   {formatAddress(config.pairAddress)}
                 </span>
+              </td>
+              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                {onView && (
+                  <button
+                    onClick={() => onView(config)}
+                    className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    View
+                  </button>
+                )}
               </td>
             </tr>
           ))}

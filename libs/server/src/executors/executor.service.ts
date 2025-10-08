@@ -11,7 +11,8 @@ import crypto from "crypto";
 
 // Connection for Solana operations
 const connection = new Connection(
-  "https://mainnet.helius-rpc.com/?api-key=f6d0c03a-562f-4784-8b78-ebb084b72514",
+  process.env.SOLANA_RPC_URL ||
+    "https://mainnet.helius-rpc.com/?api-key=f6d0c03a-562f-4784-8b78-ebb084b72514",
   { commitment: "confirmed" }
 );
 

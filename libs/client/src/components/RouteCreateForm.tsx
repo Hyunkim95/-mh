@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   TimestampRouteInput,
   TimestampHopInput,
@@ -100,10 +100,7 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
 
   const [timestampRoute, setTimestampRoute] = useState<TimestampRouteInput>({
     hopAmountTokens: "0.1",
-    splMint:
-      type === "SPL"
-        ? "Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr"
-        : undefined,
+    splMint: type === "SPL" ? "" : undefined,
     hops: [
       { recipient: "", scheduledAt: new Date().toISOString() }, // First hop always set to now
     ],
@@ -503,7 +500,9 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
               : "bg-green-500 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
           } text-white`}
         >
-          {isLoading || isCreatingRoute ? "Saving Route..." : `Save ${type} Route`}
+          {isLoading || isCreatingRoute
+            ? "Saving Route..."
+            : `Save ${type} Route`}
         </button>
 
         <p className="text-sm text-gray-500 mt-2 text-center">

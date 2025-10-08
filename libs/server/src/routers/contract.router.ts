@@ -4,6 +4,8 @@ import { router, publicProcedure } from "../trpc";
 import {
   initializeCompleteTokenConfig,
   initializeCompleteSolTokenConfig,
+  updateTokenConfigWithTransaction,
+  updateSolTokenConfigWithTransaction,
   getTokenConfigSPL,
   getTokenConfigSOL,
   signAndSerialize,
@@ -13,6 +15,7 @@ import {
   getRouteStateAccount,
   executeHop,
   params,
+  serialize,
 } from "../solana/services/contract.service";
 import { PublicKey, Keypair } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
@@ -43,6 +46,17 @@ const initializeTokenConfigInputSchema = z.object({
 });
 
 const initializeTokenConfigSolInputSchema = z.object({
+  creator: publicKeySchema,
+  tokenConfig: tokenConfigSchema,
+});
+
+const updateTokenConfigInputSchema = z.object({
+  splMint: publicKeySchema,
+  creator: publicKeySchema,
+  tokenConfig: tokenConfigSchema,
+});
+
+const updateTokenConfigSolInputSchema = z.object({
   creator: publicKeySchema,
   tokenConfig: tokenConfigSchema,
 });
@@ -111,9 +125,9 @@ const triggerHopInputSchema = z.object({
 const parseTokenConfig = (tokenConfig: z.infer<typeof tokenConfigSchema>) => {
   return {
     minTransfer: new BN(tokenConfig.minTransfer),
-    feeBps: new BN(tokenConfig.feeBps),
+    feeBps: Number(tokenConfig.feeBps),
     feeTreasury: new PublicKey(tokenConfig.feeTreasury),
-    maxHops: new BN(tokenConfig.maxHops),
+    maxHops: Number(tokenConfig.maxHops),
     maxDelaySeconds: new BN(tokenConfig.maxDelaySeconds),
     timelockSeconds: new BN(tokenConfig.timelockSeconds),
     flatFeeLamports: new BN(tokenConfig.flatFeeLamports),
@@ -211,6 +225,88 @@ export const contractRouter = router({
             error instanceof Error
               ? error.message
               : "Failed to initialize SOL token config",
+        });
+      }
+    }),
+
+  /**
+   * Update token config for SPL token
+   * POST /contract/update-token-config
+   */
+  updateTokenConfig: publicProcedure
+    .input(updateTokenConfigInputSchema)
+    .mutation(async ({ input }) => {
+      try {
+        const { splMint, tokenConfig, creator } = input;
+        const tokenMint = new PublicKey(splMint);
+        const payer = new PublicKey(creator);
+        const parsedConfig = parseTokenConfig(tokenConfig);
+
+        const transaction = await updateTokenConfigWithTransaction(
+          payer,
+          tokenMint,
+          parsedConfig
+        );
+
+        const serializedTransaction = await serialize(
+          transaction,
+          payer,
+          params.connection
+        );
+
+        return {
+          success: true,
+          data: {
+            transaction: serializedTransaction,
+          },
+        };
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to update token config",
+        });
+      }
+    }),
+
+  /**
+   * Update token config for SOL
+   * POST /contract/update-token-config-sol
+   */
+  updateTokenConfigSOL: publicProcedure
+    .input(updateTokenConfigSolInputSchema)
+    .mutation(async ({ input }) => {
+      try {
+        const { creator, tokenConfig } = input;
+        const creatorKey = new PublicKey(creator);
+        const parsedConfig = parseTokenConfig(tokenConfig);
+
+        const transaction = await updateSolTokenConfigWithTransaction(
+          creatorKey,
+          parsedConfig
+        );
+
+        const serializedTransaction = await serialize(
+          transaction,
+          creatorKey,
+          params.connection
+        );
+
+        return {
+          success: true,
+          data: {
+            transaction: serializedTransaction,
+          },
+        };
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to update SOL token config",
         });
       }
     }),

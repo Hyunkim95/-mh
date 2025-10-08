@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   TokenConfigInput,
   HumanReadableTokenConfigInput,
@@ -13,28 +13,45 @@ export interface TokenConfigFormProps {
   type: "SPL" | "SOL";
   creator: string;
   feeTreasury: string;
+  isUpdate?: boolean;
   onSubmit: (data: { address: string; tokenConfig: TokenConfigInput }) => void;
   isLoading?: boolean;
   error?: string;
-  tokenDecimals?: number; // For SPL tokens, allows customization of decimal places
+  tokenDecimals?: number;
+  initialValues?: {
+    address?: string;
+    minTransferAmount?: string;
+    feePercentage?: string;
+    feeTreasury?: string;
+    maxHops?: string;
+    maxDelayHours?: string;
+    timelockHours?: string;
+    flatFeeSol?: string;
+  };
 }
 
 export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
   type,
   creator,
   feeTreasury,
+  isUpdate = false,
   onSubmit,
   isLoading = false,
   error,
   tokenDecimals = 6,
+  initialValues,
 }) => {
-  const [address, setAddress] = useState(creator);
+  const [address, setAddress] = useState(initialValues?.address || creator);
   const [detectedDecimals, setDetectedDecimals] =
     useState<number>(tokenDecimals);
   const [isDetectingDecimals, setIsDetectingDecimals] = useState(false);
   const [decimalsError, setDecimalsError] = useState<string>("");
-  const [inputMode, setInputMode] = useState<"select" | "manual">("select");
-  const [selectedTokenId, setSelectedTokenId] = useState<string>("");
+  const [inputMode, setInputMode] = useState<"select" | "manual">(
+    initialValues?.address ? "manual" : "select"
+  );
+  const [selectedTokenId, setSelectedTokenId] = useState<string>(
+    initialValues?.address || ""
+  );
   const { connection } = useConnection();
 
   // Fetch token accounts for SPL tokens
@@ -45,13 +62,13 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
 
   const [humanReadableConfig, setHumanReadableConfig] =
     useState<HumanReadableTokenConfigInput>({
-      minTransferAmount: "0.001", // Human readable: 0.001 tokens
-      feePercentage: "5", // Human readable: 5%
-      feeTreasury: feeTreasury,
-      maxHops: "5",
-      maxDelayHours: "1", // Human readable: 1 hour
-      timelockHours: "0", // Human readable: 0 hours
-      flatFeeSol: "0.001", // Human readable: 0.001 SOL
+      minTransferAmount: initialValues?.minTransferAmount || "0.001",
+      feePercentage: initialValues?.feePercentage || "5",
+      feeTreasury: initialValues?.feeTreasury || feeTreasury,
+      maxHops: initialValues?.maxHops || "5",
+      maxDelayHours: initialValues?.maxDelayHours || "1",
+      timelockHours: initialValues?.timelockHours || "0",
+      flatFeeSol: initialValues?.flatFeeSol || "0.001",
     });
 
   // Detect token decimals when address changes (for SPL tokens only)
@@ -87,15 +104,18 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
     return () => clearTimeout(timeoutId);
   }, [address, type, connection]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Convert human-readable input to the internal format using detected decimals
-    const tokenConfig = convertHumanReadableToTokenConfigInput(
-      humanReadableConfig,
-      detectedDecimals
-    );
-    onSubmit({ address, tokenConfig });
-  };
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      // Convert human-readable input to the internal format using detected decimals
+      const tokenConfig = convertHumanReadableToTokenConfigInput(
+        humanReadableConfig,
+        detectedDecimals
+      );
+      onSubmit({ address, tokenConfig });
+    },
+    [address, humanReadableConfig, detectedDecimals, onSubmit]
+  );
 
   const handleConfigChange = (
     field: keyof HumanReadableTokenConfigInput,
@@ -137,6 +157,24 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
       <circle cx="12" cy="12" r="3" fill="#6B7280" />
     </svg>
   );
+
+  const buttonLabel = useMemo(() => {
+    if (isLoading) {
+      if (isUpdate) {
+        return "Updating...";
+      } else {
+        return "Creating...";
+      }
+    }
+    if (type === "SPL" && isDetectingDecimals) {
+      return "Detecting decimals...";
+    }
+    if (isUpdate) {
+      return "Update Token Config";
+    } else {
+    }
+    return `Initialize ${type} Token Config`;
+  }, [isUpdate, type]);
 
   const baseInputStyles =
     "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500";
@@ -196,6 +234,7 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
                       onChange={(e) => handleTokenSelect(e.target.value)}
                       className={baseInputStyles}
                       required
+                      disabled={isUpdate}
                     >
                       <option value="">Select a token from your wallet</option>
                       {tokenAccounts.map((token: any) => {
@@ -203,7 +242,9 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
                         const symbol = getTokenSymbol(token);
                         return (
                           <option key={token.id} value={token.id}>
-                            {name}{symbol ? ` (${symbol})` : ""} - {token.id.slice(0, 8)}...
+                            {name}
+                            {symbol ? ` (${symbol})` : ""} -{" "}
+                            {token.id.slice(0, 8)}...
                           </option>
                         );
                       })}
@@ -259,7 +300,8 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
                           return (
                             <div>
                               <p className="text-sm font-medium text-gray-900">
-                                {name}{symbol ? ` (${symbol})` : ""}
+                                {name}
+                                {symbol ? ` (${symbol})` : ""}
                               </p>
                               <p className="text-xs text-gray-500 truncate">
                                 {selectedTokenId}
@@ -275,6 +317,7 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
                 <input
                   type="text"
                   value={address}
+                  disabled={isUpdate}
                   onChange={(e) => setAddress(e.target.value)}
                   placeholder="Enter SPL token mint address"
                   className={baseInputStyles}
@@ -485,11 +528,7 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
               : "bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
           } text-white`}
         >
-          {isLoading
-            ? "Creating..."
-            : type === "SPL" && isDetectingDecimals
-            ? "Detecting decimals..."
-            : `Initialize ${type} Token Config`}
+          {buttonLabel}
         </button>
       </form>
     </div>

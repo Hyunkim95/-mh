@@ -22,8 +22,15 @@ const HELIUS_API =
   process.env.HELIUS_API ||
   "https://mainnet.helius-rpc.com/?api-key=f6d0c03a-562f-4784-8b78-ebb084b72514";
 
-const fetchAssets = async (owner: string, limit: number, page: number) => {
-  const response = await axios.post(`${HELIUS_API}`, {
+console.log("HELIUS_API", HELIUS_API);
+
+const fetchAssets = async (
+  owner: string,
+  limit: number,
+  page: number,
+  apiUrl?: string
+) => {
+  const response = await axios.post(`${apiUrl || HELIUS_API}`, {
     jsonrpc: "2.0",
     id: 1,
     method: "getAssetsByOwner",
@@ -44,7 +51,8 @@ const fetchAssets = async (owner: string, limit: number, page: number) => {
 };
 
 const getTokenAccounts = async (
-  owner: string
+  owner: string,
+  apiUrl?: string
 ): Promise<HelisuTokenResponse[]> => {
   let hasMore = true;
   let limit = 100;
@@ -52,7 +60,7 @@ const getTokenAccounts = async (
   let totalAssets: HelisuTokenResponse[] = [];
 
   while (hasMore) {
-    const response = await fetchAssets(owner, limit, page);
+    const response = await fetchAssets(owner, limit, page, apiUrl);
     const total = get(response, "total");
     totalAssets = [...totalAssets, ...response.items];
     hasMore = totalAssets.length < total;
@@ -62,7 +70,8 @@ const getTokenAccounts = async (
 };
 
 const getTokensAccountsWithCache = async (
-  owner: string
+  owner: string,
+  apiUrl?: string
 ): Promise<HelisuTokenResponse[]> => {
   const now = Date.now();
   const cacheTime = userToTimestamp.get(owner);
@@ -70,13 +79,16 @@ const getTokensAccountsWithCache = async (
     return internalCache.get(owner);
   }
   userToTimestamp.set(owner, now + 1000 * 60 * 5);
-  const tokens = await getTokenAccounts(owner);
+  const tokens = await getTokenAccounts(owner, apiUrl);
   internalCache.set(owner, tokens);
   return tokens;
 };
 
-export const crossSectionWithTokenConfigs = async (owner: string) => {
-  const tokens = await getTokensAccountsWithCache(owner);
+export const crossSectionWithTokenConfigs = async (
+  owner: string,
+  apiUrl?: string
+) => {
+  const tokens = await getTokensAccountsWithCache(owner, apiUrl);
   const tokenConfigs = await tokenConfigsService.findIn(
     tokens.map((t) => t.id)
   );

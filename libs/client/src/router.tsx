@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-router";
 import { Login } from "./pages/Login";
 import App from "./pages/Multihop";
+import { TokenConfigDetail } from "./pages/TokenConfigDetail";
 import { AuthHOC } from "./components/AuthHOC";
 
 // Root route component
@@ -40,10 +41,26 @@ const multihopperRoute = createRoute({
   ),
 });
 
+// Token config detail route - requires authentication
+const tokenConfigDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/token-config/$tokenConfigId",
+  component: () => (
+    <AuthHOC>
+      <TokenConfigDetail />
+    </AuthHOC>
+  ),
+});
+
 // Index route - redirects based on auth status
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
+  component: () => (
+    <AuthHOC>
+      <App />
+    </AuthHOC>
+  ),
 });
 
 // Create route tree
@@ -51,6 +68,7 @@ const routeTree = rootRoute.addChildren([
   indexRoute,
   loginRoute,
   multihopperRoute,
+  tokenConfigDetailRoute,
 ]);
 
 // Create router

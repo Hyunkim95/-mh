@@ -33,6 +33,7 @@
     "turbo": "^2.5.5"
   },
   "devDependencies": {
-    "@types/lodash": "^4.17.20"
+    "@types/lodash": "^4.17.20",
+    "drizzle-kit": "^0.31.5"
   }
 }

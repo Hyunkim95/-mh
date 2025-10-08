@@ -1,6 +1,7 @@
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useState } from "react";
 import { Toaster } from "react-hot-toast";
+import { useNavigate } from "@tanstack/react-router";
 import { useInitializeTokenConfig } from "../hooks/useInitializeTokenConfig";
 import { trpc } from "../trpc";
 import { TokenConfigForm } from "../components/TokenConfigForm";
@@ -12,6 +13,7 @@ import { useSolanaAuth } from "../hooks/useSolanaAuth";
 
 function App() {
   const { publicKey } = useWallet();
+  const navigate = useNavigate();
   const {
     handleIntiaizlizeTokenConfig,
     handleIntiaizlizeTokenConfigSOL,
@@ -29,6 +31,10 @@ function App() {
   const [activeTab, setActiveTab] = useState<
     "token-config" | "routes" | "hops"
   >("token-config");
+  
+  const handleViewTokenConfig = (config: any) => {
+    navigate({ to: "/token-config/$tokenConfigId", params: { tokenConfigId: config.id.toString() } });
+  };
   const { logout, userData } = useSolanaAuth();
   const { handleRouteSubmit } = useSubmitRoute({ publicKey });
 
@@ -117,6 +123,7 @@ function App() {
               <TokenConfigsTable
                 tokenConfigs={tokenConfigs || []}
                 loading={tokenConfigsLoading}
+                onView={handleViewTokenConfig}
               />
             </div>
           )}

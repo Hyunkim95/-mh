@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
 import { getMint } from "@solana/spl-token";
@@ -55,12 +55,9 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({
     setManualAddress(value);
   }, [value]);
 
-  // Detect token decimals when address changes
-  useEffect(() => {
-    const detectDecimals = async () => {
-      const currentAddress = inputMode === "select" ? selectedTokenId : manualAddress;
-      
-      if (!currentAddress || !connection) {
+  const detectDecimals = useCallback(
+    async (address: string) => {
+      if (!address || !connection) {
         setDetectedDecimals(6);
         return;
       }
@@ -69,31 +66,28 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({
         setIsDetectingDecimals(true);
         setDecimalsError("");
 
-        const mintPublicKey = new PublicKey(currentAddress);
+        const mintPublicKey = new PublicKey(address);
         const mintInfo = await getMint(connection, mintPublicKey);
 
         setDetectedDecimals(mintInfo.decimals);
         onDecimalsDetected?.(mintInfo.decimals);
-        onChange(currentAddress, mintInfo.decimals);
-        
-        console.log(`Detected ${mintInfo.decimals} decimals for token ${currentAddress}`);
+        onChange(address, mintInfo.decimals);
       } catch (error) {
-        console.warn("Could not fetch token decimals:", error);
+        console.error(error);
         setDecimalsError("Could not detect token decimals. Using default (6).");
         setDetectedDecimals(6);
         onDecimalsDetected?.(6);
-        onChange(currentAddress, 6);
+        onChange(address, 6);
       } finally {
         setIsDetectingDecimals(false);
       }
-    };
-
-    const timeoutId = setTimeout(detectDecimals, 500);
-    return () => clearTimeout(timeoutId);
-  }, [selectedTokenId, manualAddress, inputMode, connection, onChange, onDecimalsDetected]);
+    },
+    [connection, onChange, onDecimalsDetected]
+  );
 
   const handleTokenSelect = (tokenId: string) => {
     setSelectedTokenId(tokenId);
+    detectDecimals(tokenId);
   };
 
   const handleManualAddressChange = (address: string) => {
@@ -142,7 +136,9 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({
               : "bg-gray-200 text-gray-700 hover:bg-gray-300"
           }`}
         >
-          {useConfiguredTokensOnly ? "Select Configured Token" : "Select from Wallet"}
+          {useConfiguredTokensOnly
+            ? "Select Configured Token"
+            : "Select from Wallet"}
         </button>
         <button
           type="button"
@@ -180,7 +176,8 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({
                 const symbol = getTokenSymbol(token);
                 return (
                   <option key={token.id} value={token.id}>
-                    {name}{symbol ? ` (${symbol})` : ""} - {token.id.slice(0, 8)}...
+                    {name}
+                    {symbol ? ` (${symbol})` : ""} - {token.id.slice(0, 8)}...
                   </option>
                 );
               })}
@@ -209,7 +206,9 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({
                       className="w-8 h-8 rounded-full"
                       onError={(e) => {
                         e.currentTarget.style.display = "none";
-                        e.currentTarget.nextElementSibling?.classList.remove("hidden");
+                        e.currentTarget.nextElementSibling?.classList.remove(
+                          "hidden"
+                        );
                       }}
                     />
                   ) : null;
@@ -236,7 +235,8 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({
                   return (
                     <div>
                       <p className="text-sm font-medium text-gray-900">
-                        {name}{symbol ? ` (${symbol})` : ""}
+                        {name}
+                        {symbol ? ` (${symbol})` : ""}
                       </p>
                       <p className="text-xs text-gray-500 truncate">
                         {selectedTokenId}
@@ -262,7 +262,9 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({
       {/* Token Decimals Detection Info */}
       <div className="mt-2">
         {isDetectingDecimals ? (
-          <p className="text-xs text-blue-600">🔍 Detecting token decimals...</p>
+          <p className="text-xs text-blue-600">
+            🔍 Detecting token decimals...
+          </p>
         ) : decimalsError ? (
           <p className="text-xs text-orange-600">⚠️ {decimalsError}</p>
         ) : detectedDecimals !== 6 ? (

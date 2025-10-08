@@ -4,6 +4,7 @@ import {
 } from "./contract-events-scheduler";
 import { db } from "../../db";
 import { MULTI_HOPPER_PROGRAM_ID } from "./contract-utils";
+import { config } from "../../config/config";
 
 export interface DualDirectionConfig {
   rpcUrl: string;
@@ -281,8 +282,7 @@ export class DualDirectionContractEventsService {
 
 // Create default configuration
 const DEFAULT_DUAL_CONFIG: DualDirectionConfig = {
-  rpcUrl:
-    "https://mainnet.helius-rpc.com/?api-key=f6d0c03a-562f-4784-8b78-ebb084b72514",
+  rpcUrl: config.solanaRpcUrl || "",
   programId: MULTI_HOPPER_PROGRAM_ID.toBase58(),
   forwardConfig: {
     etlIntervalMs: parseInt(
