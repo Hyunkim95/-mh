@@ -10,18 +10,26 @@ export const trpc = createTRPCReact<AppRouter>() as CreateTRPCReact<
 >;
 export const queryClient = new QueryClient();
 
+// Create HTTP link with authentication and error handling
+function createHttpLink() {
+  return httpBatchLink({
+    url: import.meta.env.VITE_API_URL || "http://localhost:3001/trpc",
+    headers() {
+      const token = localStorage.getItem("token");
+      return {
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+        "content-type": "application/json",
+      };
+    },
+    fetch(url, options) {
+      return fetch(url, {
+        ...options,
+        credentials: "include", // Include cookies if using session-based auth
+      });
+    },
+  });
+}
+
 export const trpcClient = trpc.createClient({
-  links: [
-    httpBatchLink({
-      url: "http://localhost:3001/trpc",
-      headers() {
-        const token = localStorage.getItem("token");
-        return token
-          ? {
-              authorization: `Bearer ${token}`,
-            }
-          : {};
-      },
-    }),
-  ],
+  links: [createHttpLink()],
 });
