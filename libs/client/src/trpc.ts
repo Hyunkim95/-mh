@@ -11,10 +11,14 @@ export const trpc = createTRPCReact<AppRouter>() as CreateTRPCReact<
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      onError: (error: any) => {},
+      onError: (error: any) => {
+        console.error(error);
+      },
     },
     mutations: {
-      onError: (error: any) => {},
+      onError: (error: any) => {
+        console.error(error);
+      },
     },
   },
 });
