@@ -3,10 +3,8 @@ import {
   hopsSchedulerService,
   dualDirectionContractEventsService,
 } from "@trpc-template/server";
-import { env } from "./env";
 
 const start = async () => {
-  console.log("env", process.env);
   try {
     const port = process.env.PORT ? parseInt(process.env.PORT) : 3001;
     const host = process.env.HOST || "0.0.0.0";
@@ -21,12 +19,12 @@ const start = async () => {
   }
 };
 
-if (true) {
+if (process.env.SCHEDULER_ENABLED === "true") {
   console.log("Starting hops scheduler service");
   hopsSchedulerService.triggerHopJob.start();
 }
 
-if (true) {
+if (process.env.DUAL_DIRECTION_ENABLED === "true") {
   console.log("Starting dual direction contract events service");
   dualDirectionContractEventsService.initialize();
 }
