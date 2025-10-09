@@ -19,6 +19,8 @@ export const appRouter = router({
 
 server.register(cors, {
   origin: true,
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 });
 
 server.register(fastifyTRPCPlugin, {
