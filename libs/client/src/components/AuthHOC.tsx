@@ -5,7 +5,12 @@ import { useWallet } from "@solana/wallet-adapter-react";
 export const AuthHOC = ({ children }: { children: React.ReactNode }) => {
   const { userData } = useSolanaAuth();
   const { publicKey } = useWallet();
-  if (!userData || !publicKey || userData.publicKey !== publicKey.toString()) {
+  if (
+    !userData ||
+    !publicKey ||
+    userData.publicKey !== publicKey.toString() ||
+    userData.role !== "admin"
+  ) {
     return <Login />;
   }
   return children;

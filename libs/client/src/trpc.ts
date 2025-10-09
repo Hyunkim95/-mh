@@ -2,7 +2,6 @@ import { createTRPCReact, httpBatchLink } from "@trpc/react-query";
 import type { CreateTRPCReact } from "@trpc/react-query";
 import { AppRouter } from "@trpc-template/server";
 import { QueryClient } from "@tanstack/react-query";
-import toast from "react-hot-toast";
 
 export const trpc = createTRPCReact<AppRouter>() as CreateTRPCReact<
   AppRouter,
@@ -12,18 +11,10 @@ export const trpc = createTRPCReact<AppRouter>() as CreateTRPCReact<
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      onError: (error: any) => {
-        if (error?.data?.code === "FORBIDDEN") {
-          toast.error("You are not authorized");
-        }
-      },
+      onError: (error: any) => {},
     },
     mutations: {
-      onError: (error: any) => {
-        if (error?.data?.code === "FORBIDDEN") {
-          toast.error("You are not authorized");
-        }
-      },
+      onError: (error: any) => {},
     },
   },
 });
