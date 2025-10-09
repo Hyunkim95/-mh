@@ -1,4 +1,3 @@
-import cors from "@fastify/cors";
 import { fastifyTRPCPlugin } from "@trpc/server/adapters/fastify";
 import { router, createContext, server } from "./trpc";
 import { helloRouter } from "./routers/hello";
@@ -15,12 +14,6 @@ export const appRouter = router({
   auth: authRouter,
   tokenConfigs: tokenConfigsRouter,
   tokens: tokensRouter,
-});
-
-server.register(cors, {
-  origin: true,
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 });
 
 server.register(fastifyTRPCPlugin, {
