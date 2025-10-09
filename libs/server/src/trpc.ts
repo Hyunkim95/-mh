@@ -4,9 +4,16 @@ import jwt from "@fastify/jwt";
 import Fastify from "fastify";
 import { userSchema } from "./auth/schema/user.entities";
 import { InferSelectModel } from "drizzle-orm";
+import cors from "@fastify/cors";
 
 export const server = Fastify({
   maxParamLength: 5000,
+});
+
+server.register(cors, {
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
 });
 
 server.register(jwt, {
