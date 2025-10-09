@@ -2,7 +2,14 @@ import { db, NewTokenConfig, TokenConfig, tokenConfigsSchema } from "../../db";
 import { eq, ilike, inArray } from "drizzle-orm";
 
 const create = async (tokenConfig: NewTokenConfig) => {
-  return await db.insert(tokenConfigsSchema).values(tokenConfig).returning();
+  return await db
+    .insert(tokenConfigsSchema)
+    .values(tokenConfig)
+    .onConflictDoUpdate({
+      target: [tokenConfigsSchema.tokenConfigAddress],
+      set: tokenConfig,
+    })
+    .returning();
 };
 
 const findById = async (id: number) => {

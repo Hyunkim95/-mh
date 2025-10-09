@@ -3,7 +3,7 @@ import { pgTable, serial, varchar, integer } from "drizzle-orm/pg-core";
 export const tokenConfigsSchema = pgTable("token_configs", {
   id: serial("id").primaryKey(),
   tokenMint: varchar("token_mint").notNull(),
-  tokenConfigAddress: varchar("token_config_address").notNull(),
+  tokenConfigAddress: varchar("token_config_address").unique().notNull(),
   creator: varchar("creator").notNull(),
   minTransferAmount: integer("min_transfer_amount").notNull(),
   feeBps: integer("fee_bps").notNull(),

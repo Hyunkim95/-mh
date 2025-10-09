@@ -2,13 +2,31 @@ import { createTRPCReact, httpBatchLink } from "@trpc/react-query";
 import type { CreateTRPCReact } from "@trpc/react-query";
 import { AppRouter } from "@trpc-template/server";
 import { QueryClient } from "@tanstack/react-query";
+import toast from "react-hot-toast";
 
 export const trpc = createTRPCReact<AppRouter>() as CreateTRPCReact<
   AppRouter,
   any,
   any
 >;
-export const queryClient = new QueryClient();
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      onError: (error: any) => {
+        if (error?.data?.code === "FORBIDDEN") {
+          toast.error("You are not authorized");
+        }
+      },
+    },
+    mutations: {
+      onError: (error: any) => {
+        if (error?.data?.code === "FORBIDDEN") {
+          toast.error("You are not authorized");
+        }
+      },
+    },
+  },
+});
 
 // Create HTTP link with authentication and error handling
 function createHttpLink() {

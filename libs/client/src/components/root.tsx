@@ -14,7 +14,8 @@ import {
 } from "@solana/wallet-adapter-wallets";
 import { useMemo } from "react";
 
-const endpoint = clusterApiUrl(WalletAdapterNetwork.Devnet);
+const endpoint =
+  import.meta.env.VITE_RPC_URL || clusterApiUrl(WalletAdapterNetwork.Devnet);
 
 interface RootProps {
   children: React.ReactNode;
