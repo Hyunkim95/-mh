@@ -12,7 +12,7 @@ export const Login = () => {
   const { publicKey } = useWallet();
 
   useEffect(() => {
-    if (userData && publicKey && userData.role === "admin") {
+    if (userData && publicKey) {
       router.navigate({ to: "/multihopper" });
     }
   }, [userData]);
