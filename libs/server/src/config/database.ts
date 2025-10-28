@@ -3,10 +3,19 @@ dotenv.config({
   path: "../../.env",
 });
 
+const createDatabaseUrl = () => {
+  const useSSL = true;
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error("DATABASE_URL is not set");
+  }
+  return !useSSL ? connectionString : connectionString + "?sslmode=no-verify";
+};
+
 // Database configuration constants and utilities
 export const DATABASE_CONFIG = {
   // Get connection string from environment or use default
-  getConnectionString: () => process.env.DATABASE_URL,
+  getConnectionString: () => createDatabaseUrl(),
 
   // Check if we're in development mode
   isDevelopment: () => process.env.NODE_ENV === "development",

@@ -1122,7 +1122,6 @@ const executeHop = async (
   const previousHop =
     routeConfigAccount.hops[routeStateAccount.currentHopIndex - 1];
   const currentHop = routeConfigAccount.hops[routeStateAccount.currentHopIndex];
-  console.log("Current hop", currentHop);
   const isFirstHop = routeStateAccount.currentHopIndex === 0;
   const isLastHop =
     routeStateAccount.currentHopIndex === routeConfigAccount.hops.length - 1;
