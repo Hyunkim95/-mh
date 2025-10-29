@@ -1103,7 +1103,7 @@ const executeHop = async (
   creator: PublicKey,
   routeId: BN,
   splMint: PublicKey
-): Promise<string> => {
+): Promise<string | null> => {
   let fromOwner;
   const tokenConfigPda = await getTokenConfigPda(splMint);
   const routeConfigPda = await getRouteConfigPda(routeId);
@@ -1125,6 +1125,12 @@ const executeHop = async (
   const isFirstHop = routeStateAccount.currentHopIndex === 0;
   const isLastHop =
     routeStateAccount.currentHopIndex === routeConfigAccount.hops.length - 1;
+  const hasEnded = routeStateAccount.currentHopIndex >= routeConfigAccount.hops.length;
+
+  if (hasEnded) {
+    console.log("Route has ended");
+    return null;
+  }
 
   if (isFirstHop) {
     fromOwner = new PublicKey(creator);

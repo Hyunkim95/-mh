@@ -56,7 +56,7 @@ export default defineConfig({
   build: {
     target: "esnext",
     rollupOptions: {
-      external: [],
+      external: [/^vite-plugin-node-polyfills\//],
       output: {
         manualChunks: {
           solana: ["@solana/web3.js", "@coral-xyz/anchor", "@coral-xyz/borsh"],
