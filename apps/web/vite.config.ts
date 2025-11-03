@@ -13,6 +13,7 @@ export default defineConfig({
         process: true,
       },
       include: [
+        "buffer",
         "zlib",
         "util",
         "crypto",
@@ -39,7 +40,6 @@ export default defineConfig({
       // This is required for some packages to work in the browser
       stream: "stream-browserify",
       crypto: "crypto-browserify",
-      buffer: "buffer",
     },
   },
   optimizeDeps: {
@@ -59,7 +59,7 @@ export default defineConfig({
   build: {
     target: "esnext",
     rollupOptions: {
-      external: [/^vite-plugin-node-polyfills\//, "@trpc-template/server"],
+      external: ["@trpc-template/server"],
       output: {
         manualChunks: {
           solana: ["@solana/web3.js", "@coral-xyz/anchor", "@coral-xyz/borsh"],
