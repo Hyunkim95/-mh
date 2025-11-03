@@ -15,7 +15,6 @@ export default defineConfig({
       include: [
         "zlib",
         "util",
-        "buffer",
         "crypto",
         "stream",
         "assert",
