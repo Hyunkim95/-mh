@@ -52,10 +52,14 @@ export default defineConfig({
       },
     },
   },
+  ssr: {
+    external: ["@trpc-template/server"],
+    noExternal: [],
+  },
   build: {
     target: "esnext",
     rollupOptions: {
-      external: [/^vite-plugin-node-polyfills\//],
+      external: [/^vite-plugin-node-polyfills\//, "@trpc-template/server"],
       output: {
         manualChunks: {
           solana: ["@solana/web3.js", "@coral-xyz/anchor", "@coral-xyz/borsh"],
