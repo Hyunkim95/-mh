@@ -30,10 +30,14 @@
     "docker:logs:dev": "docker-compose -f docker-compose.dev.yml logs -f"
   },
   "dependencies": {
-    "turbo": "^2.5.5"
+    "papaparse": "^5.5.3",
+    "turbo": "^2.5.5",
+    "vite-plugin-svgr": "^4.5.0"
   },
   "devDependencies": {
     "@types/lodash": "^4.17.20",
-    "drizzle-kit": "^0.31.5"
+    "@types/papaparse": "^5.5.0",
+    "drizzle-kit": "^0.31.5",
+    "vite-plugin-svgr": "^4.5.0"
   }
 }

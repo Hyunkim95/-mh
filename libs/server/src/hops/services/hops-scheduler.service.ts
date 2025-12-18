@@ -10,7 +10,6 @@ import BN from "bn.js";
 import { getRouteConfiguration } from "../../solana/services/contract-utils";
 
 interface HopExecutionAttempt {
-  hopId: number;
   routeId: number;
   failureCount: number;
   lastAttempt: Date;
@@ -18,7 +17,7 @@ interface HopExecutionAttempt {
 }
 
 // Track failed hop execution attempts
-const failedHops = new Map<number, HopExecutionAttempt>();
+const failedRoutes = new Map<number, HopExecutionAttempt>();
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_COOLDOWN_MINUTES = 5; // Wait 5 minutes before retrying
 
@@ -37,103 +36,100 @@ export const triggerHopJob = new CronJob("*/10 * * * * *", async () => {
         readyHops.length
       } overdue hops at ${currentTime.toISOString()}`
     );
+    const uniqueRoutes = new Set(readyHops.map((hop) => hop.routeId));
 
-    for (const hop of readyHops) {
+
+    for (const routeId of uniqueRoutes) {
+      let currentHop;
       try {
-        // Check if this hop has failed too many times
-        const failureInfo = failedHops.get(hop.id);
-        if (failureInfo && failureInfo.failureCount >= MAX_RETRY_ATTEMPTS) {
-          // Check if enough time has passed since last attempt
-          const timeSinceLastAttempt =
-            currentTime.getTime() - failureInfo.lastAttempt.getTime();
-          const cooldownMs = RETRY_COOLDOWN_MINUTES * 60 * 1000;
+        const routeState = await getRouteStateAccount(routeId);
+        currentHop = routeState?.currentHopIndex || 0;
+        const lastHopIndex = (routeState?.hopsCount || 1) - 1;
 
-          if (timeSinceLastAttempt < cooldownMs) {
-            console.log(
-              `[HopScheduler] Skipping hop ${hop.id} - still in cooldown period`
-            );
-            continue;
-          } else {
-            // Reset failure count after cooldown
-            failedHops.delete(hop.id);
-            console.log(
-              `[HopScheduler] Resetting failure count for hop ${hop.id} after cooldown`
-            );
-          }
+        if (currentHop >= lastHopIndex) {
+          hopsService.markAllHopsCompleted(routeId);
+          continue;
         }
 
-        // Verify hop index synchronization with contract
-        const isSynchronized = await verifyHopIndexSync(
-          hop.routeId,
-          hop.hopIndex
-        );
-        if (!isSynchronized) {
+        const routeConfiguration = await getRouteConfiguration(routeId);
+        const hops = routeConfiguration?.hops || [];
+        const currentHopState = hops[currentHop];
+        const delaysSeconds = currentHopState.delaySeconds;
+        const lastHopAtArray = routeState?.lastHopAt || [];
+        const lastHopExecutedAt =
+          currentHop > 0
+            ? parseInt(lastHopAtArray[currentHop - 1] || "0")
+            : parseInt(routeState?.startedAt || "0");
+
+        const hasEnoughTimeElapsed =
+          Math.floor(Date.now() / 1000) >=
+          lastHopExecutedAt + parseInt(delaysSeconds);
+
+        if (!hasEnoughTimeElapsed) {
           console.log(
-            `[HopScheduler] Hop ${hop.id} (route ${hop.routeId}, index ${hop.hopIndex}) is out of sync with contract`
+            `[HopScheduler] Route ${routeId} - Not enough time elapsed for hop ${currentHop}`
           );
-
-          continue;
-        }
-
-        // Verify that sufficient time has elapsed according to onchain state
-        const hasTimeElapsed = await verifyOnchainTimeElapsed(
-          hop.routeId,
-          hop.hopIndex
-        );
-        if (!hasTimeElapsed) {
-          console.log(
-            `[HopScheduler] Hop ${hop.id} (route ${hop.routeId}, index ${hop.hopIndex}) - insufficient time elapsed according to onchain state`
+          await hopsService.updateHopScheduleByIndex(
+            routeId,
+            currentHop,
+            new Date((lastHopExecutedAt + parseInt(delaysSeconds)) * 1000)
           );
+        }
 
-          // This is not an error, just means the hop is not ready yet
-          // Skip this hop without recording a failure
+        const routeDB = await routesService.getRouteById(routeId);
+
+        if (!routeDB) {
+          console.warn(
+            `[HopScheduler] Route ${routeId} not found in database`
+          );
           continue;
         }
 
-        console.log(
-          `[HopScheduler] Triggering hop ${hop.id} for route ${hop.routeId}`
-        );
-        const route = await routesService.getRouteById(hop.routeId);
-        if (!route) {
-          console.error(`[HopScheduler] Route ${hop.routeId} not found`);
-          continue;
-        }
         // Attempt to trigger the hop
         await contractService.executeHop(
-          new PublicKey(route?.creator),
-          new BN(route?.id),
-          route.tokenMint
-            ? new PublicKey(route.tokenMint)
+          new PublicKey(routeDB?.creator),
+          new BN(routeDB?.id),
+          routeDB.tokenMint
+            ? new PublicKey(routeDB.tokenMint)
             : new PublicKey("So11111111111111111111111111111111111111112")
         );
 
         // If successful, remove from failed hops map
-        if (failedHops.has(hop.id)) {
-          failedHops.delete(hop.id);
+        if (failedRoutes.has(routeDB.id)) {
+          failedRoutes.delete(routeDB.id);
           console.log(
-            `[HopScheduler] Successfully executed previously failed hop ${hop.id}`
+            `[HopScheduler] Successfully executed previously failed hop ${routeDB.id}`
           );
         }
 
         // Update hop execution status
-        await hopsService.updateHopExecution(hop.id, {
-          executedAt: currentTime,
-        });
+        await hopsService.updateHopExecutionByIndex(
+          routeId,
+          currentHop,
+          {
+            executedAt: currentTime,
+          }
+        );
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
         console.error(
-          `[HopScheduler] Failed to trigger hop ${hop.id}:`,
+          `[HopScheduler] Failed to trigger hop ${routeId}:`,
           errorMessage
         );
 
         // Record the failure
-        recordHopFailure(hop.id, hop.routeId, errorMessage);
-
-        // Update hop with error
-        await hopsService.updateHopExecution(hop.id, {
-          error: errorMessage,
-        });
+        recordHopFailure(routeId, errorMessage);
+        if (currentHop) {
+          // Update hop with error
+          await hopsService.updateHopExecutionByIndex(
+            routeId,
+            currentHop,
+            {
+              error: errorMessage,
+            }
+          );
+        }
       }
     }
 
@@ -144,132 +140,10 @@ export const triggerHopJob = new CronJob("*/10 * * * * *", async () => {
 });
 
 /**
- * Verifies that the hop index in the database matches the contract's current hop index
- */
-async function verifyHopIndexSync(
-  routeId: number,
-  expectedHopIndex: number
-): Promise<boolean> {
-  try {
-    // Get the current hop index from the contract
-    const routeState = await getRouteStateAccount(routeId);
-    if (!routeState) {
-      console.warn(
-        `[HopScheduler] Could not fetch route state for route ${routeId}`
-      );
-      return false;
-    }
-
-    // Check if the expected hop index matches the contract's current hop index
-    const contractHopIndex = routeState.currentHopIndex;
-
-    console.log(
-      `[HopScheduler] Route ${routeId} - Contract hop index: ${contractHopIndex}, Expected: ${expectedHopIndex}`
-    );
-
-    return contractHopIndex === expectedHopIndex;
-  } catch (error) {
-    console.error(
-      `[HopScheduler] Error verifying hop index sync for route ${routeId}:`,
-      error
-    );
-    return false; // Fail safe - don't execute if we can't verify
-  }
-}
-
-/**
- * Verifies that sufficient time has elapsed according to onchain state and route configuration
- */
-async function verifyOnchainTimeElapsed(
-  routeId: number,
-  hopIndex: number
-): Promise<boolean> {
-  try {
-    // Get the route state and configuration from onchain
-    const [routeState, routeConfig] = await Promise.all([
-      getRouteStateAccount(routeId),
-      getRouteConfiguration(routeId),
-    ]);
-
-    if (!routeState) {
-      console.warn(
-        `[HopScheduler] Could not fetch route state for route ${routeId}`
-      );
-      return false;
-    }
-
-    if (!routeConfig) {
-      console.warn(
-        `[HopScheduler] Could not fetch route configuration for route ${routeId}`
-      );
-      return false;
-    }
-
-    // For the first hop (index 0), check against route start time
-    if (hopIndex === 0) {
-      const routeStartTime = parseInt(routeState.startedAt); // Unix timestamp in seconds
-      const now = Math.floor(Date.now() / 1000); // Current time in seconds
-
-      // First hop can execute immediately after route is started
-      const canExecute = now >= routeStartTime;
-
-      console.log(
-        `[HopScheduler] Route ${routeId} first hop - Started at: ${routeStartTime}, Current: ${now}, Can execute: ${canExecute}`
-      );
-      return canExecute;
-    }
-
-    // For subsequent hops, check against the previous hop's execution time + delay
-    const previousHopIndex = hopIndex - 1;
-
-    // Get the last hop execution time from onchain state
-    if (previousHopIndex >= routeState.lastHopAt.length) {
-      console.warn(
-        `[HopScheduler] Route ${routeId} - Previous hop ${previousHopIndex} not found in lastHopAt array`
-      );
-      return false;
-    }
-
-    const previousHopExecutionTime = parseInt(
-      routeState.lastHopAt[previousHopIndex]
-    ); // Unix timestamp in seconds
-
-    // Get the delay for the current hop from route configuration
-    if (hopIndex >= routeConfig.hops.length) {
-      console.warn(
-        `[HopScheduler] Route ${routeId} - Hop ${hopIndex} not found in route configuration`
-      );
-      return false;
-    }
-
-    const currentHopDelaySeconds = parseInt(
-      routeConfig.hops[hopIndex].delaySeconds
-    );
-    const requiredExecutionTime =
-      previousHopExecutionTime + currentHopDelaySeconds;
-    const now = Math.floor(Date.now() / 1000); // Current time in seconds
-
-    const canExecute = now >= requiredExecutionTime;
-
-    console.log(
-      `[HopScheduler] Route ${routeId} hop ${hopIndex} - Previous hop at: ${previousHopExecutionTime}, Delay: ${currentHopDelaySeconds}s, Required time: ${requiredExecutionTime}, Current: ${now}, Can execute: ${canExecute}`
-    );
-
-    return canExecute;
-  } catch (error) {
-    console.error(
-      `[HopScheduler] Error verifying onchain time elapsed for route ${routeId}, hop ${hopIndex}:`,
-      error
-    );
-    return false; // Fail safe - don't execute if we can't verify
-  }
-}
-
-/**
  * Records a hop execution failure
  */
-function recordHopFailure(hopId: number, routeId: number, error: string) {
-  const existing = failedHops.get(hopId);
+function recordHopFailure(routeId: number, error: string) {
+  const existing = failedRoutes.get(routeId);
   const now = utcNow();
 
   if (existing) {
@@ -277,8 +151,7 @@ function recordHopFailure(hopId: number, routeId: number, error: string) {
     existing.lastAttempt = now;
     existing.lastError = error;
   } else {
-    failedHops.set(hopId, {
-      hopId,
+    failedRoutes.set(routeId, {
       routeId,
       failureCount: 1,
       lastAttempt: now,
@@ -286,114 +159,18 @@ function recordHopFailure(hopId: number, routeId: number, error: string) {
     });
   }
 
-  const failureInfo = failedHops.get(hopId)!;
+  const failureInfo = failedRoutes.get(routeId)!;
   console.log(
-    `[HopScheduler] Recorded failure ${failureInfo.failureCount}/${MAX_RETRY_ATTEMPTS} for hop ${hopId}: ${error}`
+    `[HopScheduler] Recorded failure ${failureInfo.failureCount}/${MAX_RETRY_ATTEMPTS} for hop ${routeId}: ${error}`
   );
 
   if (failureInfo.failureCount >= MAX_RETRY_ATTEMPTS) {
     console.warn(
-      `[HopScheduler] Hop ${hopId} has reached maximum retry attempts. Will retry after ${RETRY_COOLDOWN_MINUTES} minutes.`
+      `[HopScheduler] Hop ${routeId} has reached maximum retry attempts. Will retry after ${RETRY_COOLDOWN_MINUTES} minutes.`
     );
-  }
-}
-
-/**
- * Manually retry a failed hop (for administrative purposes)
- */
-export async function retryFailedHop(hopId: number): Promise<boolean> {
-  const hop = await hopsService.getHopById(hopId);
-
-  try {
-    console.log(`[HopScheduler] Manually retrying hop ${hopId}`);
-
-    try {
-      const currentTime = utcNow();
-      if (!hop) {
-        console.error(`[HopScheduler] Hop ${hopId} not found`);
-        return false;
-      }
-      // Verify hop index synchronization with contract
-      const isSynchronized = await verifyHopIndexSync(
-        hop.routeId,
-        hop.hopIndex
-      );
-      if (!isSynchronized) {
-        console.log(
-          `[HopScheduler] Hop ${hop.id} (route ${hop.routeId}, index ${hop.hopIndex}) is out of sync with contract`
-        );
-      }
-
-      // Verify that sufficient time has elapsed according to onchain state
-      const hasTimeElapsed = await verifyOnchainTimeElapsed(
-        hop.routeId,
-        hop.hopIndex
-      );
-      if (!hasTimeElapsed) {
-        console.log(
-          `[HopScheduler] Hop ${hop.id} (route ${hop.routeId}, index ${hop.hopIndex}) - insufficient time elapsed according to onchain state`
-        );
-      }
-
-      console.log(
-        `[HopScheduler] Triggering hop ${hop.id} for route ${hop.routeId}`
-      );
-      const route = await routesService.getRouteById(hop.routeId);
-      if (!route) {
-        console.error(`[HopScheduler] Route ${hop.routeId} not found`);
-        return false;
-      }
-      // Attempt to trigger the hop
-      await contractService.executeHop(
-        new PublicKey(route?.creator),
-        new BN(route?.id),
-        route.tokenMint
-          ? new PublicKey(route.tokenMint)
-          : new PublicKey("So11111111111111111111111111111111111111112")
-      );
-
-      // If successful, remove from failed hops map
-      if (failedHops.has(hop.id)) {
-        failedHops.delete(hop.id);
-        console.log(
-          `[HopScheduler] Successfully executed previously failed hop ${hop.id}`
-        );
-      }
-
-      // Update hop execution status
-      await hopsService.updateHopExecution(hop.id, {
-        executedAt: currentTime,
-      });
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      console.error(
-        `[HopScheduler] Failed to trigger hop ${hopId}:`,
-        errorMessage
-      );
-
-      // Record the failure
-      recordHopFailure(hopId, hopId, errorMessage);
-    }
-
-    console.log(`[HopScheduler] Successfully retried hop ${hopId}`);
-    return true;
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    console.error(
-      `[HopScheduler] Manual retry failed for hop ${hopId}:`,
-      errorMessage
-    );
-
-    // Record the failure again
-    recordHopFailure(hopId, hop?.routeId ?? 0, errorMessage);
-
-    return false;
   }
 }
 
 export const hopsSchedulerService = {
   triggerHopJob,
-  retryFailedHop,
 };

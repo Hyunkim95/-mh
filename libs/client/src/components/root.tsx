@@ -11,12 +11,10 @@ import {
   PhantomWalletAdapter,
   SolflareWalletAdapter,
   TorusWalletAdapter,
-} from "@solana/wallet-adapter-wallets";
-import { useMemo } from "react";
-
+} from '@solana/wallet-adapter-wallets'
+import { useMemo } from 'react'
 const endpoint =
-  import.meta.env.VITE_RPC_URL || clusterApiUrl(WalletAdapterNetwork.Devnet);
-
+  import.meta.env.VITE_RPC_URL || clusterApiUrl(WalletAdapterNetwork.Devnet)
 interface RootProps {
   children: React.ReactNode;
 }

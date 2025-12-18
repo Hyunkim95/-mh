@@ -4,6 +4,7 @@ import { etlCursors } from "@libs/etl";
 export * from "../hops/schema/hops.schema";
 export * from "../routes/schema/route.schema";
 export * from "../token-configs/schema/token-config.schema";
+export * from "../busy-wallets/schema/busy-wallets.schema";
 export { custodialWalletsSchema, etlCursors };
 
 // Export relations for drizzle query functionality

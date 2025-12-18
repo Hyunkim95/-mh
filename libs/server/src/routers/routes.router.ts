@@ -10,8 +10,10 @@ const routeHopSchema = z.object({
 });
 
 const createRouteSchema = z.object({
+  name: z.string().min(1),
   tokenType: z.enum(['SPL', 'SOL']),
   tokenMint: z.string().optional(),
+  tokenSymbol: z.string().optional(),
   tokenDecimals: z.number(),
   hopAmountTokens: z.string(),
   hopAmountRaw: z.string(),
@@ -83,25 +85,52 @@ export const routesRouter = router({
         };
       } catch (error) {
         console.error('Error creating route:', error);
-        
+
         // Throw the original error message if it's a validation error
         if (error instanceof Error && error.message.includes('Route validation failed')) {
           throw error;
         }
-        
+
         throw new Error('Failed to create route');
+      }
+    }),
+
+  // Replay a route: clone it with hop deltas applied relative to now
+  replay: publicProcedure
+    .input(routeIdSchema)
+    .mutation(async ({ input }) => {
+      try {
+        const cloned = await routesService.replayRoute(input.id, input.creator);
+        return {
+          success: true,
+          data: cloned,
+          message: 'Route replay created successfully',
+        };
+      } catch (error) {
+        console.error('Error replaying route:', error);
+        throw new Error(
+          error instanceof Error ? error.message : 'Failed to replay route'
+        );
       }
     }),
 
   // Get all routes for a creator
   getByCreator: publicProcedure
-    .input(z.object({ creator: z.string() }))
+    .input(
+    z.object({
+      creator: z.string(),
+      cursor: z.number().nullable().optional(),
+      limit: z.number().optional().default(5),
+    })
+  )
     .query(async ({ input }) => {
       try {
-        const routes = await routesService.getRoutesByCreator(input.creator);
+        const { creator, cursor, limit } = input;
+        const routes = await routesService.getRoutesByCreatorPaginated({ creator, cursor, limit });
         return {
           success: true,
-          data: routes
+          data: routes.data,
+          nextCursor: routes.nextCursor,
         };
       } catch (error) {
         console.error('Error fetching routes:', error);
@@ -168,12 +197,12 @@ export const routesRouter = router({
         };
       } catch (error) {
         console.error('Error updating route:', error);
-        
+
         // Throw the original error message if it's a validation error
         if (error instanceof Error && error.message.includes('Route validation failed')) {
           throw error;
         }
-        
+
         throw new Error('Failed to update route');
       }
     }),
@@ -210,15 +239,15 @@ export const routesRouter = router({
     .mutation(async ({ input }) => {
       try {
         await routesService.updateRouteStatus(
-          input.id, 
-          input.creator, 
-          'deployed', 
+          input.id,
+          input.creator,
+          'deployed',
           {
             deploymentTxHash: input.deploymentTxHash,
             routeConfigPda: input.routeConfigPda
           }
         );
-        
+
         // Get the updated route
         const route = await routesService.getRoute(input.id, input.creator);
         if (!route) {
@@ -235,4 +264,4 @@ export const routesRouter = router({
         throw new Error('Failed to mark route as deployed');
       }
     }),
-}); 
+});

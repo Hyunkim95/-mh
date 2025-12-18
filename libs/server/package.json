@@ -32,6 +32,7 @@
     "@solana/web3.js": "^1.95.4",
     "@trpc/server": "^10.45.2",
     "cron": "^4.3.3",
+    "csv-parse": "^6.1.0",
     "dotenv": "^17.2.2",
     "drizzle-kit": "^0.20.7",
     "drizzle-orm": "^0.29.3",

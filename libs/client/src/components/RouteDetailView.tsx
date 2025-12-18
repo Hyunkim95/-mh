@@ -165,10 +165,10 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
 
   const getStatusBadge = (status: string) => {
     const statusColors = {
-      draft: "bg-gray-100 text-gray-800",
-      deploying: "bg-yellow-100 text-yellow-800",
-      deployed: "bg-green-100 text-green-800",
-      failed: "bg-red-100 text-red-800",
+      draft: "bg-[var(--dark-gunmetal-500)] text-[var(--white-100)]",
+      deploying: "bg-yellow-900 text-yellow-200",
+      deployed: "bg-green-900 text-green-200",
+      failed: "bg-red-900 text-red-200",
     };
 
     return (
@@ -197,10 +197,10 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
     return (
       <div className="max-w-4xl mx-auto p-6">
         <div className="text-center py-12">
-          <div className="text-red-500">Route not found</div>
+          <div className="text-red-400">Route not found</div>
           <button
             onClick={onBack}
-            className="mt-4 px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+            className="mt-4 px-4 py-2 bg-[var(--dark-gunmetal-500)] text-[var(--white-100)] rounded hover:brightness-95 transition-colors"
           >
             Back to Routes
           </button>
@@ -216,7 +216,7 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
         <div className="flex items-center space-x-4">
           <button
             onClick={onBack}
-            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 text-[var(--philippine-gray-500)] hover:text-[var(--white-100)] hover:bg-[var(--eerie-black-700)] rounded-lg transition-colors"
           >
             <svg
               className="w-5 h-5"
@@ -233,11 +233,11 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
             </svg>
           </button>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
-              {route.name || `Route #${route.routeId}`}
+            <h1 className="text-3xl font-bold text-[var(--white-100)]">
+              {route.name || `Route without Name`}
             </h1>
             {route.description && (
-              <p className="text-gray-600 mt-1">{route.description}</p>
+              <p className="text-[var(--philippine-gray-500)] mt-1">{route.description}</p>
             )}
           </div>
         </div>
@@ -246,7 +246,7 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
           {route.canDeploy && (
             <button
               onClick={handleDeploy}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              className="bg-[var(--laser-lemon-500)] hover:brightness-95 text-[var(--black-900)] px-4 py-2 rounded-lg font-medium transition-colors"
             >
               Deploy Route
             </button>
@@ -257,55 +257,55 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
       {/* Route Information Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* Basic Information */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold mb-4 text-blue-800">
+        <div className="bg-[var(--eerie-black-700)] rounded-lg shadow-md p-6 border border-[var(--white-100-transparency-10)]">
+          <h3 className="text-lg font-semibold mb-4 text-[var(--laser-lemon-500)]">
             Route Information
           </h3>
           <div className="space-y-3">
             <div>
-              <p className="text-sm text-gray-600">Route ID</p>
-              <p className="font-semibold text-gray-900">{route.routeId}</p>
+              <p className="text-sm text-[var(--philippine-gray-500)]">Route ID</p>
+              <p className="font-semibold text-[var(--white-100)]">{route.routeId}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Token Type</p>
-              <p className="font-semibold text-gray-900">{route.tokenType}</p>
+              <p className="text-sm text-[var(--philippine-gray-500)]">Token Type</p>
+              <p className="font-semibold text-[var(--white-100)]">{route.tokenType}</p>
             </div>
             {route.tokenMint && (
               <div>
-                <p className="text-sm text-gray-600">Token Mint</p>
-                <p className="font-mono text-sm text-gray-900 break-all">
+                <p className="text-sm text-[var(--philippine-gray-500)]">Token Mint</p>
+                <p className="font-mono text-sm text-[var(--white-100)] break-all">
                   {route.tokenMint}
                 </p>
               </div>
             )}
             <div>
-              <p className="text-sm text-gray-600">Hop Amount</p>
-              <p className="font-semibold text-gray-900">
+              <p className="text-sm text-[var(--philippine-gray-500)]">Hop Amount</p>
+              <p className="font-semibold text-[var(--white-100)]">
                 {route.hopAmountTokens} {route.tokenType}
               </p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Number of Hops</p>
-              <p className="font-semibold text-gray-900">
+              <p className="text-sm text-[var(--philippine-gray-500)]">Number of Hops</p>
+              <p className="font-semibold text-[var(--white-100)]">
                 {route.hops?.length || 0}
               </p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Creator</p>
-              <p className="font-mono text-sm text-gray-900 break-all">
+              <p className="text-sm text-[var(--philippine-gray-500)]">Creator</p>
+              <p className="font-mono text-sm text-[var(--white-100)] break-all">
                 {route.creator}
               </p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Created At</p>
-              <p className="font-semibold text-gray-900">
+              <p className="text-sm text-[var(--philippine-gray-500)]">Created At</p>
+              <p className="font-semibold text-[var(--white-100)]">
                 {formatDate(route.createdAt)}
               </p>
             </div>
             {route.deployedAt && (
               <div>
-                <p className="text-sm text-gray-600">Deployed At</p>
-                <p className="font-semibold text-gray-900">
+                <p className="text-sm text-[var(--philippine-gray-500)]">Deployed At</p>
+                <p className="font-semibold text-[var(--white-100)]">
                   {formatDate(route.deployedAt)}
                 </p>
               </div>
@@ -314,20 +314,20 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
         </div>
 
         {/* Deployment Information */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold mb-4 text-purple-800">
+        <div className="bg-[var(--eerie-black-700)] rounded-lg shadow-md p-6 border border-[var(--white-100-transparency-10)]">
+          <h3 className="text-lg font-semibold mb-4 text-purple-400">
             Deployment Information
           </h3>
           <div className="space-y-3">
             <div>
-              <p className="text-sm text-gray-600">Status</p>
+              <p className="text-sm text-[var(--philippine-gray-500)]">Status</p>
               {getStatusBadge(route.status)}
             </div>
             {route.deploymentTxHash && (
               <div>
-                <p className="text-sm text-gray-600">Deployment Transaction</p>
+                <p className="text-sm text-[var(--philippine-gray-500)]">Deployment Transaction</p>
                 <div className="flex items-center space-x-2">
-                  <p className="font-mono text-sm text-gray-900 truncate">
+                  <p className="font-mono text-sm text-[var(--white-100)] truncate">
                     {route.deploymentTxHash}
                   </p>
                   <button
@@ -336,7 +336,7 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
                         route.deploymentTxHash || ""
                       )
                     }
-                    className="text-blue-600 hover:text-blue-800 text-xs"
+                    className="text-[var(--laser-lemon-500)] hover:brightness-110 text-xs"
                   >
                     Copy
                   </button>
@@ -344,7 +344,7 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
                     href={`https://explorer.solana.com/tx/${route.deploymentTxHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 text-xs"
+                    className="text-[var(--laser-lemon-500)] hover:brightness-110 text-xs"
                   >
                     View
                   </a>
@@ -353,8 +353,8 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
             )}
             {route.routeConfigPda && (
               <div>
-                <p className="text-sm text-gray-600">Route Config PDA</p>
-                <p className="font-mono text-sm text-gray-900 break-all">
+                <p className="text-sm text-[var(--philippine-gray-500)]">Route Config PDA</p>
+                <p className="font-mono text-sm text-[var(--white-100)] break-all">
                   {route.routeConfigPda}
                 </p>
               </div>
@@ -364,8 +364,8 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
       </div>
 
       {/* Hops Configuration */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-        <h3 className="text-lg font-semibold mb-4 text-green-800">
+      <div className="bg-[var(--eerie-black-700)] rounded-lg shadow-md p-6 mb-8 border border-[var(--white-100-transparency-10)]">
+        <h3 className="text-lg font-semibold mb-4 text-green-400">
           Hops Schedule
         </h3>
         <div className="space-y-3">
@@ -373,37 +373,37 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
             route.hops.map((hop, index) => (
               <div
                 key={index}
-                className="bg-gray-50 border border-gray-200 rounded-lg p-4"
+                className="bg-[var(--chinese-black-800)] border border-[var(--white-100-transparency-10)] rounded-lg p-4"
               >
                 <div className="flex justify-between items-start mb-2">
-                  <span className="font-semibold text-gray-700">
+                  <span className="font-semibold text-[var(--white-100)]">
                     Hop {index + 1}
                   </span>
                   {routeStateQuery.data?.data?.currentHopIndex ===
                     index + 1 && (
-                    <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-semibold">
+                    <span className="bg-blue-900 text-blue-200 px-2 py-1 rounded-full text-xs font-semibold">
                       Current
                     </span>
                   )}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <p className="text-xs text-gray-500">Recipient</p>
-                    <p className="font-mono text-sm text-gray-900 break-all">
+                    <p className="text-xs text-[var(--philippine-gray-500)]">Recipient</p>
+                    <p className="font-mono text-sm text-[var(--white-100)] break-all">
                       {hop.recipient}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Scheduled Time</p>
+                    <p className="text-xs text-[var(--philippine-gray-500)]">Scheduled Time</p>
                     <TimezoneAwareDateDisplay
                       utcTimestamp={hop.scheduledAt}
                       format="schedule"
-                      className="font-semibold text-gray-900"
+                      className="font-semibold text-[var(--white-100)]"
                     />
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Delay from Previous</p>
-                    <p className="font-semibold text-gray-900">
+                    <p className="text-xs text-[var(--philippine-gray-500)]">Delay from Previous</p>
+                    <p className="font-semibold text-[var(--white-100)]">
                       {calculateDelay(index)}
                     </p>
                   </div>
@@ -411,7 +411,7 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
               </div>
             ))
           ) : (
-            <div className="text-gray-500">No hops configured</div>
+            <div className="text-[var(--philippine-gray-500)]">No hops configured</div>
           )}
         </div>
       </div>
@@ -422,49 +422,49 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
           <>
             {/* Route Configuration from Chain */}
             {routeConfigQuery.data && (
-              <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-                <h3 className="text-xl font-semibold mb-4 text-green-800">
+              <div className="bg-[var(--eerie-black-700)] rounded-lg shadow-md p-6 mb-8 border border-[var(--white-100-transparency-10)]">
+                <h3 className="text-xl font-semibold mb-4 text-green-400">
                   Onchain Route Configuration
                 </h3>
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="bg-[var(--chinese-black-800)] border border-[var(--white-100-transparency-10)] rounded-lg p-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <p className="text-sm text-gray-600">Creator</p>
-                      <p className="font-mono text-sm break-all text-blue-600">
+                      <p className="text-sm text-[var(--philippine-gray-500)]">Creator</p>
+                      <p className="font-mono text-sm break-all text-[var(--laser-lemon-500)]">
                         {routeConfigQuery.data.data?.creator}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">Token Config</p>
-                      <p className="font-mono text-sm break-all text-blue-600">
+                      <p className="text-sm text-[var(--philippine-gray-500)]">Token Config</p>
+                      <p className="font-mono text-sm break-all text-[var(--laser-lemon-500)]">
                         {routeConfigQuery.data.data?.tokenConfig}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">Source Owner</p>
-                      <p className="font-mono text-sm break-all text-blue-600">
+                      <p className="text-sm text-[var(--philippine-gray-500)]">Source Owner</p>
+                      <p className="font-mono text-sm break-all text-[var(--laser-lemon-500)]">
                         {routeConfigQuery.data.data?.sourceOwner}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">Executor</p>
-                      <p className="font-mono text-sm break-all text-blue-600">
+                      <p className="text-sm text-[var(--philippine-gray-500)]">Executor</p>
+                      <p className="font-mono text-sm break-all text-[var(--laser-lemon-500)]">
                         {routeConfigQuery.data.data?.executor}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">Hop Amount</p>
-                      <p className="font-semibold text-blue-600">
+                      <p className="text-sm text-[var(--philippine-gray-500)]">Hop Amount</p>
+                      <p className="font-semibold text-[var(--laser-lemon-500)]">
                         {routeConfigQuery.data.data?.hopAmount}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">Is Finalized</p>
+                      <p className="text-sm text-[var(--philippine-gray-500)]">Is Finalized</p>
                       <p
                         className={`font-semibold ${
                           routeConfigQuery.data.data?.isFinalized
-                            ? "text-green-600"
-                            : "text-yellow-600"
+                            ? "text-green-400"
+                            : "text-yellow-400"
                         }`}
                       >
                         {routeConfigQuery.data.data?.isFinalized ? "Yes" : "No"}
@@ -477,21 +477,21 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
 
             {/* Route State from Chain */}
             {routeStateQuery.data && (
-              <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-                <h3 className="text-xl font-semibold mb-4 text-purple-800">
+              <div className="bg-[var(--eerie-black-700)] rounded-lg shadow-md p-6 mb-8 border border-[var(--white-100-transparency-10)]">
+                <h3 className="text-xl font-semibold mb-4 text-purple-400">
                   Onchain Route State
                 </h3>
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <div className="bg-[var(--chinese-black-800)] border border-[var(--white-100-transparency-10)] rounded-lg p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-600">Current Hop Index</p>
-                      <p className="text-2xl font-bold text-purple-800">
+                      <p className="text-sm text-[var(--philippine-gray-500)]">Current Hop Index</p>
+                      <p className="text-2xl font-bold text-purple-400">
                         {routeStateQuery.data.data?.currentHopIndex || 0}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm text-gray-600">Progress</p>
-                      <p className="text-lg font-semibold">
+                      <p className="text-sm text-[var(--philippine-gray-500)]">Progress</p>
+                      <p className="text-lg font-semibold text-[var(--white-100)]">
                         {routeStateQuery.data.data?.currentHopIndex || 0} /{" "}
                         {routeConfigQuery.data?.data?.hops.length ||
                           route.hops?.length ||
@@ -501,9 +501,9 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
                   </div>
 
                   <div className="mt-4">
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="w-full bg-[var(--dark-gunmetal-500)] rounded-full h-2">
                       <div
-                        className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                        className="bg-purple-500 h-2 rounded-full transition-all duration-300"
                         style={{
                           width: `${
                             ((routeStateQuery.data.data?.currentHopIndex || 0) /
@@ -515,7 +515,7 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
                         }}
                       ></div>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-[var(--philippine-gray-500)] mt-1">
                       {Math.round(
                         (routeStateQuery.data.data?.currentHopIndex || 0) /
                           (routeConfigQuery.data?.data?.hops.length ||
@@ -531,15 +531,15 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
 
             {/* Hop Control Section */}
             {routeStateQuery.data && routeConfigQuery.data && (
-              <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-                <h3 className="text-xl font-semibold mb-4 text-orange-800">
+              <div className="bg-[var(--eerie-black-700)] rounded-lg shadow-md p-6 mb-8 border border-[var(--white-100-transparency-10)]">
+                <h3 className="text-xl font-semibold mb-4 text-orange-400">
                   Hop Control
                 </h3>
 
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <div className="bg-[var(--chinese-black-800)] border border-[var(--white-100-transparency-10)] rounded-lg p-4">
                   {/* Success Message */}
                   {isSuccess && triggerData?.success && (
-                    <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                    <div className="bg-green-900 border border-green-500 text-green-200 px-4 py-3 rounded mb-4">
                       <p className="font-semibold">
                         🎉 Hop triggered successfully!
                       </p>
@@ -548,7 +548,7 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
                           Transaction Signature:
                         </p>
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs bg-white px-2 py-1 rounded border break-all">
+                          <span className="font-mono text-xs bg-[var(--chinese-black-800)] px-2 py-1 rounded border border-[var(--white-100-transparency-10)] break-all">
                             {triggerData.data?.signature}
                           </span>
                           <button
@@ -557,7 +557,7 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
                                 triggerData.data?.signature || ""
                               )
                             }
-                            className="px-2 py-1 bg-green-200 text-green-800 rounded text-xs hover:bg-green-300 transition-colors"
+                            className="px-2 py-1 bg-green-800 text-green-200 rounded text-xs hover:brightness-110 transition-colors"
                           >
                             Copy
                           </button>
@@ -565,7 +565,7 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
                             href={`https://explorer.solana.com/tx/${triggerData.data?.signature}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="px-2 py-1 bg-blue-200 text-blue-800 rounded text-xs hover:bg-blue-300 transition-colors"
+                            className="px-2 py-1 bg-[var(--laser-lemon-500)] text-[var(--black-900)] rounded text-xs hover:brightness-95 transition-colors"
                           >
                             View on Explorer
                           </a>
@@ -576,7 +576,7 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
 
                   {/* Error Message */}
                   {triggerError && (
-                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                    <div className="bg-red-900 border border-red-500 text-red-200 px-4 py-3 rounded mb-4">
                       <p className="font-semibold">Error triggering hop:</p>
                       <p>{triggerError.message}</p>
                     </div>
@@ -598,10 +598,10 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
                         disabled={isTriggering || isComplete}
                         className={`w-full py-3 px-6 rounded-md font-semibold transition-colors ${
                           isComplete
-                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                            ? "bg-[var(--dark-gunmetal-500)] text-[var(--white-100-transparency-50)] cursor-not-allowed"
                             : isTriggering
-                            ? "bg-orange-300 text-orange-700 cursor-not-allowed"
-                            : "bg-orange-500 text-white hover:bg-orange-600"
+                            ? "bg-orange-900 text-orange-300 cursor-not-allowed"
+                            : "bg-orange-600 text-white hover:brightness-110"
                         }`}
                       >
                         {isComplete
@@ -620,8 +620,8 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
 
       {/* Executor Wallet (only show if deployed) */}
       {route.status === "deployed" && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-xl font-semibold mb-4 text-indigo-800">
+        <div className="bg-[var(--eerie-black-700)] rounded-lg shadow-md p-6 border border-[var(--white-100-transparency-10)]">
+          <h3 className="text-xl font-semibold mb-4 text-indigo-400">
             Executor Wallet
           </h3>
           <ExecutorWallet routeId={route.routeId} />

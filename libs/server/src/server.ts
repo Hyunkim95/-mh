@@ -6,11 +6,13 @@ import { routesRouter } from "./routers/routes.router";
 import { authRouter } from "./routers/auth.router";
 import { tokenConfigsRouter } from "./routers/token-configs.router";
 import { tokensRouter } from "./routers/tokens.router";
+import { easyRoutesRouter } from "./routers/easy-routes.router";
 
 export const appRouter = router({
   hello: helloRouter,
   contract: contractRouter,
   routes: routesRouter,
+  easyRoutes: easyRoutesRouter,
   auth: authRouter,
   tokenConfigs: tokenConfigsRouter,
   tokens: tokensRouter,

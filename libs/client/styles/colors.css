@@ -1,0 +1,65 @@
+:root {
+  /* Base palette */
+  --black-900: #000000;
+  --black-900-transparency-45: rgba(0, 0, 0, 0.45);
+  --black-900-transparency-40: rgba(0, 0, 0, 0.4);
+  --chinese-black-300: #0d0e21;
+  --chinese-black-500: #0f1013;
+  --chinese-black-600: #111216;
+  --chinese-black-800: #121416;
+  --chinese-black-800-transparency-95: rgba(18, 20, 22, 0.95);
+  --eerie-black-500: #181b1d;
+  --eerie-black-700: #1b1c1f;
+  --eerie-black-700-transparency-80: rgba(27, 28, 31, 0.8);
+  --dark-jungle-green-500: #1e2122;
+  --dark-gunmetal-500: #23252a;
+  --dark-charcoal-500: #2e3135;
+  --dark-charcoal-500-transparency-58: rgba(46, 49, 53, 0.58);
+  --red-pastel-500: #ff6b6b;
+  --laser-lemon-500: #fbff69;
+  --laser-lemon-500-transparency-30: rgba(251, 255, 105, 0.3);
+  --corn-yellow-500: #ffef5a;
+  --corn-yellow-500-transparency-30: rgba(255, 239, 90, 0.3);
+  --philippine-gray-500: #8b8a8a;
+  --light-silver-500: #d9d9d9;
+  --light-silver-500-transparency-04: rgba(217, 217, 217, 0.04);
+  --cultured-white-500: #f4f6f7;
+  --white-100: #ffffff;
+  --white-100-transparency-90: rgba(255, 255, 255, 0.9);
+  --white-100-transparency-80: rgba(255, 255, 255, 0.8);
+  --white-100-transparency-70: rgba(255, 255, 255, 0.7);
+  --white-100-transparency-60: rgba(255, 255, 255, 0.6);
+  --white-100-transparency-58: rgba(255, 255, 255, 0.58);
+  --white-100-transparency-50: rgba(255, 255, 255, 0.5);
+  --white-100-transparency-24: rgba(255, 255, 255, 0.24);
+  --white-100-transparency-20: rgba(255, 255, 255, 0.2);
+  --white-100-transparency-15: rgba(255, 255, 255, 0.15);
+  --white-100-transparency-14: rgba(255, 255, 255, 0.14);
+  --white-100-transparency-10: rgba(255, 255, 255, 0.1);
+  --white-100-transparency-08: rgba(255, 255, 255, 0.08);
+  --white-100-transparency-06: rgba(255, 255, 255, 0.06);
+  --white-100-transparency-05: rgba(255, 255, 255, 0.05);
+  --white-100-transparency-04: rgba(255, 255, 255, 0.04);
+  --white-100-transparency-03: rgba(255, 255, 255, 0.03);
+  --white-100-transparency-02: rgba(255, 255, 255, 0.02);
+
+  /* Semantic tokens (Light theme defaults) */
+  --color-bg: var(--white-100);
+  --color-surface: var(--white-100);
+  --color-text-primary: var(--eerie-black-500);
+  --color-text-secondary: rgba(13, 14, 33, 0.7);
+  --color-border: rgba(13, 14, 33, 0.12);
+
+  --ellipse-1-start: rgba(255, 255, 255, 0.06);
+  --ellipse-1-end: rgba(153, 153, 153, 0.06);
+  --ellipse-2-bg: rgba(255, 255, 255, 0.05);
+}
+
+.dark {
+  /* Semantic overrides (Dark theme) */
+  --color-bg: var(--chinese-black-500);
+  --color-surface: var(--chinese-black-800);
+  --color-text-primary: var(--white-100);
+  --color-text-secondary: rgba(255, 255, 255, 0.75);
+  --color-border: rgba(255, 255, 255, 0.12);
+}

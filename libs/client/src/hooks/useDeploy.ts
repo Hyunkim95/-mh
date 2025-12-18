@@ -68,22 +68,21 @@ export const useDeploy = () => {
       const transaction = Transaction.from(
         Buffer.from(transactionSignature.data.transaction, "base64")
       );
+      const simulation = await connection.simulateTransaction(transaction);
+      console.log("Transaction simulation:", simulation);
       const signature = await sendTransaction(transaction, connection, {
         skipPreflight: true,
+        preflightCommitment: "confirmed",
       });
-
-      const latestBlockhash = await connection.getLatestBlockhash();
-
       toast.loading("Confirming transaction...", { id: "deploy" });
 
       // Wait for confirmation
       const confirmation = await connection.confirmTransaction(
         {
           signature: signature,
-          blockhash: latestBlockhash.blockhash,
-          lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
-        },
-        "confirmed"
+          blockhash: transactionSignature.data.recentBlockhash,
+          lastValidBlockHeight: transactionSignature.data.lastValidBlockHeight,
+        }
       );
 
       if (confirmation.value.err) {

@@ -1,0 +1,89 @@
+/* Public styles for apps consuming the client library.
+   IMPORTANT: Do NOT include any Tailwind directives here to avoid double-loading Tailwind. */
+
+@import './colors.css';
+@import './typographies.css';
+
+/* Global default font */
+html, body {
+  font-family: var(--primary-font-family);
+  background: linear-gradient(111.66deg, var(--eerie-black-500) 20.86%, var(--chinese-black-800) 50.42%);
+}
+
+/* Keep only plain CSS utilities that do not rely on @apply */
+.app-gradient-bg {
+  position: relative;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(111.66deg, var(--eerie-black-500) 20.86%, var(--chinese-black-800) 50.42%);
+
+  min-height: 100vh;
+  min-width: 100vw;
+}
+
+.ellipse-bg-one {
+  position: absolute;
+  width: 363.55px;
+  height: 1623.29px;
+  /* left: calc(50% - 363.55px / 2 - 1380.22px); */
+  left: -15%;
+  /* top: -325px; */
+  top: -55%;
+
+  background: linear-gradient(
+    179.34deg,
+    var(--ellipse-1-start) 35.73%,
+    var(--ellipse-1-end) 102.98%
+  );
+  filter: blur(115px);
+  transform: rotate(-48.7deg);
+}
+
+.ellipse-bg-two {
+  position: absolute;
+  width: 214.88px;
+  height: 1623.29px;
+  /* left: calc(50% - 214.88px / 2 - 418.56px); */
+  left: 50%;
+  /* top: -586px; */
+  top: -78%;
+
+  background: var(--ellipse-2-bg);
+  filter: blur(115px);
+  transform: rotate(-48.7deg);
+}
+
+/* Card border glow effect - intense glow on left and right sides */
+.card-border-glow::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 1.5rem;
+  padding: 1px;
+  background: conic-gradient(
+    from 0deg at 50% 50%,
+    rgba(255, 255, 255, 0.08) 0deg,
+    rgba(255, 255, 255, 0.05) 70deg,
+    rgba(255, 255, 255, 0.4) 80deg,
+    rgba(255, 255, 255, 0.8) 90deg,
+    rgba(255, 255, 255, 0.4) 100deg,
+    rgba(255, 255, 255, 0.05) 110deg,
+    rgba(255, 255, 255, 0.05) 250deg,
+    rgba(255, 255, 255, 0.4) 260deg,
+    rgba(255, 255, 255, 0.8) 270deg,
+    rgba(255, 255, 255, 0.4) 280deg,
+    rgba(255, 255, 255, 0.05) 290deg,
+    rgba(255, 255, 255, 0.08) 360deg
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.card-border-glow > * {
+  position: relative;
+  z-index: 1;
+}

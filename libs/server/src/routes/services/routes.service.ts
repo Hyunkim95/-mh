@@ -6,10 +6,21 @@ import {
   CreateRouteInput,
   RouteWithStatus,
 } from "../schema/route.schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, lt } from "drizzle-orm";
 import { CreateHopInput } from "../../hops/schema/hops.schema";
 import { parseUserDateToUtc } from "../../utils/timezone";
 import { isRouteDeployedOnChain } from "../../solana/services/contract.service";
+
+// Helper to compute hop deltas (in ms) from absolute scheduledAt timestamps
+function computeHopDeltasMs(hops: Array<{ scheduledAt: Date | string }>): number[] {
+  return hops.map((hop, index, arr) => {
+    if (index === 0) return 0;
+    const prev = new Date(arr[index - 1].scheduledAt).getTime();
+    const curr = new Date(hop.scheduledAt).getTime();
+    const diff = Math.max(0, curr - prev);
+    return diff;
+  });
+}
 
 // Create a new route in the database (draft status) with timestamp-based hops
 const createRoute = async (input: CreateRouteInput): Promise<Routes> => {
@@ -21,9 +32,11 @@ const createRoute = async (input: CreateRouteInput): Promise<Routes> => {
       description: input.description,
       tokenType: input.tokenType,
       tokenMint: input.tokenMint,
+      tokenSymbol: input.tokenSymbol,
       tokenDecimals: input.tokenDecimals,
       hopAmountTokens: input.hopAmountTokens,
       hopAmountRaw: input.hopAmountRaw,
+      isEasyRoute: input.isEasyRoute || false,
       creator: input.creator,
       status: "draft",
       // Legacy fields for backwards compatibility
@@ -53,6 +66,74 @@ const createRoute = async (input: CreateRouteInput): Promise<Routes> => {
   });
 };
 
+/**
+ * Replay an existing route by cloning it and re-basing hop times to now while preserving deltas.
+ * - First hop scheduledAt = now
+ * - Each subsequent hop = previous new time + original delta
+ */
+const replayRoute = async (id: number, creator: string): Promise<RouteWithStatus> => {
+  // Load existing route with hops for this creator
+  const existing = await db.query.routesSchema.findFirst({
+    where: and(eq(routesSchema.id, id), eq(routesSchema.creator, creator)),
+    with: {
+      hops: {
+        orderBy: (hops, { asc }) => [asc(hops.hopIndex)],
+      },
+    },
+  });
+
+  if (!existing) {
+    throw new Error("Route not found");
+  }
+
+  const hops = existing.hops ?? [];
+  if (hops.length === 0) {
+    throw new Error("Cannot replay a route without hops");
+  }
+
+  // Compute deltas from original absolute timestamps
+  const deltasMs = computeHopDeltasMs(hops);
+  const nowMs = Date.now();
+
+  // Build new hops array with scheduledAt starting from now
+  const newHops = deltasMs.map((_deltaMs, index) => {
+    const scheduledAt =
+      index === 0
+        ? nowMs
+        : nowMs +
+          deltasMs.slice(1, index + 1).reduce((a, b) => a + b, 0);
+    return {
+      recipient: hops[index].recipient,
+      scheduledAt: new Date(scheduledAt).toISOString(),
+    };
+  });
+
+  // Create cloned route with same token settings and hop amounts
+  const clonedInput: CreateRouteInput = {
+    name: existing.name ? `${existing.name} (Replay ${new Date().toISOString()})` : undefined,
+    description: existing.description ?? undefined,
+    tokenType: existing.tokenType as "SPL" | "SOL",
+    tokenDecimals: existing.tokenDecimals,
+    hopAmountTokens: existing.hopAmountTokens,
+    hopAmountRaw: existing.hopAmountRaw,
+    hops: newHops,
+    creator,
+  };
+  if (existing.tokenMint != null) {
+    clonedInput.tokenMint = existing.tokenMint as string;
+  }
+  if (existing.tokenSymbol != null) {
+    clonedInput.tokenSymbol = existing.tokenSymbol as string;
+  }
+  const cloned = await createRoute(clonedInput);
+
+  const result = await getRoute(cloned.id, creator);
+  if (!result) {
+    throw new Error("Failed to load cloned route");
+  }
+  return result;
+};
+
 // Calculate delays from timestamps for display purposes
 const calculateDelaysFromTimestamps = (
   hops: { recipient: string; scheduledAt: Date | string; [key: string]: any }[]
@@ -79,30 +160,52 @@ const calculateDelaysFromTimestamps = (
 };
 
 // Get routes for a specific creator with their timestamp-based hops
-const getRoutesByCreator = async (
-  creator: string
-): Promise<RouteWithStatus[]> => {
+const getRoutesByCreatorPaginated = async ({
+  creator,
+  cursor,
+  limit
+}: {
+  creator: string;
+  cursor?: number | null;
+  limit: number;
+}): Promise<{ data: RouteWithStatus[]; nextCursor: number | null }> => {
+
+  // Fetch +1 so we know there is a next page
   const routesWithHops = await db.query.routesSchema.findMany({
-    where: eq(routesSchema.creator, creator),
+    where: and(
+      eq(routesSchema.creator, creator),
+      cursor ? lt(routesSchema.id, cursor) : undefined
+    ),
+    limit: limit + 1,
+    orderBy: (routes, { desc }) => [desc(routes.id)],
     with: {
       hops: {
         orderBy: (hops, { asc }) => [asc(hops.hopIndex)],
       },
     },
-    orderBy: (routes, { desc }) => [desc(routes.createdAt)],
   });
 
-  return Promise.all(
+  // Determine next cursor
+  let nextCursor: number | null = null;
+  if (routesWithHops.length > limit) {
+    const nextItem = routesWithHops.pop(); // remove extra item
+    nextCursor = nextItem!.id;
+  }
+
+  // Process each route as before
+  const processed = await Promise.all(
     routesWithHops.map(async (route) => {
       const hopsWithDelays = route.hops
         ? calculateDelaysFromTimestamps(route.hops)
         : [];
-      console.log(`Route ${route.id} status: ${route.status}`);
+
       let isDeployed =
         route.status === "completed" || route.status === "deployed";
+
       if (route.status === "draft") {
         isDeployed = await isRouteDeployedOnChain(route.id);
       }
+
       return {
         ...route,
         canDeploy: !isDeployed,
@@ -120,6 +223,11 @@ const getRoutesByCreator = async (
       };
     })
   );
+
+  return {
+    data: processed,
+    nextCursor,
+  };
 };
 
 const getRouteById = async (id: number): Promise<RouteWithStatus | null> => {
@@ -295,9 +403,10 @@ const triggerNextHop = async (routeId: number) => {
 
 const routesService = {
   createRoute,
-  getRoutesByCreator,
+  getRoutesByCreatorPaginated,
   getRoute,
   updateRouteStatus,
+  replayRoute,
   deleteRoute,
   updateRoute,
   // Legacy functions

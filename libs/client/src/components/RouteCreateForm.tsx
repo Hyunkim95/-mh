@@ -17,7 +17,7 @@ const datePickerStyles = `
   .react-datepicker-wrapper {
     width: 100%;
   }
-  
+
   .react-datepicker__input-container input {
     width: 100% !important;
     padding: 0.5rem 0.75rem;
@@ -26,46 +26,46 @@ const datePickerStyles = `
     font-size: 0.875rem;
     line-height: 1.25rem;
   }
-  
+
   .react-datepicker__input-container input:focus {
     outline: 2px solid transparent;
     outline-offset: 2px;
     border-color: transparent;
     box-shadow: 0 0 0 2px #10b981;
   }
-  
+
   .react-datepicker {
     font-family: inherit;
     border: 1px solid #e5e7eb;
     border-radius: 0.5rem;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   }
-  
+
   .react-datepicker__header {
     background-color: #f9fafb;
     border-bottom: 1px solid #e5e7eb;
     border-radius: 0.5rem 0.5rem 0 0;
   }
-  
+
   .react-datepicker__current-month {
     color: #374151;
     font-weight: 600;
   }
-  
+
   .react-datepicker__day--selected {
     background-color: #10b981 !important;
     color: white !important;
   }
-  
+
   .react-datepicker__day--keyboard-selected {
     background-color: #059669 !important;
     color: white !important;
   }
-  
+
   .react-datepicker__time-container {
     border-left: 1px solid #e5e7eb;
   }
-  
+
   .react-datepicker__time-list-item--selected {
     background-color: #10b981 !important;
     color: white !important;
@@ -106,6 +106,8 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
     ],
   });
 
+  const [routeName, setRouteName] = useState("");
+
   const handleTokenChange = (tokenMint: string, tokenDecimals: number) => {
     setTimestampRoute((prev) => ({
       ...prev,
@@ -130,8 +132,10 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
         convertTimestampToRouteInput(routeWithCurrentTime, detectedDecimals);
 
       const routeData = {
+        name: routeName,
         tokenType: type,
         tokenMint: internalRouteInput.splMint,
+        tokenSymbol: undefined, // Legacy form doesn't have symbol info
         tokenDecimals: detectedDecimals,
         hopAmountTokens: timestampRoute.hopAmountTokens,
         hopAmountRaw: internalRouteInput.hopAmount,
@@ -220,7 +224,7 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
   };
 
   const baseInputStyles =
-    "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent";
+    "w-full px-3 py-2 border border-[var(--white-100-transparency-10)] bg-[var(--chinese-black-800)] text-[var(--white-100)] rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--laser-lemon-500)] focus:border-transparent";
   const labelStyles = "block text-sm font-medium text-gray-700 mb-1";
 
   return (
@@ -259,6 +263,24 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
           </p>
         </div>
 
+        {/* Name Section */}
+        <div className="mb-6">
+          <label className={labelStyles}>
+            Route name
+          </label>
+          <input
+            type="text"
+            value={routeName}
+            onChange={(e) => setRouteName(e.target.value)}
+            placeholder="Route name"
+            className={baseInputStyles}
+            required
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Give your route a name.
+          </p>
+        </div>
+
         {/* SPL Token Configuration */}
         <div className="mb-6">
           {type === "SPL" && (
@@ -294,7 +316,7 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
               <button
                 type="button"
                 onClick={addHop}
-                className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
+                className="px-4 py-2 bg-[var(--laser-lemon-500)] text-[var(--black-900)] rounded-md hover:brightness-95 transition-colors"
               >
                 Add Hop
               </button>
@@ -496,9 +518,9 @@ export const RouteCreateForm: React.FC<RouteCreateFormProps> = ({
             isLoading ||
             isCreatingRoute ||
             timestampRoute.hops.some((hop) => !hop.recipient)
-              ? "bg-gray-400 cursor-not-allowed"
-              : "bg-green-500 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
-          } text-white`}
+              ? "bg-gray-400 cursor-not-allowed text-white"
+              : "bg-[var(--laser-lemon-500)] hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-[var(--laser-lemon-500)] text-[var(--black-900)]"
+          }`}
         >
           {isLoading || isCreatingRoute
             ? "Saving Route..."

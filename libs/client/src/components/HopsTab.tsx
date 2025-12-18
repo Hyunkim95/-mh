@@ -11,7 +11,7 @@ import { useSolanaAuth } from "../hooks/useSolanaAuth";
 interface Route {
   id: number;
   routeId: number;
-  name?: string | null;
+  name: string | null; //route name
   description?: string | null;
   tokenType: string;
   tokenMint?: string | null;
@@ -22,6 +22,7 @@ interface Route {
     scheduledAt: string; // ISO string from database
     delayMinutes?: number;
     delaySeconds?: number;
+    status?: "completed" | "active" | "upcoming";
   }>;
   creator: string;
   status: string;
@@ -291,7 +292,7 @@ export const HopsTab: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex flex-col">
                         <div className="text-sm font-medium text-gray-900">
-                          {route.name || `Route #${route.routeId}`}
+                          {route.name || "Un named Route"}
                         </div>
                         {route.description && (
                           <div className="text-sm text-gray-500 truncate max-w-xs">
@@ -339,7 +340,7 @@ export const HopsTab: React.FC = () => {
                         {route.canDeploy && (
                           <button
                             onClick={() => handleDeploy(route)}
-                            className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded transition-colors"
+                            className="bg-[var(--laser-lemon-500)] hover:brightness-95 text-[var(--black-900)] px-3 py-1 rounded transition-colors"
                           >
                             Deploy
                           </button>

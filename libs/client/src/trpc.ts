@@ -1,16 +1,21 @@
-import { createTRPCReact, httpBatchLink } from "@trpc/react-query";
+import { createTRPCReact } from "@trpc/react-query";
 import type { CreateTRPCReact } from "@trpc/react-query";
-import type { AppRouter } from "@trpc-template/server";
+import { httpBatchLink } from "@trpc/client";
 import { QueryClient } from "@tanstack/react-query";
+import type { AppRouter } from "@trpc-template/server";
 
-export const trpc = createTRPCReact<AppRouter>() as CreateTRPCReact<
-  AppRouter,
-  any,
-  any
->;
+export const trpc: CreateTRPCReact<AppRouter, any, any> = createTRPCReact<AppRouter>();
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      retry: (failureCount, error: any) => {
+        // Don't retry on 401 (unauthorized) errors
+        if (error?.data?.httpStatus === 401 || error?.message === 'UNAUTHORIZED') {
+          return false;
+        }
+        // Default: retry up to 3 times for other errors
+        return failureCount < 3;
+      },
       onError: (error: any) => {
         console.error(error);
       },

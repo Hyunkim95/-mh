@@ -100,6 +100,11 @@ export const createDynamicPriorityInstructions = async (
     percentile
   );
 
+  console.log(
+    'Recommnedef priority fee (micro-lamports):', 
+    recommendedFee
+  )
+
   return [
     createComputeUnitLimitInstruction(computeUnits),
     createPriorityFeeInstruction(recommendedFee),
@@ -138,7 +143,7 @@ export const getRecommendedPriorityFee = async (
     const recommendedFee = sortedFees[Math.max(0, index)];
 
     // Ensure minimum fee of 1 micro-lamport
-    return Math.max(1, recommendedFee);
+    return Math.max(1000, recommendedFee);
   } catch (error) {
     console.warn("Failed to get recent prioritization fees:", error);
     // Fallback to default fee
@@ -429,30 +434,6 @@ const wrapSol = async (
   );
 
   const solVault = await getSolVault(tokenConfigAccount.creator);
-
-  console.log("wsolMint", wsolMint.toBase58());
-  console.log("payer", payer.toBase58());
-  console.log("tokenConfigPda", tokenConfigPda.toBase58());
-  console.log("amount", amount.toString());
-  console.log("mintAuthority", mintAuthority.toBase58());
-  console.log("solVault", solVault.toBase58());
-  console.log("token2022Program", TOKEN_2022_PROGRAM_ID.toBase58());
-  console.log(
-    "associatedTokenProgram",
-    utils.token.ASSOCIATED_PROGRAM_ID.toBase58()
-  );
-  console.log("systemProgram", SystemProgram.programId.toBase58());
-
-  //     wsolMint 6ytpVfGxTPmyUSeE953ZyomqewTnyGm77W2VxbzHyLji
-  // params.payer 4jLPFoW7at66h6WhyCZmcskpn3jgR1uQ9CJdTLfe9hVH
-  // tokenConfigPda 4jibXqvhCQ1QphR8PfCYRPKauw1SgFjN9NEH6wyCLQKF
-  // amount 50000000
-  // mintAuthority 2VCyjG7CYdwtdnyVPrAtQCBmFboS8QRyAB64gknwiepv
-  // solVault 5uc6kWXVpPZfwyvxETbcXYFWMbpq8TqQp7y9mshNadcy
-  // token2022Program TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
-  // associatedTokenProgram ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL
-  // systemProgram 11111111111111111111111111111111
-
   const wsolTo = await getAssociatedTokenAddress(
     wsolMint,
     payer,
@@ -672,8 +653,6 @@ const initializeRoute = async (
     false,
     originalTokenProgram
   );
-  console.log("Original from", originalFrom.toBase58());
-  console.log("Original mint", originalMint.toBase58());
 
   // Get fee treasury from token config
   const tokenConfigAccount = await program.account.tokenConfig.fetch(
@@ -833,12 +812,6 @@ const initializeRouteSolWithWrap = async (
     transaction.add(triggerIx);
   }
 
-  console.log(
-    `Executor ${executorWallet.publicKey.toBase58()} will be funded with ${
-      executorFunding.toNumber() / LAMPORTS_PER_SOL
-    } SOL for ${hops.length} hops`
-  );
-
   return transaction;
 };
 
@@ -910,11 +883,6 @@ const initializeRouteWithWrap = async (
     transaction.add(triggerIx);
   }
 
-  console.log(
-    `Executor ${executorWallet.publicKey.toBase58()} will be funded with ${
-      executorFunding.toNumber() / LAMPORTS_PER_SOL
-    } SOL for ${hops.length} hops`
-  );
 
   return transaction;
 };
@@ -944,16 +912,6 @@ const triggerHop = async (
     false,
     TOKEN_2022_PROGRAM_ID
   );
-
-  console.log("Route config pda", routeConfigPda.toBase58());
-  console.log("Token config pda", tokenConfigPda.toBase58());
-  console.log("Executor", executor.toBase58());
-  console.log("Pair from", pairFrom.toBase58());
-  console.log("Pair to", pairTo.toBase58());
-  console.log("Pair mint", pairMint.toBase58());
-  console.log("From owner", fromOwner.toBase58());
-  console.log("To owner", toOwner.toBase58());
-  console.log("Permanent delegate", permanentDelegate.toBase58());
 
   return await program.methods
     .triggerHop()
@@ -996,7 +954,11 @@ export const serialize = async (
     requireAllSignatures: false,
     verifySignatures: false,
   });
-  return serialized.toString("base64");
+  return {
+    transaction: serialized.toString("base64"),
+    lastValidBlockHeight,
+    recentBlockhash: blockhash,
+  };
 };
 
 export const signAndSerialize = async (
@@ -1016,7 +978,11 @@ export const signAndSerialize = async (
     requireAllSignatures: false,
     verifySignatures: false,
   });
-  return serialized.toString("base64");
+  return {
+    transaction: serialized.toString("base64"),
+    lastValidBlockHeight,
+    recentBlockhash: blockhash,
+  };
 };
 
 // Convenience function to create a complete token configuration with guard
@@ -1026,16 +992,11 @@ export const initializeCompleteTokenConfig = async (
   tokenPairMint: Keypair,
   tokenConfig: TokenConfig
 ) => {
-  const time = Date.now();
   const transaction = new Transaction();
-  console.log("Creating token config", Date.now() - time);
-  // Add dynamic priority fee instructions
   const priorityInstructions = await createDynamicPriorityInstructions(
     params.connection
   );
   priorityInstructions.forEach((ix) => transaction.add(ix));
-  console.log("Priority instructions", Date.now() - time);
-  // First initialize the token config
   const tokenConfigIx = await initializeTokenConfig(
     payer,
     tokenMint,
@@ -1043,17 +1004,13 @@ export const initializeCompleteTokenConfig = async (
     tokenConfig
   );
   transaction.add(tokenConfigIx);
-  console.log("Token config ix", Date.now() - time);
   const permanentDelegate = await getPermanentDelegate(tokenPairMint.publicKey);
-  console.log("Permanent delegate", Date.now() - time);
-  // Then initialize the guard for the token pair mint
   const guardIx = await initGuard(
     payer,
     tokenPairMint.publicKey,
     permanentDelegate
   );
   transaction.add(guardIx);
-  console.log("Guard ix", Date.now() - time);
   return { transaction, tokenPairMint };
 };
 
@@ -1072,7 +1029,6 @@ export const initializeCompleteSolTokenConfig = async (
 
   // Generate the wSOL mint once and use it for both instructions
   const wsolMint = Keypair.generate();
-  console.log("Generated wsolMint", wsolMint.publicKey.toBase58());
 
   // First initialize the SOL token config with the wsolMint
   const solConfigIx = await initializeTokenConfigSol(
@@ -1081,7 +1037,6 @@ export const initializeCompleteSolTokenConfig = async (
     wsolMint
   );
   transaction.add(solConfigIx);
-  console.log("SOL config ix added");
 
   const permanentDelegate = await getPermanentDelegate(wsolMint.publicKey);
 
@@ -1092,10 +1047,6 @@ export const initializeCompleteSolTokenConfig = async (
     permanentDelegate
   );
   transaction.add(guardIx);
-  console.log("Guard ix added");
-
-  console.log("Wsol mint", wsolMint.publicKey.toBase58());
-
   return { transaction, wsolMint };
 };
 
@@ -1481,10 +1432,7 @@ const splToken = new PublicKey("HL2HB3medCwhHNkzC3cdCKoknYGrBtH5MtJKbj6KSLfV");
 const treasury = new PublicKey("7kQX84vLNS32of1F3XL9H4LD5LauRej8nNz5csv7su2P");
 
 export const createSPLTokenConfig = async () => {
-  const tokenConfigPda = await getTokenConfigPda(splToken);
   const pairMint = Keypair.generate();
-  console.log("Pair mint", pairMint.publicKey.toBase58());
-  console.log("Token config PDA", tokenConfigPda.toBase58());
   const transaction = new Transaction();
   const createSPLIx = await initializeTokenConfig(
     creatorUser.publicKey,
@@ -1507,9 +1455,8 @@ export const createSPLTokenConfig = async () => {
     params.connection
   );
   const serializedTransaction = Transaction.from(
-    Buffer.from(serialized, "base64")
+    Buffer.from(serialized.transaction, "base64")
   );
-  console.log("Serialized transaction");
   try {
     const signature = await sendAndConfirmTransaction(
       params.connection,
@@ -1524,7 +1471,6 @@ export const createSPLTokenConfig = async () => {
 };
 
 export const createSolTokenConfig = async () => {
-  console.log("Creating SOL token config");
   const config = {
     minTransfer: new BN(solToLamports(0.0001)),
     feeBps: 500,
@@ -1535,32 +1481,21 @@ export const createSolTokenConfig = async () => {
     flatFeeLamports: new BN(solToLamports(0.0001)),
   } as TokenConfig;
   const params = {
-    connection: new Connection(clusterApiUrl("devnet"), "finalized"),
+    connection: new Connection(process.env.SOLANA_RPC_URL || clusterApiUrl("mainnet-beta"), "finalized"),
     payer: creatorUser.publicKey,
     programId: MULTI_HOPPER_PROGRAM_ID,
   };
-  console.log("Params");
   const { transaction, wsolMint } = await initializeCompleteSolTokenConfig(
     creatorUser.publicKey,
     config
   );
-  console.log("Transaction", transaction);
-  console.log("Transaction created");
-  console.log("wsolMint", wsolMint.publicKey.toBase58());
   const serialized = await serialize(
     transaction,
     creatorUser.publicKey,
     params.connection
   );
-  console.log("Serialized");
   const serializedTransaction = Transaction.from(
-    Buffer.from(serialized, "base64")
-  );
-  console.log(
-    "Personal user",
-    creatorUser.publicKey.toBase58(),
-    "wsolMint",
-    wsolMint.publicKey.toBase58()
+    Buffer.from(serialized.transaction, "base64")
   );
   try {
     console.log("Sending transaction");

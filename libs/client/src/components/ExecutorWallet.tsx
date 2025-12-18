@@ -131,7 +131,7 @@ export const ExecutorWallet: React.FC<ExecutorWalletProps> = ({
         <button
           onClick={() => setShowWithdrawForm(!showWithdrawForm)}
           disabled={isLoading || !balance || balance.isZero()}
-          className={`${buttonStyles} bg-green-500 hover:bg-green-600 focus:ring-green-500 text-white ${
+          className={`${buttonStyles} bg-[var(--laser-lemon-500)] hover:brightness-95 focus:ring-[var(--laser-lemon-500)] text-[var(--black-900)] ${
             isLoading || !balance || balance.isZero()
               ? "opacity-50 cursor-not-allowed"
               : ""

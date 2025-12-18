@@ -3,6 +3,7 @@ import DatePicker from "react-datepicker";
 import { useDatePicker, useTimezone, useHopStatus } from "../hooks/useTimezone";
 import { parseUserDateForApi } from "../utils/timezone";
 import "react-datepicker/dist/react-datepicker.css";
+import "../../styles/datepicker.css";
 
 interface TimezoneAwareDatePickerProps {
   /** UTC timestamp for initial value */
@@ -23,6 +24,16 @@ interface TimezoneAwareDatePickerProps {
   timeFormat?: string;
   /** Custom class name */
   className?: string;
+  /** Optional calendar/popup class for theming */
+  calendarClassName?: string;
+  popperClassName?: string;
+  /** Render calendar inline without input or timezone info */
+  inlineOnly?: boolean;
+  /** Optional min/max time bounds for the time list */
+  minTime?: Date;
+  maxTime?: Date;
+  /** Optional filter function to allow times dynamically */
+  filterTime?: (date: Date) => boolean;
   /** Disabled state */
   disabled?: boolean;
   /** Show timezone selector */
@@ -39,6 +50,12 @@ export function TimezoneAwareDatePicker({
   dateFormat = showTimeSelect ? "yyyy-MM-dd HH:mm" : "yyyy-MM-dd",
   timeFormat = "HH:mm",
   className = "",
+  calendarClassName,
+  popperClassName,
+  inlineOnly = false,
+  minTime,
+  maxTime,
+  filterTime,
   disabled = false,
   showTimezoneSelector = true,
 }: TimezoneAwareDatePickerProps) {
@@ -74,12 +91,60 @@ export function TimezoneAwareDatePicker({
   }, [utcValue, setUtcValue]);
 
   const commonTimezones = getCommonTimezones();
+  // Inline CSS fallback to ensure theming applies even if CSS bundling omits the file
+  const darkThemeCss = `
+  .mh-datepicker.react-datepicker, .mh-datepicker .react-datepicker {
+    background: var(--chinese-black-800) !important;
+    color: var(--white-100) !important;
+    border: 1px solid var(--white-100-transparency-10) !important;
+  }
+  .mh-datepicker .react-datepicker__header {
+    background: var(--chinese-black-800) !important;
+    border-bottom: 1px solid var(--white-100-transparency-10) !important;
+  }
+  .mh-datepicker .react-datepicker__current-month,
+  .mh-datepicker .react-datepicker-time__header,
+  .mh-datepicker .react-datepicker__day-name {
+    color: var(--white-100) !important;
+  }
+  .mh-datepicker .react-datepicker__day { color: var(--white-100) !important; }
+  .mh-datepicker .react-datepicker__day:hover { background: var(--white-100-transparency-10) !important; }
+  .mh-datepicker .react-datepicker__day--disabled { color: var(--white-100-transparency-30) !important; }
+  .mh-datepicker .react-datepicker__day--selected,
+  .mh-datepicker .react-datepicker__day--keyboard-selected {
+    background: var(--laser-lemon-500) !important;
+    color: var(--chinese-black-800) !important;
+  }
+  .mh-datepicker .react-datepicker__navigation-icon::before { border-color: var(--white-100) !important; }
+  .mh-datepicker .react-datepicker__time-container {
+    background: var(--chinese-black-800) !important;
+    border-left: 1px solid var(--white-100-transparency-10) !important;
+  }
+  .mh-datepicker .react-datepicker__time-container .react-datepicker__time,
+  .mh-datepicker .react-datepicker__time-container .react-datepicker__time-box,
+  .mh-datepicker .react-datepicker__time-container .react-datepicker__time-list {
+    background: var(--chinese-black-800) !important;
+    color: var(--white-100) !important;
+    border-color: var(--white-100-transparency-10) !important;
+  }
+  .mh-datepicker .react-datepicker__time-list-item { color: var(--white-100) !important; }
+  .mh-datepicker .react-datepicker__time-list-item:hover { background: var(--white-100-transparency-10) !important; }
+  .mh-datepicker .react-datepicker__time-list-item--selected {
+    background: var(--laser-lemon-500) !important;
+    color: var(--chinese-black-800) !important;
+  }
+  .mh-datepicker .react-datepicker__time-list-item--disabled {
+    color: var(--white-100-transparency-30) !important;
+  }
+  `;
 
   return (
     <div className="timezone-aware-datepicker">
+      {/* Ensure theme overrides are available even in library builds */}
+      <style dangerouslySetInnerHTML={{ __html: darkThemeCss }} />
       <div className="flex flex-col gap-2">
         {/* Date Picker */}
-        <div className="relative">
+        <div className={inlineOnly ? "" : "relative"}>
           <DatePicker
             selected={value}
             onChange={handleDateChange}
@@ -88,41 +153,53 @@ export function TimezoneAwareDatePicker({
             timeFormat={timeFormat}
             minDate={minDate}
             maxDate={maxDate}
+            minTime={minTime}
+            maxTime={maxTime}
+            filterTime={filterTime}
             placeholderText={placeholderText}
             disabled={disabled}
-            className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${className}`}
-            calendarClassName="shadow-lg border"
-            popperClassName="z-50"
+            className={
+              inlineOnly
+                ? ""
+                : `w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${className}`
+            }
+            calendarClassName={`shadow-lg border ${calendarClassName || ""}`.trim()}
+            popperClassName={`z-50 ${popperClassName || ""}`.trim()}
             timeIntervals={15}
             timeCaption="Time"
+            inline={inlineOnly}
           />
 
-          {/* Timezone indicator */}
-          <div className="absolute right-10 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
-            {timezoneInfo.abbreviation}
-          </div>
-        </div>
-
-        {/* Timezone Info */}
-        <div className="flex items-center justify-between text-sm text-gray-600">
-          <span>
-            Your timezone: <strong>{timezoneInfo.abbreviation}</strong> (
-            {timezoneInfo.offset})
-          </span>
-
-          {value && (
-            <span className="text-blue-600">
-              UTC:{" "}
-              {new Date(getUtcValue() || "")
-                .toISOString()
-                .replace("T", " ")
-                .replace(".000Z", "")}
-            </span>
+          {/* Timezone indicator - hidden in inlineOnly */}
+          {!inlineOnly && (
+            <div className="absolute right-10 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none">
+              {timezoneInfo.abbreviation}
+            </div>
           )}
         </div>
 
+        {/* Timezone Info - hidden in inlineOnly */}
+        {!inlineOnly && (
+          <div className="flex items-center justify-between text-sm text-gray-600">
+            <span>
+              Your timezone: <strong>{timezoneInfo.abbreviation}</strong> (
+              {timezoneInfo.offset})
+            </span>
+
+            {value && (
+              <span className="text-blue-600">
+                UTC:{" "}
+                {new Date(getUtcValue() || "")
+                  .toISOString()
+                  .replace("T", " ")
+                  .replace(".000Z", "")}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Timezone Selector */}
-        {showTimezoneSelector && (
+        {!inlineOnly && showTimezoneSelector && (
           <details className="text-sm">
             <summary className="cursor-pointer text-blue-600 hover:text-blue-800">
               Change timezone

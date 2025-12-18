@@ -9,10 +9,15 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
+    },
+    "./styles/public.css": {
+      "import": "./styles/public.css",
+      "require": "./styles/public.css"
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "styles"
   ],
   "scripts": {
     "build": "tsup",
@@ -20,12 +25,15 @@
     "clean": "rm -rf dist"
   },
   "devDependencies": {
+    "@svgr/core": "^8.1.0",
     "@types/bn.js": "^5.2.0",
     "@types/moment-timezone": "^0.5.30",
+    "@types/papaparse": "^5.3.14",
     "@types/react": "^19",
     "@types/react-datepicker": "^7.0.0",
     "@types/react-dom": "^19",
     "csstype": "^3.1.3",
+    "esbuild-plugin-svgr": "^3.1.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tsup": "^8.0.0",
@@ -50,7 +58,9 @@
     "bs58": "^6.0.0",
     "jotai": "^2.13.1",
     "moment-timezone": "^0.6.0",
+    "papaparse": "^5.4.1",
     "react-datepicker": "^8.7.0",
-    "react-hot-toast": "^2.6.0"
+    "react-hot-toast": "^2.6.0",
+    "vite-plugin-svgr": "^4.5.0"
   }
 }

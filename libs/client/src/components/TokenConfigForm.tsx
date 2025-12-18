@@ -177,13 +177,13 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
   }, [isUpdate, type]);
 
   const baseInputStyles =
-    "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500";
-  const labelStyles = "block text-sm font-medium text-gray-700 mb-1";
+    "w-full px-3 py-2 border border-[var(--white-100-transparency-10)] bg-[var(--chinese-black-800)] text-[var(--white-100)] rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--laser-lemon-500)]";
+  const labelStyles = "block text-sm font-medium text-[var(--white-100-transparency-70)] mb-1";
   const containerStyles = "mb-4";
 
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-6">
+    <div className="max-w-2xl mx-auto p-6 bg-[var(--eerie-black-700)] rounded-lg shadow-md border border-[var(--white-100-transparency-10)]">
+      <h2 className="text-2xl font-bold mb-6 text-[var(--white-100)]">
         Initialize {type} Token Config
       </h2>
 
@@ -203,8 +203,8 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
                   onClick={() => setInputMode("select")}
                   className={`px-3 py-1 rounded-md text-sm ${
                     inputMode === "select"
-                      ? "bg-blue-500 text-white"
-                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      ? "bg-[var(--laser-lemon-500)] text-[var(--black-900)]"
+                      : "bg-[var(--dark-gunmetal-500)] text-[var(--white-100)] hover:brightness-95"
                   }`}
                 >
                   Select from Wallet
@@ -214,8 +214,8 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
                   onClick={() => setInputMode("manual")}
                   className={`px-3 py-1 rounded-md text-sm ${
                     inputMode === "manual"
-                      ? "bg-blue-500 text-white"
-                      : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      ? "bg-[var(--laser-lemon-500)] text-[var(--black-900)]"
+                      : "bg-[var(--dark-gunmetal-500)] text-[var(--white-100)] hover:brightness-95"
                   }`}
                 >
                   Manual Input
@@ -225,7 +225,7 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
               {inputMode === "select" ? (
                 <div>
                   {isLoadingTokens ? (
-                    <div className="p-4 text-center text-gray-500">
+                    <div className="p-4 text-center text-[var(--philippine-gray-500)]">
                       Loading wallet tokens...
                     </div>
                   ) : tokenAccounts && tokenAccounts.length > 0 ? (
@@ -250,14 +250,14 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
                       })}
                     </select>
                   ) : (
-                    <div className="p-4 text-center text-gray-500 border border-gray-300 rounded-md">
+                    <div className="p-4 text-center text-[var(--philippine-gray-500)] border border-[var(--white-100-transparency-10)] rounded-md">
                       No tokens found in wallet. Use manual input instead.
                     </div>
                   )}
 
                   {/* Selected Token Display */}
                   {selectedTokenId && tokenAccounts && (
-                    <div className="mt-3 p-3 bg-gray-50 rounded-md flex items-center space-x-3">
+                    <div className="mt-3 p-3 bg-[var(--chinese-black-800)] rounded-md flex items-center space-x-3 border border-[var(--white-100-transparency-10)]">
                       <div className="w-8 h-8 flex-shrink-0">
                         {(() => {
                           const selectedToken = tokenAccounts.find(
@@ -299,11 +299,11 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
                           const symbol = getTokenSymbol(selectedToken);
                           return (
                             <div>
-                              <p className="text-sm font-medium text-gray-900">
+                              <p className="text-sm font-medium text-[var(--white-100)]">
                                 {name}
                                 {symbol ? ` (${symbol})` : ""}
                               </p>
-                              <p className="text-xs text-gray-500 truncate">
+                              <p className="text-xs text-[var(--philippine-gray-500)] truncate">
                                 {selectedTokenId}
                               </p>
                             </div>
@@ -340,17 +340,17 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
           {type === "SPL" && (
             <div className="mt-2">
               {isDetectingDecimals ? (
-                <p className="text-xs text-blue-600">
+                <p className="text-xs text-[var(--laser-lemon-500)]">
                   🔍 Detecting token decimals...
                 </p>
               ) : decimalsError ? (
-                <p className="text-xs text-orange-600">⚠️ {decimalsError}</p>
+                <p className="text-xs text-orange-500">⚠️ {decimalsError}</p>
               ) : detectedDecimals !== 6 ? (
-                <p className="text-xs text-green-600">
+                <p className="text-xs text-green-500">
                   ✅ Detected {detectedDecimals} decimal places for this token
                 </p>
               ) : (
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-[var(--philippine-gray-500)]">
                   Using {detectedDecimals} decimal places
                 </p>
               )}
@@ -378,10 +378,10 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
               className={baseInputStyles}
               required
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-[var(--philippine-gray-500)] mt-1">
               Minimum amount that can be transferred in a single hop
               {type === "SPL" && detectedDecimals !== 6 && (
-                <span className="text-blue-600">
+                <span className="text-[var(--laser-lemon-500)]">
                   {" "}
                   (using {detectedDecimals} decimals)
                 </span>
@@ -392,7 +392,7 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
           <div className={containerStyles}>
             <label className={labelStyles}>
               Fee Percentage
-              <span className="text-xs text-gray-500 ml-1">(%)</span>
+              <span className="text-xs text-[var(--philippine-gray-500)] ml-1">(%)</span>
             </label>
             <input
               type="number"
@@ -407,7 +407,7 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
               className={baseInputStyles}
               required
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-[var(--philippine-gray-500)] mt-1">
               Percentage fee charged per transaction (e.g., 5 = 5%)
             </p>
           </div>
@@ -424,7 +424,7 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
               className={baseInputStyles}
               required
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-[var(--philippine-gray-500)] mt-1">
               Wallet address where fees will be collected
             </p>
           </div>
@@ -441,7 +441,7 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
               className={baseInputStyles}
               required
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-[var(--philippine-gray-500)] mt-1">
               Maximum number of hops allowed in a route
             </p>
           </div>
@@ -449,7 +449,7 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
           <div className={containerStyles}>
             <label className={labelStyles}>
               Maximum Delay
-              <span className="text-xs text-gray-500 ml-1">(hours)</span>
+              <span className="text-xs text-[var(--philippine-gray-500)] ml-1">(hours)</span>
             </label>
             <input
               type="number"
@@ -463,7 +463,7 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
               className={baseInputStyles}
               required
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-[var(--philippine-gray-500)] mt-1">
               Maximum delay allowed between hops
             </p>
           </div>
@@ -471,7 +471,7 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
           <div className={containerStyles}>
             <label className={labelStyles}>
               Timelock Duration
-              <span className="text-xs text-gray-500 ml-1">(hours)</span>
+              <span className="text-xs text-[var(--philippine-gray-500)] ml-1">(hours)</span>
             </label>
             <input
               type="number"
@@ -485,7 +485,7 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
               className={baseInputStyles}
               required
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-[var(--philippine-gray-500)] mt-1">
               Time tokens are locked before being available
             </p>
           </div>
@@ -493,7 +493,7 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
           <div className={containerStyles}>
             <label className={labelStyles}>
               Flat Fee
-              <span className="text-xs text-gray-500 ml-1">(SOL)</span>
+              <span className="text-xs text-[var(--philippine-gray-500)] ml-1">(SOL)</span>
             </label>
             <input
               type="number"
@@ -505,7 +505,7 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
               className={baseInputStyles}
               required
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-[var(--philippine-gray-500)] mt-1">
               Fixed fee in SOL charged per transaction
             </p>
           </div>
@@ -513,7 +513,7 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
 
         {/* Error Display */}
         {error && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          <div className="mb-4 p-3 bg-red-900 border border-red-500 text-red-200 rounded">
             {error}
           </div>
         )}
@@ -524,9 +524,9 @@ export const TokenConfigForm: React.FC<TokenConfigFormProps> = ({
           disabled={isLoading || (type === "SPL" && isDetectingDecimals)}
           className={`w-full py-2 px-4 rounded-md font-medium transition-colors ${
             isLoading || (type === "SPL" && isDetectingDecimals)
-              ? "bg-gray-400 cursor-not-allowed"
-              : "bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          } text-white`}
+              ? "bg-[var(--dark-gunmetal-500)] cursor-not-allowed text-[var(--white-100-transparency-50)]"
+              : "bg-[var(--laser-lemon-500)] hover:brightness-95 focus:outline-none focus:ring-2 focus:ring-[var(--laser-lemon-500)] text-[var(--black-900)]"
+          }`}
         >
           {buttonLabel}
         </button>

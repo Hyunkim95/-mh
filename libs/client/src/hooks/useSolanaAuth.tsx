@@ -7,7 +7,7 @@ import { SystemProgram } from "@solana/web3.js";
 import { PublicKey } from "@solana/web3.js";
 import { TransactionInstruction } from "@solana/web3.js";
 import { useConnection } from "@solana/wallet-adapter-react";
-import { trpc } from "../trpc";
+import { trpc, queryClient } from "../trpc";
 
 export const useSolanaAuth = () => {
   const {
@@ -16,7 +16,10 @@ export const useSolanaAuth = () => {
     isFetching,
     isLoading,
     isFetched,
-  } = trpc.auth.me.useQuery();
+  } = trpc.auth.me.useQuery(undefined, {
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
   const { mutateAsync: createMessage, isPending } =
     trpc.auth.createMessage.useMutation();
   const {
@@ -142,7 +145,13 @@ export const useSolanaAuth = () => {
 
   const logout = useCallback(async () => {
     localStorage.removeItem("token");
-    await refetchUser();
+    try {
+      // Limpia el cache para evitar que userData previo permanezca en memoria
+      await queryClient.cancelQueries();
+      queryClient.clear();
+    } finally {
+      await refetchUser();
+    }
   }, [refetchUser]);
 
   return {

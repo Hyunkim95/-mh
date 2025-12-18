@@ -46,7 +46,17 @@
       "Bash(ls:*)",
       "Bash(rm:*)",
       "Bash(git rm:*)",
-      "Bash(timeout 15 npm run dev)"
+      "Bash(timeout 15 npm run dev)",
+      "Bash(cat:*)",
+      "Bash(sed:*)",
+      "WebFetch(domain:api.solscan.io)",
+      "mcp__Framelink_Figma_MCP__get_figma_data",
+      "mcp__Framelink_Figma_MCP__download_figma_images",
+      "WebFetch(domain:www.helius.dev)",
+      "WebSearch",
+      "WebFetch(domain:anchor.so)",
+      "WebFetch(domain:docs.rs)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": [],
     "ask": []

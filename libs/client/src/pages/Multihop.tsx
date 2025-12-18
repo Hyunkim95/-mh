@@ -23,7 +23,7 @@ function App() {
     solTokenConfigError,
   } = useInitializeTokenConfig({ publicKey });
   const initializeRoute = trpc.contract.initializeRoute.useMutation();
-  const splTokens = trpc.tokens.getTokenAccounts.useQuery();
+  const _splTokens = trpc.tokens.getTokenAccounts.useQuery();
 
   const initializeRouteSOL = trpc.contract.initializeRouteSOL.useMutation();
   const { data: tokenConfigs, isLoading: tokenConfigsLoading } =

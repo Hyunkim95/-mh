@@ -3,6 +3,11 @@ import { useConnection } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
 import { getMint } from "@solana/spl-token";
 import { trpc } from "../trpc";
+import {
+  HeliusAssetLike,
+  hasContentFiles,
+  hasContentMetadata,
+} from "../utils/heliusAssets";
 
 export interface TokenSelectorProps {
   value?: string;
@@ -94,16 +99,18 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({
     setManualAddress(address);
   };
 
-  const getTokenImage = (token: any) => {
-    return token?.content?.files?.[0]?.cdn_uri || null;
+  const getTokenImage = (token: unknown) => {
+    return hasContentFiles(token) ? token.content.files?.[0]?.cdn_uri ?? null : null;
   };
 
-  const getTokenName = (token: any) => {
-    return token?.content?.metadata?.name || "Unknown Token";
+  const getTokenName = (token: unknown) => {
+    return hasContentMetadata(token)
+      ? token.content.metadata?.name ?? "Unknown Token"
+      : "Unknown Token";
   };
 
-  const getTokenSymbol = (token: any) => {
-    return token?.content?.metadata?.symbol || "";
+  const getTokenSymbol = (token: unknown) => {
+    return hasContentMetadata(token) ? token.content.metadata?.symbol ?? "" : "";
   };
 
   const getDefaultTokenSvg = () => (
@@ -121,7 +128,7 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({
   );
 
   const baseInputStyles =
-    "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent";
+    "w-full px-4 py-3 border border-[var(--white-100-transparency-10)] bg-[var(--chinese-black-800)] text-[var(--white-100)] rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--laser-lemon-500)] focus:border-transparent";
 
   return (
     <div className={className}>
@@ -132,7 +139,7 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({
           onClick={() => setInputMode("select")}
           className={`px-3 py-1 rounded-md text-sm ${
             inputMode === "select"
-              ? "bg-green-500 text-white"
+              ? "bg-[var(--laser-lemon-500)] text-[var(--black-900)]"
               : "bg-gray-200 text-gray-700 hover:bg-gray-300"
           }`}
         >
@@ -145,7 +152,7 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({
           onClick={() => setInputMode("manual")}
           className={`px-3 py-1 rounded-md text-sm ${
             inputMode === "manual"
-              ? "bg-green-500 text-white"
+              ? "bg-[var(--laser-lemon-500)] text-[var(--black-900)]"
               : "bg-gray-200 text-gray-700 hover:bg-gray-300"
           }`}
         >
@@ -156,7 +163,7 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({
       {inputMode === "select" ? (
         <div>
           {isLoadingTokens ? (
-            <div className="p-4 text-center text-gray-500">
+            <div className="p-4 text-center text-[var(--philippine-gray-500)]">
               Loading tokens...
             </div>
           ) : tokenAccounts && tokenAccounts.length > 0 ? (
@@ -171,19 +178,19 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({
                   ? "Select a configured token"
                   : placeholder}
               </option>
-              {tokenAccounts.map((token: any) => {
+              {tokenAccounts.map((token: HeliusAssetLike) => {
                 const name = getTokenName(token);
                 const symbol = getTokenSymbol(token);
                 return (
-                  <option key={token.id} value={token.id}>
+                  <option key={token.id ?? ""} value={token.id ?? ""}>
                     {name}
-                    {symbol ? ` (${symbol})` : ""} - {token.id.slice(0, 8)}...
+                    {symbol ? ` (${symbol})` : ""} - {(token.id ?? "").slice(0, 8)}...
                   </option>
                 );
               })}
             </select>
           ) : (
-            <div className="p-4 text-center text-gray-500 border border-gray-300 rounded-md">
+            <div className="p-4 text-center text-[var(--philippine-gray-500)] border border-[var(--white-100-transparency-10)] rounded-md bg-[var(--chinese-black-800)]">
               {useConfiguredTokensOnly
                 ? "No configured tokens found. Use manual input instead."
                 : "No tokens found in wallet. Use manual input instead."}
@@ -192,11 +199,11 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({
 
           {/* Selected Token Display */}
           {selectedTokenId && tokenAccounts && (
-            <div className="mt-3 p-3 bg-gray-50 rounded-md flex items-center space-x-3">
+            <div className="mt-3 p-3 bg-[var(--chinese-black-800)] rounded-md flex items-center space-x-3 border border-[var(--white-100-transparency-10)]">
               <div className="w-8 h-8 flex-shrink-0">
                 {(() => {
                   const selectedToken = tokenAccounts.find(
-                    (t: any) => t.id === selectedTokenId
+                    (t: HeliusAssetLike) => t.id === selectedTokenId
                   );
                   const imageUrl = getTokenImage(selectedToken);
                   return imageUrl ? (
@@ -216,7 +223,7 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({
                 <div
                   className={`w-8 h-8 flex items-center justify-center ${(() => {
                     const selectedToken = tokenAccounts.find(
-                      (t: any) => t.id === selectedTokenId
+                      (t: HeliusAssetLike) => t.id === selectedTokenId
                     );
                     const imageUrl = getTokenImage(selectedToken);
                     return imageUrl ? "hidden" : "";
@@ -228,17 +235,17 @@ export const TokenSelector: React.FC<TokenSelectorProps> = ({
               <div className="flex-1 min-w-0">
                 {(() => {
                   const selectedToken = tokenAccounts.find(
-                    (t: any) => t.id === selectedTokenId
+                    (t: HeliusAssetLike) => t.id === selectedTokenId
                   );
                   const name = getTokenName(selectedToken);
                   const symbol = getTokenSymbol(selectedToken);
                   return (
                     <div>
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-sm font-medium text-[var(--white-100)]">
                         {name}
                         {symbol ? ` (${symbol})` : ""}
                       </p>
-                      <p className="text-xs text-gray-500 truncate">
+                      <p className="text-xs text-[var(--philippine-gray-500)] truncate">
                         {selectedTokenId}
                       </p>
                     </div>

@@ -3,83 +3,98 @@ import {
   createRoute,
   createRootRoute,
   Outlet,
-} from "@tanstack/react-router";
-import { Login } from "./pages/Login";
-import App from "./pages/Multihop";
-import { TokenConfigDetail } from "./pages/TokenConfigDetail";
-import { AuthHOC } from "./components/AuthHOC";
+} from '@tanstack/react-router'
+import { Login } from './pages/Login'
+import { AdminMultihop } from './pages/AdminMultihop'
+import { TokenConfigDetail } from './pages/TokenConfigDetail'
+import { AuthHOC } from './components/AuthHOC'
+import { RoleGuardHOC } from './components/RoleGuardHOC'
+import { MyAssets } from './pages/MyAssets'
+import { ConfigureHops } from './pages/ConfigureHops'
+import { LandingPage } from './pages/LandingPage'
 
 // Root route component
 const RootComponent = () => {
   return (
-    <div className="min-h-screen">
+    <div className='min-h-screen'>
       <Outlet />
     </div>
-  );
-};
+  )
+}
 
-// Create root route
 const rootRoute = createRootRoute({
   component: RootComponent,
-});
+})
 
-// Login route - only accessible when not authenticated
 const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/login",
+  path: '/login',
   component: Login,
-});
+})
 
-// Multihopper route - requires authentication
-const multihopperRoute = createRoute({
+// Admin Multihopper route - admin only
+const adminMultihopperRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/multihopper",
+  path: '/admin/multihopper',
   component: () => (
     <AuthHOC>
-      <App />
+      <RoleGuardHOC requiredRole='admin'>
+        <AdminMultihop />
+      </RoleGuardHOC>
     </AuthHOC>
   ),
-});
+})
 
 // Token config detail route - requires authentication
 const tokenConfigDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/token-config/$tokenConfigId",
+  path: '/token-config/$tokenConfigId',
   component: () => (
     <AuthHOC>
       <TokenConfigDetail />
     </AuthHOC>
   ),
-});
+})
 
-// Index route - redirects based on auth status
+// Index route - shows landing page for all users
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/",
+  path: '/',
+  component: LandingPage,
+})
+
+const myAssetsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/my-assets',
   component: () => (
     <AuthHOC>
-      <App />
+      <MyAssets />
     </AuthHOC>
   ),
-});
+})
+
+const configureHopsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/configure-hops',
+  component: () => (
+    <AuthHOC>
+      <ConfigureHops />
+    </AuthHOC>
+  ),
+})
 
 // Create route tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
   loginRoute,
-  multihopperRoute,
+  adminMultihopperRoute,
   tokenConfigDetailRoute,
-]);
+  myAssetsRoute,
+  configureHopsRoute,
+])
 
 // Create router
 export const router = createRouter({
   routeTree,
-  defaultPreload: "intent",
-});
-
-// Register router for maximum type safety
-declare module "@tanstack/react-router" {
-  interface Register {
-    router: typeof router;
-  }
-}
+  defaultPreload: 'intent',
+})

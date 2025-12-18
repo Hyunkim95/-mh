@@ -137,7 +137,7 @@ class ContractEventsSchemaMapper
     const events: ContractEventData[] = [];
     const eventParser = buildEventParser(
       MULTI_HOPPER_PROGRAM_ID,
-      new Connection(process.env.SOLANA_RPC_URL || clusterApiUrl("devnet"))
+      new Connection(process.env.SOLANA_RPC_URL || clusterApiUrl("mainnet-beta"))
     );
     const decoded = [...eventParser.parseLogs(logs)];
     if (!decoded) return [];

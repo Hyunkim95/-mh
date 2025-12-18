@@ -1,0 +1,7 @@
+<svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Vertical lines that curve at bottom -->
+  <path d="M25 10 L25 50 Q25 65 35 70" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M35 10 L35 55 Q35 68 40 72" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M45 10 L45 55 Q45 68 40 72" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M55 10 L55 50 Q55 65 45 70" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+</svg>

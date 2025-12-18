@@ -14,6 +14,21 @@ const getHopById = async (hopId: number): Promise<Hop | null> => {
   return hop || null;
 };
 
+const markAllHopsCompleted = async (routeId: number): Promise<void> => {
+  await db
+    .update(hopsSchema)
+    .set({
+      executedAt: utcNow(),
+      updatedAt: utcNow(),
+    })
+    .where(
+      and(
+        eq(hopsSchema.routeId, routeId),
+        isNull(hopsSchema.executedAt)
+      )
+    );
+}
+
 const getHopsByRoute = async (routeId: number): Promise<Hop[]> => {
   const hops = await db
     .select()
@@ -81,6 +96,62 @@ const updateHopExecution = async (
 
   return updatedHop || null;
 };
+
+const updateHopExecutionByIndex = async (
+  routeId: number,
+  hopIndex: number,
+  executionData: {
+    executedAt?: Date;
+    txHash?: string;
+    error?: string;
+  }
+): Promise<Hop | null> => {
+  const updateData = {
+    ...executionData,
+    updatedAt: utcNow(),
+  };
+
+  // Ensure executedAt is UTC if provided
+  if (executionData.executedAt) {
+    updateData.executedAt = toUtc(executionData.executedAt);
+  }
+
+  const [updatedHop] = await db
+    .update(hopsSchema)
+    .set(updateData)
+    .where(
+      and(
+        eq(hopsSchema.routeId, routeId),
+        eq(hopsSchema.hopIndex, hopIndex)
+      )
+    )
+    .returning();
+
+  return updatedHop || null;
+}
+
+const updateHopScheduleByIndex = async (
+  routeId: number,
+  hopIndex: number,
+  scheduledAt: Date
+): Promise<Hop | null> => {
+  const utcScheduledAt = toUtc(scheduledAt);
+  const [updatedHop] = await db
+    .update(hopsSchema)
+    .set({
+      scheduledAt: utcScheduledAt,
+      updatedAt: utcNow(),
+    })
+    .where(
+      and(
+        eq(hopsSchema.routeId, routeId),
+        eq(hopsSchema.hopIndex, hopIndex)
+      )
+    )
+    .returning();
+
+  return updatedHop || null;
+}
 
 // Update scheduled execution time for a hop
 const updateHopSchedule = async (
@@ -207,6 +278,9 @@ export const hopsService = {
   getHopsByRoute,
   getHopByRouteAndIndex,
   createHopsForRoute,
+  markAllHopsCompleted,
+  updateHopScheduleByIndex,
+  updateHopExecutionByIndex,
   updateHopExecution,
   updateHopSchedule,
   deleteHopsForRoute,

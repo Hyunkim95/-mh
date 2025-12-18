@@ -174,7 +174,7 @@ export const contractRouter = router({
         return {
           success: true,
           data: {
-            transaction: serializedTransaction,
+            ...serializedTransaction,
             tokenPairMint: tokenPairMint.publicKey.toBase58(),
           },
         };
@@ -214,7 +214,7 @@ export const contractRouter = router({
         return {
           success: true,
           data: {
-            transaction: serializedTransaction,
+            ...serializedTransaction,
             wsolMint: wsolMint.publicKey.toBase58(),
           },
         };
@@ -257,7 +257,7 @@ export const contractRouter = router({
         return {
           success: true,
           data: {
-            transaction: serializedTransaction,
+            ...serializedTransaction,
           },
         };
       } catch (error) {
@@ -297,7 +297,7 @@ export const contractRouter = router({
         return {
           success: true,
           data: {
-            transaction: serializedTransaction,
+            ...serializedTransaction,
           },
         };
       } catch (error) {
@@ -397,7 +397,7 @@ export const contractRouter = router({
         return {
           success: true,
           data: {
-            transaction: serializedTransaction,
+            ...serializedTransaction,
             routeId: routeId.toString(),
             executorPublicKey: executorService.getExecutorPublicKey(routeId),
           },
@@ -444,7 +444,7 @@ export const contractRouter = router({
         return {
           success: true,
           data: {
-            transaction: serializedTransaction,
+            ...serializedTransaction,
             routeId: routeId.toString(),
             executorPublicKey: executorService.getExecutorPublicKey(routeId),
           },

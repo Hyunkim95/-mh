@@ -16,7 +16,7 @@ export interface SolanaInstructionParams {
 // Default connection parameters
 export const getDefaultParams = (): SolanaInstructionParams => ({
   connection: new Connection(
-    process.env.SOLANA_RPC_URL || clusterApiUrl("devnet")
+    process.env.SOLANA_RPC_URL || clusterApiUrl("mainnet-beta")
   ),
   programId: MULTI_HOPPER_PROGRAM_ID,
 });

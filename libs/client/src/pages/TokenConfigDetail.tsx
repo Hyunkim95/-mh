@@ -99,26 +99,26 @@ export const TokenConfigDetail: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen bg-[var(--chinese-black-800)] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--laser-lemon-500)]"></div>
       </div>
     );
   }
 
   if (!tokenConfig) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-md p-6">
+      <div className="min-h-screen bg-[var(--chinese-black-800)] flex items-center justify-center">
+        <div className="max-w-md w-full bg-[var(--eerie-black-700)] rounded-lg shadow-md p-6 border border-[var(--white-100-transparency-10)]">
           <div className="text-center">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            <h2 className="text-xl font-semibold text-[var(--white-100)] mb-2">
               Token Config Not Found
             </h2>
-            <p className="text-gray-600 mb-4">
+            <p className="text-[var(--philippine-gray-500)] mb-4">
               The requested token configuration could not be found.
             </p>
             <button
-              onClick={() => navigate({ to: "/multihopper" })}
-              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+              onClick={() => navigate({ to: "/" })}
+              className="px-4 py-2 bg-[var(--laser-lemon-500)] text-[var(--black-900)] rounded-md hover:brightness-95 transition-colors"
             >
               Back to Multihopper
             </button>
@@ -129,22 +129,22 @@ export const TokenConfigDetail: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-[var(--chinese-black-800)] py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="bg-[var(--eerie-black-700)] rounded-lg shadow-md p-6 mb-6 border border-[var(--white-100-transparency-10)]">
           <div className="flex items-center justify-between">
             <div>
               <button
-                onClick={() => navigate({ to: "/multihopper" })}
-                className="text-blue-500 hover:text-blue-700 mb-2 inline-flex items-center"
+                onClick={() => navigate({ to: "/" })}
+                className="text-[var(--laser-lemon-500)] hover:brightness-110 mb-2 inline-flex items-center"
               >
                 ← Back to Multihopper
               </button>
-              <h1 className="text-2xl font-bold text-gray-900">
+              <h1 className="text-2xl font-bold text-[var(--white-100)]">
                 Token Config #{formatAddress(tokenConfig.tokenMint)}
               </h1>
-              <p className="text-gray-600 mt-1">
+              <p className="text-[var(--philippine-gray-500)] mt-1">
                 Configuration details and update form
               </p>
             </div>
@@ -152,8 +152,8 @@ export const TokenConfigDetail: React.FC = () => {
               onClick={() => setIsEditing(!isEditing)}
               className={`px-4 py-2 rounded-md font-medium transition-colors ${
                 isEditing
-                  ? "bg-gray-500 text-white hover:bg-gray-600"
-                  : "bg-blue-500 text-white hover:bg-blue-600"
+                  ? "bg-[var(--dark-gunmetal-500)] text-[var(--white-100)] hover:brightness-95"
+                  : "bg-[var(--laser-lemon-500)] text-[var(--black-900)] hover:brightness-95"
               }`}
             >
               {isEditing ? "Cancel Edit" : "Edit Config"}
@@ -162,8 +162,8 @@ export const TokenConfigDetail: React.FC = () => {
         </div>
 
         {isEditing ? (
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+          <div className="bg-[var(--eerie-black-700)] rounded-lg shadow-md p-6 border border-[var(--white-100-transparency-10)]">
+            <h2 className="text-xl font-semibold text-[var(--white-100)] mb-4">
               Update Token Configuration
             </h2>
             <TokenConfigForm
@@ -190,9 +190,9 @@ export const TokenConfigDetail: React.FC = () => {
             />
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">
+          <div className="bg-[var(--eerie-black-700)] rounded-lg shadow-md overflow-hidden border border-[var(--white-100-transparency-10)]">
+            <div className="px-6 py-4 bg-[var(--chinese-black-800)] border-b border-[var(--white-100-transparency-10)]">
+              <h2 className="text-xl font-semibold text-[var(--white-100)]">
                 Configuration Details
               </h2>
             </div>
@@ -200,21 +200,21 @@ export const TokenConfigDetail: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-[var(--white-100-transparency-70)] mb-1">
                       Token Mint
                     </label>
-                    <div className="bg-gray-50 p-3 rounded-md">
-                      <span className="text-sm">{tokenConfig.tokenMint}</span>
+                    <div className="bg-[var(--chinese-black-800)] p-3 rounded-md border border-[var(--white-100-transparency-10)]">
+                      <span className="text-sm text-[var(--white-100)]">{tokenConfig.tokenMint}</span>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-[var(--white-100-transparency-70)] mb-1">
                       Config Address
                     </label>
-                    <div className="bg-gray-50 p-3 rounded-md">
+                    <div className="bg-[var(--chinese-black-800)] p-3 rounded-md border border-[var(--white-100-transparency-10)]">
                       <span
-                        className="font-mono text-sm"
+                        className="font-mono text-sm text-[var(--white-100)]"
                         title={tokenConfig.tokenConfigAddress}
                       >
                         {tokenConfig.tokenConfigAddress}
@@ -223,12 +223,12 @@ export const TokenConfigDetail: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-[var(--white-100-transparency-70)] mb-1">
                       Creator
                     </label>
-                    <div className="bg-gray-50 p-3 rounded-md">
+                    <div className="bg-[var(--chinese-black-800)] p-3 rounded-md border border-[var(--white-100-transparency-10)]">
                       <span
-                        className="font-mono text-sm"
+                        className="font-mono text-sm text-[var(--white-100)]"
                         title={tokenConfig.creator}
                       >
                         {tokenConfig.creator}
@@ -237,12 +237,12 @@ export const TokenConfigDetail: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-[var(--white-100-transparency-70)] mb-1">
                       Fee Treasury
                     </label>
-                    <div className="bg-gray-50 p-3 rounded-md">
+                    <div className="bg-[var(--chinese-black-800)] p-3 rounded-md border border-[var(--white-100-transparency-10)]">
                       <span
-                        className="font-mono text-sm"
+                        className="font-mono text-sm text-[var(--white-100)]"
                         title={tokenConfig.feeTreasury}
                       >
                         {tokenConfig.feeTreasury}
@@ -251,12 +251,12 @@ export const TokenConfigDetail: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-[var(--white-100-transparency-70)] mb-1">
                       Pair Address
                     </label>
-                    <div className="bg-gray-50 p-3 rounded-md">
+                    <div className="bg-[var(--chinese-black-800)] p-3 rounded-md border border-[var(--white-100-transparency-10)]">
                       <span
-                        className="font-mono text-sm"
+                        className="font-mono text-sm text-[var(--white-100)]"
                         title={tokenConfig.pairAddress}
                       >
                         {tokenConfig.pairAddress}
@@ -267,11 +267,11 @@ export const TokenConfigDetail: React.FC = () => {
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-[var(--white-100-transparency-70)] mb-1">
                       Minimum Transfer Amount
                     </label>
-                    <div className="bg-gray-50 p-3 rounded-md">
-                      <span className="text-sm">
+                    <div className="bg-[var(--chinese-black-800)] p-3 rounded-md border border-[var(--white-100-transparency-10)]">
+                      <span className="text-sm text-[var(--white-100)]">
                         {(
                           tokenConfig.minTransferAmount /
                           10 ** tokenDecimals
@@ -281,53 +281,53 @@ export const TokenConfigDetail: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-[var(--white-100-transparency-70)] mb-1">
                       Fee Percentage
                     </label>
-                    <div className="bg-gray-50 p-3 rounded-md">
-                      <span className="text-sm">
+                    <div className="bg-[var(--chinese-black-800)] p-3 rounded-md border border-[var(--white-100-transparency-10)]">
+                      <span className="text-sm text-[var(--white-100)]">
                         {formatFeeBps(tokenConfig.feeBps)}%
                       </span>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-[var(--white-100-transparency-70)] mb-1">
                       Maximum Hops
                     </label>
-                    <div className="bg-gray-50 p-3 rounded-md">
-                      <span className="text-sm">{tokenConfig.maxHops}</span>
+                    <div className="bg-[var(--chinese-black-800)] p-3 rounded-md border border-[var(--white-100-transparency-10)]">
+                      <span className="text-sm text-[var(--white-100)]">{tokenConfig.maxHops}</span>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-[var(--white-100-transparency-70)] mb-1">
                       Maximum Delay
                     </label>
-                    <div className="bg-gray-50 p-3 rounded-md">
-                      <span className="text-sm">
+                    <div className="bg-[var(--chinese-black-800)] p-3 rounded-md border border-[var(--white-100-transparency-10)]">
+                      <span className="text-sm text-[var(--white-100)]">
                         {formatDuration(tokenConfig.maxDelaySeconds)}
                       </span>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-[var(--white-100-transparency-70)] mb-1">
                       Timelock Duration
                     </label>
-                    <div className="bg-gray-50 p-3 rounded-md">
-                      <span className="text-sm">
+                    <div className="bg-[var(--chinese-black-800)] p-3 rounded-md border border-[var(--white-100-transparency-10)]">
+                      <span className="text-sm text-[var(--white-100)]">
                         {formatDuration(tokenConfig.timelockSeconds)}
                       </span>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-[var(--white-100-transparency-70)] mb-1">
                       Flat Fee (SOL)
                     </label>
-                    <div className="bg-gray-50 p-3 rounded-md">
-                      <span className="text-sm">
+                    <div className="bg-[var(--chinese-black-800)] p-3 rounded-md border border-[var(--white-100-transparency-10)]">
+                      <span className="text-sm text-[var(--white-100)]">
                         {formatLamports(tokenConfig.flatFeeLamports)}
                       </span>
                     </div>

@@ -22,8 +22,6 @@ const HELIUS_API =
   process.env.HELIUS_API ||
   "https://mainnet.helius-rpc.com/?api-key=f6d0c03a-562f-4784-8b78-ebb084b72514";
 
-console.log("HELIUS_API", HELIUS_API);
-
 const fetchAssets = async (
   owner: string,
   limit: number,
@@ -89,6 +87,12 @@ export const crossSectionWithTokenConfigs = async (
   apiUrl?: string
 ) => {
   const tokens = await getTokensAccountsWithCache(owner, apiUrl);
+  if (tokens.length === 0) {
+    return {
+      tokens: [],
+      tokenConfigs: [],
+    };
+  }
   const tokenConfigs = await tokenConfigsService.findIn(
     tokens.map((t) => t.id)
   );
@@ -102,7 +106,76 @@ export const crossSectionWithTokenConfigs = async (
   };
 };
 
+const priceCache = new Map<string, { price: number; timestamp: number }>();
+const PRICE_CACHE_TTL = 1000 * 60 * 5; // 5 minutes
+
+export const getTokenPrice = async (
+  mintAddress: string,
+  apiUrl?: string
+): Promise<{ price: number | null; pricePerToken: number | null }> => {
+  try {
+    // Check cache first
+    const cached = priceCache.get(mintAddress);
+    if (cached && Date.now() - cached.timestamp < PRICE_CACHE_TTL) {
+      return { price: cached.price, pricePerToken: cached.price };
+    }
+
+    // Fetch asset from Helius to get price info
+    const response = await axios.post(`${apiUrl || HELIUS_API}`, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "getAsset",
+      params: {
+        id: mintAddress,
+        displayOptions: {
+          showFungible: true,
+        },
+      },
+    });
+
+    const asset = response.data.result;
+    
+    // Check for price_per_token directly (most common Helius format)
+    const pricePerToken = get(asset, "token_info.price_per_token");
+    if (pricePerToken && typeof pricePerToken === "number" && pricePerToken > 0) {
+      priceCache.set(mintAddress, { price: pricePerToken, timestamp: Date.now() });
+      return { price: pricePerToken, pricePerToken };
+    }
+
+    // Check for price_info.total_price (alternative Helius format)
+    const priceInfo = get(asset, "token_info.price_info");
+    if (priceInfo) {
+      const totalPrice = get(priceInfo, "total_price");
+      const pricePerTokenFromInfo = get(priceInfo, "price_per_token");
+      
+      if (pricePerTokenFromInfo && typeof pricePerTokenFromInfo === "number" && pricePerTokenFromInfo > 0) {
+        priceCache.set(mintAddress, { price: pricePerTokenFromInfo, timestamp: Date.now() });
+        return { price: totalPrice || pricePerTokenFromInfo, pricePerToken: pricePerTokenFromInfo };
+      }
+      
+      if (totalPrice && typeof totalPrice === "number" && totalPrice > 0) {
+        // If we only have total_price, we need balance to calculate price per token
+        const balance = get(asset, "token_info.balance");
+        if (balance && typeof balance === "number" && balance > 0) {
+          const calculatedPricePerToken = totalPrice / balance;
+          priceCache.set(mintAddress, { price: calculatedPricePerToken, timestamp: Date.now() });
+          return { price: totalPrice, pricePerToken: calculatedPricePerToken };
+        }
+        priceCache.set(mintAddress, { price: totalPrice, timestamp: Date.now() });
+        return { price: totalPrice, pricePerToken: totalPrice };
+      }
+    }
+
+    // If no price found, return null
+    return { price: null, pricePerToken: null };
+  } catch (error) {
+    console.error(`Error fetching token price for ${mintAddress}:`, error);
+    return { price: null, pricePerToken: null };
+  }
+};
+
 export const tokensService = {
   getTokensAccountsWithCache,
   crossSectionWithTokenConfigs,
+  getTokenPrice,
 };
