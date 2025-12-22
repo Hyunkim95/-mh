@@ -310,7 +310,24 @@ export const LandingPage: React.FC = () => {
                 </h2>
 
                 {/* Token Input Card */}
-                <div className="bg-[#121416] rounded-2xl sm:rounded-3xl p-8 sm:p-10 mb-8">
+                <div className="relative bg-[#121416] rounded-2xl sm:rounded-3xl p-8 sm:p-10 mb-8">
+                  {/* Blurred Overlay Container */}
+                  <div
+                    className="absolute inset-0 rounded-2xl sm:rounded-3xl flex items-end justify-center pb-16"
+                    style={{
+                      backdropFilter: "blur(12px)",
+                      backgroundColor: "rgba(18, 20, 22, 0.06)",
+                      zIndex: 10,
+                    }}
+                  >
+                    <img
+                      src="/blurred-arrows.png"
+                      alt="Overlay"
+                      className="w-24 h-24 object-contain"
+                    />
+                  </div>
+
+                  {/* Original Content (now blurred in background) */}
                   <div className="flex flex-col items-center justify-center mb-10">
                     <div className="flex items-center gap-4 mb-3">
                       {/* SOL Token Icon */}
@@ -378,7 +395,7 @@ export const LandingPage: React.FC = () => {
                   onClick={handleConnectWallet}
                   className="w-full py-4 sm:py-5 bg-mh-yellow text-black font-bold rounded-2xl hover:brightness-110 hover:shadow-lg hover:shadow-mh-yellow/20 transition-all duration-300 text-base sm:text-lg"
                 >
-                  Get Started
+                  Connect To Explore
                 </button>
               </div>
             </div>
@@ -443,7 +460,7 @@ export const LandingPage: React.FC = () => {
             ].map((feature, idx) => (
               <div
                 key={idx}
-                className="group p-6 sm:pl-6 sm:pr-10 backdrop-blur-sm rounded-2xl md:rounded-[34px] card-border-gradient hover:bg-white/[0.04] transition-all duration-500 max-w-[226px] max-h-[155px] w-[100%] h-[100%] "
+                className="group p-6 sm:pl-6 sm:pr-10 backdrop-blur-sm rounded-2xl md:rounded-[34px] card-border-gradient hover:bg-white/[0.04] transition-all duration-500 lg:max-w-[226px] lg:max-h-[155px] w-[100%] h-[100%] "
                 style={{
                   animation: `fadeInUp 0.5s ease-out ${0.1 * idx}s both`,
                 }}
@@ -566,7 +583,7 @@ export const LandingPage: React.FC = () => {
           {/* Vertical Flowchart - Responsive */}
           <div className="relative flex flex-col items-center">
             {/* Step 1 */}
-            <div className="relative z-10 w-full max-w-[240px] sm:max-w-[226px] p-4 sm:p-6 bg-gradient-to-br from-[#1E2023]/90 to-[#141618]/90 backdrop-blur-xl card-border-gradient rounded-[34px]">
+            <div className="relative z-10 w-full max-w-[240px] md:max-w-[226px] p-4 sm:p-6 bg-gradient-to-br from-[#1E2023]/90 to-[#141618]/90 backdrop-blur-xl card-border-gradient rounded-[34px]">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-lg sm:text-xl font-bold text-mh-yellow bg-[#232724] w-[45px] h-[45px] flex items-center justify-center rounded-lg">
                   1
@@ -593,7 +610,7 @@ export const LandingPage: React.FC = () => {
             </div>
 
             {/* Step 2 */}
-            <div className="relative z-10 w-full max-w-[260px] sm:max-w-[226px] p-4 sm:p-5 bg-gradient-to-br from-[#1E2023]/90 to-[#141618]/90 backdrop-blur-xl card-border-gradient rounded-[34px]">
+            <div className="relative z-10 w-full max-w-[260px] md:max-w-[226px] p-4 sm:p-5 bg-gradient-to-br from-[#1E2023]/90 to-[#141618]/90 backdrop-blur-xl card-border-gradient rounded-[34px]">
               <span className="text-lg sm:text-xl font-bold text-mh-yellow bg-[#232724] w-[45px] h-[45px] flex items-center justify-center rounded-lg mb-3 inline-block">
                 2
               </span>
@@ -619,12 +636,12 @@ export const LandingPage: React.FC = () => {
             </div>
 
             {/* Mobile Connector (Simple Vertical) */}
-            <div className="lg:hidden w-0.5 h-8 bg-gradient-to-b from-mh-yellow/30 to-mh-yellow/10" />
+            <div className="lg:hidden w-1.5 h-8 bg-gradient-to-b from-mh-yellow/30 to-mh-yellow/10" />
 
             {/* Branching Section */}
             <div className="relative w-full">
               {/* Cards Row */}
-              <div className="flex flex-col lg:flex-row gap-8 justify-center items-start px-4">
+              <div className="flex flex-col lg:flex-row gap-8 justify-center items-center lg:items-start px-4">
                 {/* Easy Mode Card */}
                 <div className="relative z-10 w-full max-w-sm lg:w-[312px] h-[-webkit-fill-available] p-4 sm:p-6 bg-gradient-to-br from-[#1E2023]/90 to-[#141618]/90 backdrop-blur-xl card-border-gradient rounded-[34px]">
                   <span className="text-lg sm:text-xl font-bold text-mh-yellow bg-[#232724] w-[45px] h-[45px] flex items-center justify-center rounded-lg mb-3 inline-block">
@@ -641,6 +658,8 @@ export const LandingPage: React.FC = () => {
                   </p>
                 </div>
 
+                {/* Mobile Connector (Simple Vertical) */}
+                <div className="absolute lg:hidden w-1.5 h-8 bg-gradient-to-b from-mh-yellow/30 to-mh-yellow/10" />
                 {/* Design Mode Card */}
                 <div className="relative z-10 w-full max-w-sm lg:w-[312px] h-[-webkit-fill-available] p-4 sm:p-6 bg-gradient-to-br from-[#1E2023]/90 to-[#141618]/90 backdrop-blur-xl card-border-gradient rounded-[34px]">
                   <span className="text-lg sm:text-xl font-bold text-mh-yellow bg-[#232724] w-[45px] h-[45px] flex items-center justify-center rounded-lg mb-3 inline-block">
@@ -660,13 +679,16 @@ export const LandingPage: React.FC = () => {
             </div>
 
             {/* Connector 3->4 */}
-            <div>
+            <div className="hidden lg:block">
               <img
                 src="/howitworks4.svg"
                 alt=""
                 className="h-12 w-auto opacity-80"
               />
             </div>
+
+             {/* Mobile Connector (Simple Vertical) */}
+            <div className="lg:hidden w-1.5 h-8 bg-gradient-to-b from-mh-yellow/30 to-mh-yellow/10" />
 
             {/* Step 4 */}
             <div className="relative z-10 w-full max-w-[240px] sm:max-w-[286px] p-4 sm:p-6 sm:pl-14 bg-gradient-to-br from-[#1E2023]/90 to-[#141618]/90 backdrop-blur-xl card-border-gradient rounded-[34px] flex flex-col justify-center">
