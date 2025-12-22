@@ -94,7 +94,8 @@ export const History = ({ reloadTrigger }: { reloadTrigger: number }) => {
       routes,
       r => r.status === 'completed'
     );
-    return `${completed.length} routes completed & ${pending.length} pending`
+    const completedText = completed.length === 1 ? 'Route completed' : 'Routes completed';
+    return `${completed.length} ${completedText}\n& ${pending.length} pending`
   }, [routes])
 
   const handleToggle = (id: number) => {
@@ -102,10 +103,10 @@ export const History = ({ reloadTrigger }: { reloadTrigger: number }) => {
   };
 
   return (
-    <div className="flex flex-col bg-[var(--chinese-black-800)] rounded-3xl p-6 border border-[var(--white-100-transparency-05)]">
-      <div className="rounded-2xl shadow-lg flex flex-col max-h-[590px]">
+    <div className="flex flex-col bg-[var(--chinese-black-800)] rounded-3xl p-4 sm:p-6 border border-[var(--white-100-transparency-05)]">
+      <div className="rounded-2xl shadow-lg flex flex-col max-h-[400px] sm:max-h-[590px]">
         <div
-          className="overflow-y-auto bg-[var(--chinese-black-800)] p-6 space-y-4 rounded-b-2xl scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent"
+          className="overflow-y-auto bg-[var(--chinese-black-800)] p-2 sm:p-6 space-y-3 sm:space-y-4 rounded-b-2xl scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent"
           onScroll={handleScroll}
         >
           {isLoading ? (
@@ -140,7 +141,7 @@ export const History = ({ reloadTrigger }: { reloadTrigger: number }) => {
         </div>
       </div>
 
-      <div className="text-sm text-gray-400 pt-3 text-center">
+      <div className="text-sm text-gray-400 pt-3 text-center whitespace-pre-line">
         {summary}
       </div>
     </div>

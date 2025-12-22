@@ -185,15 +185,15 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
     >
       {arrivalTime ? (
         <>
-          <span className="text-sm font-medium text-[var(--white-100)] group-hover:text-[var(--laser-lemon-500)] transition-colors mb-1">
-            {arrivalTime.toLocaleString('default', { weekday: 'long', day: 'numeric', month: 'long' })}
+          <span className="text-xs sm:text-sm font-medium text-[var(--white-100)] group-hover:text-[var(--laser-lemon-500)] transition-colors mb-1">
+            {arrivalTime.toLocaleString('default', { weekday: 'short', day: 'numeric', month: 'short' })}
           </span>
-          <span className="text-sm font-bold text-[var(--laser-lemon-500)]">
+          <span className="text-xs sm:text-sm font-bold text-[var(--laser-lemon-500)]">
             {arrivalTime.toLocaleString('default', { hour: '2-digit', minute: '2-digit', hour12: false })}
           </span>
         </>
       ) : (
-        <span className="text-[var(--philippine-gray-500)]">Select Date</span>
+        <span className="text-xs sm:text-sm text-[var(--philippine-gray-500)]">Select Date</span>
       )}
     </button>
   ))
@@ -218,14 +218,14 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
       </div>
 
       {/* Main Container for the 3 Cards */}
-      <div className="bg-[#0C0D0F] rounded-[32px] p-6 mb-8 border border-[#25282c]/50">
-        <div className="flex gap-4 h-[250px]">
+      <div className="bg-[#0C0D0F] rounded-[24px] sm:rounded-[32px] p-4 sm:p-6 mb-6 sm:mb-8 border border-[#25282c]/50">
+        <div className="flex flex-col sm:flex-row gap-4 sm:h-[250px]">
           {/* Arrival Date Column */}
           <div className="flex-1 flex flex-col gap-3">
             <div className="text-[11px] text-[var(--philippine-gray-500)] font-semibold uppercase tracking-wider pl-1">
               Arrival Date
             </div>
-            <div className="flex-1 bg-[#131416] rounded-[24px] border border-[#25282c] flex flex-col items-center justify-center relative shadow-inner hover:border-[var(--laser-lemon-500)]/20 transition-colors group">
+            <div className="h-[140px] sm:flex-1 bg-[#131416] rounded-[20px] sm:rounded-[24px] border border-[#25282c] flex flex-col items-center justify-center relative shadow-inner hover:border-[var(--laser-lemon-500)]/20 transition-colors group">
               <DatePicker
                 selected={arrivalTime}
                 onChange={onArrivalTimeChange}
@@ -277,7 +277,7 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
               Hops
             </div>
             <div
-              className="flex-1 bg-[#131416] rounded-[24px] border border-[#25282c] flex flex-col items-center justify-center relative cursor-pointer group hover:border-[var(--laser-lemon-500)]/40 transition-all duration-300"
+              className="h-[140px] sm:flex-1 bg-[#131416] rounded-[20px] sm:rounded-[24px] border border-[#25282c] flex flex-col items-center justify-center relative cursor-pointer group hover:border-[var(--laser-lemon-500)]/40 transition-all duration-300"
               onClick={() => onHopCountChange(hopCount >= 5 ? 1 : hopCount + 1)}
               title="Click to cycle hops"
             >
@@ -286,12 +286,12 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
 
               <div className="flex flex-col items-center justify-center h-full z-10">
                 {/* Top lines */}
-                <div className="flex gap-1.5 mb-2">
+                <div className="flex gap-1 sm:gap-1.5 mb-1 sm:mb-2">
                   {[1, 2, 3].map(i => (
                     <div
                       key={`top-${i}`}
                       className={clsx(
-                        'w-[3px] h-10 rounded-full transition-all duration-500',
+                        'w-[2px] sm:w-[3px] h-6 sm:h-10 rounded-full transition-all duration-500',
                         i <= hopCount
                           ? 'bg-[var(--laser-lemon-500)] shadow-[0_0_15px_rgba(251,255,105,0.5)]'
                           : 'bg-[#25282c] shadow-none opacity-30'
@@ -301,17 +301,17 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
                 </div>
 
                 {/* Configured Number */}
-                <div className="w-16 h-16 rounded-full bg-[var(--laser-lemon-500)] flex items-center justify-center shadow-[0_0_35px_rgba(251,255,105,0.4)] z-10 my-1 group-hover:scale-110 transition-transform duration-300">
-                  <span className="text-3xl font-bold text-[var(--chinese-black-800)]">{hopCount}</span>
+                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-[var(--laser-lemon-500)] flex items-center justify-center shadow-[0_0_35px_rgba(251,255,105,0.4)] z-10 my-1 group-hover:scale-110 transition-transform duration-300">
+                  <span className="text-2xl sm:text-3xl font-bold text-[var(--chinese-black-800)]">{hopCount}</span>
                 </div>
 
                 {/* Bottom lines */}
-                <div className="flex gap-1.5 mt-2">
+                <div className="flex gap-1 sm:gap-1.5 mt-1 sm:mt-2">
                   {[1, 2, 3].map(i => (
                     <div
                       key={`bottom-${i}`}
                       className={clsx(
-                        'w-[3px] h-10 rounded-full transition-all duration-500',
+                        'w-[2px] sm:w-[3px] h-6 sm:h-10 rounded-full transition-all duration-500',
                         i <= hopCount
                           ? 'bg-[var(--laser-lemon-500)] shadow-[0_0_15px_rgba(251,255,105,0.5)]'
                           : 'bg-[#25282c] shadow-none opacity-30'
@@ -328,9 +328,9 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
             <div className="text-[11px] text-[var(--philippine-gray-500)] font-semibold uppercase tracking-wider pl-1">
               Token
             </div>
-            <div className="flex-1 bg-[#131416] rounded-[24px] border border-[#25282c] flex flex-col items-center justify-center relative shadow-inner group">
+            <div className="h-[140px] sm:flex-1 bg-[#131416] rounded-[20px] sm:rounded-[24px] border border-[#25282c] flex flex-col items-center justify-center relative shadow-inner group">
               <div className="flex flex-col items-center justify-center">
-                <div className="w-16 h-16 rounded-full bg-[#1c1e22] overflow-hidden flex items-center justify-center mb-5 border border-[#2d3035] shadow-xl group-hover:scale-105 transition-transform duration-300">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-[#1c1e22] overflow-hidden flex items-center justify-center mb-2 sm:mb-5 border border-[#2d3035] shadow-xl group-hover:scale-105 transition-transform duration-300">
                   <img
                     src={imageError ? fallbackIcon : selectedAsset?.icon || fallbackIcon}
                     alt={selectedAsset?.symbol || ''}
@@ -341,17 +341,17 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
 
                 {/* Amount Display */}
                 <div className="flex flex-col items-center gap-1">
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-2xl font-bold text-[var(--white-100)] tracking-tight">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-lg sm:text-2xl font-bold text-[var(--white-100)] tracking-tight">
                       {formatTokenAmount(selectedAmount)}
                     </span>
-                    <span className="text-xl font-bold text-[var(--white-100)] opacity-60">
+                    <span className="text-base sm:text-xl font-bold text-[var(--white-100)] opacity-60">
                       {selectedAsset?.symbol}
                     </span>
                   </div>
 
                   {/* USD value */}
-                  <div className="text-sm font-medium text-[var(--philippine-gray-500)]">
+                  <div className="text-xs sm:text-sm font-medium text-[var(--philippine-gray-500)]">
                     {totalUsd > 0
                       ? new Intl.NumberFormat('en-US', {
                         style: 'currency',
@@ -367,7 +367,7 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
       </div>
 
       {/* Final Destination */}
-      <div className="mb-4">
+      <div className="mb-20 sm:mb-4">
         <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--white-100)] mb-3 pl-1">
           Final Destination
         </label>
