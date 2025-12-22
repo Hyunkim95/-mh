@@ -121,64 +121,95 @@ export const RouteItem = ({ route }: RouteItemProps) => {
     <div className='relative flex flex-col bg-[var(--dark-jungle-green-500)] rounded-xl shadow-sm overflow-hidden'>
       {/* Header */}
       <button onClick={onToggle}
-        className="flex items-center justify-between w-full p-4 gap-3">
-        {/* Route Name & ID - Flexible with overflow */}
-        <div className="flex flex-col items-start text-left min-w-0 flex-1 max-w-[140px]">
-          <div className="text-sm text-white font-medium truncate w-full overflow-x-auto scrollbar-hide">{route.name || `Route`}</div>
-          <div className="text-xs text-gray-400 truncate w-full">
-            #{route.id}</div>
+        className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full p-4 gap-3">
+        {/* Mobile layout - matches Figma */}
+        <div className="sm:hidden w-full">
+          <div className="flex flex-row items-start justify-between w-full">
+            {/* Left side - Token info */}
+            <div className="flex flex-row items-start gap-3">
+              {/* Token icon placeholder */}
+              <div className="w-10 h-10 rounded-full bg-[var(--white-100-transparency-10)] flex items-center justify-center flex-shrink-0">
+                <span className="text-[var(--white-100)] text-xs font-medium">
+                  {route.tokenSymbol?.charAt(0) || route.tokenType.charAt(0)}
+                </span>
+              </div>
+              <div className="flex flex-col items-start">
+                <div className="flex flex-row items-center gap-2">
+                  <span className="text-white font-medium text-base">{route.tokenSymbol || route.tokenType}</span>
+                  <span className="text-gray-500 text-base">{formattedAmount || '0'}</span>
+                </div>
+                <div className="text-xs text-gray-400 mt-1">
+                  Current Wallet
+                  <div className="text-white">{trimAddress(route.creator)}</div>
+                  <div className="mt-1">Route #{route.id}</div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Right side - Status */}
+            <div className="flex flex-col items-end">
+              <div className="text-xs text-gray-400">Status</div>
+              <div className={`text-sm font-medium mt-1 ${
+                isCompleted ? "text-green-400" : isDraft ? "text-gray-400" : "text-yellow-400"
+              }`}>
+                {isCompleted ? 'Complete' : isDraft ? 'Draft' : 'Pending'}
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Token info - Flexible with overflow */}
-        <div className="flex flex-row gap-[10px] text-left min-w-0 flex-1 max-w-[120px]">
-          {/* <img
-            src={route.token}
-            alt={route.symbol}
-            className="w-10 h-10 rounded-full justify-center items-center"
-          /> */}
+        {/* Desktop layout - original */}
+        <div className="hidden sm:flex flex-row items-center gap-3 w-full sm:w-auto">
+          {/* Route Name & Token */}
+          <div className="flex flex-col items-start text-left min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <div className="text-sm text-white font-medium truncate">{route.name || `Route #${route.id}`}</div>
+              <div className="text-xs text-gray-400">•</div>
+              <div className="text-sm text-white">{route.tokenSymbol || route.tokenType}</div>
+            </div>
+            <div className="text-xs text-gray-400">
+              {formattedAmount ? `${formattedAmount} • ` : ''}{hopsCount} hops
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop only: Additional info columns */}
+        <div className="hidden sm:flex items-center gap-6">
+          {/* Creator/Wallet */}
           <div className="flex flex-col items-start text-left min-w-0">
-            <div className="font-medium text-white truncate w-full">{route.tokenSymbol || route.tokenType}</div>
-            {formattedAmount ? (
-              <div className="text-xs text-gray-400 truncate w-full overflow-x-auto scrollbar-hide">{formattedAmount}</div>
-            ) : null}
+            <div className="text-sm text-white truncate">{trimAddress(route.creator)}</div>
+            <div className="text-xs text-gray-400">
+              {isCompleted ? "Final Destination" : "Current Wallet"}
+            </div>
+          </div>
+
+          {/* Hops */}
+          <div className="flex flex-col items-center text-center min-w-[60px]">
+            <div className="text-sm text-white font-medium">{hopsCount}</div>
+            <div className="text-xs text-gray-400">Hops</div>
+          </div>
+
+          {/* Status */}
+          <div className="flex flex-col items-start text-left min-w-[80px]">
+            <div
+              className={`text-sm font-medium ${
+                isCompleted ? "text-green-400" : isDraft ? "text-gray-400" : "text-yellow-400"
+              }`}
+            >
+              {isCompleted ? 'Completed' : isDraft ? 'Draft' : 'Pending'}
+            </div>
+            <div className="text-xs text-gray-400">Status</div>
           </div>
         </div>
 
-        {/* Creator/Wallet - Flexible with overflow */}
-        <div className="flex flex-col items-start text-left min-w-0 flex-1 max-w-[140px]">
-          <div className="font-medium text-white truncate w-full overflow-x-auto scrollbar-hide">{trimAddress(route.creator)}</div>
-          <div className="text-xs text-gray-400 truncate w-full">
-            {isCompleted ? "Final Destination" : "Current Wallet"}
-          </div>
-        </div>
-
-        {/* Hops - Flexible */}
-        <div className="flex flex-col items-start text-left min-w-0 flex-1 max-w-[80px]">
-          <div className="text-sm text-white font-medium">Hops</div>
-          <div className="text-xs text-gray-400">{hopsCount}</div>
-        </div>
-
-        {/* Status - Flexible */}
-        <div className="flex flex-col items-start text-left min-w-0 flex-1 max-w-[100px]">
-          <div className="text-xs text-gray-400">Status</div>
-          <div
-            className={`text-sm font-medium ${
-              isCompleted ? "text-green-400" : "text-yellow-400"
-            }`}
-          >
-            {isCompleted ? 'Completed' : isDraft ? 'Draft' : 'Pending'}
-          </div>
-        </div>
-
-        {/* Right side status + toggle icon - Fixed width */}
-        <div className="flex items-center gap-3 flex-shrink-0">
+        {/* Right side - Desktop only buttons */}
+        <div className="hidden sm:flex items-center gap-2 sm:gap-3 flex-shrink-0">
           {isDraft ? (
               <Button
                 onClick={handleDeploy}
                 disabled={isDeploying}
                 variant='ghost'
-                // className='px-3 py-1 rounded-lg text-[var(--black-900)] bg-yellow-400 hover:brightness-95 disabled:opacity-60 disabled:cursor-not-allowed'
-                className='!py-0 rounded-lg hover:text-[var(--black-900)] hover:bg-yellow-400 disabled:opacity-60 disabled:cursor-not-allowed h-8 w-[72px]'
+                className='!py-0 rounded-lg hover:text-[var(--black-900)] hover:bg-yellow-400 disabled:opacity-60 disabled:cursor-not-allowed h-8 w-[72px] text-sm'
               >
                 Deploy
               </Button>
@@ -187,8 +218,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
                 onClick={handleReplay}
                 disabled={isPending}
                 variant='ghost'
-                // className='px-3 py-1 rounded-lg text-black bg-yellow-400 hover:brightness-95 disabled:opacity-60 disabled:cursor-not-allowed'
-                className='!py-0 rounded-lg hover:text-[var(--black-900)] hover:bg-yellow-400 disabled:opacity-60 disabled:cursor-not-allowed h-8 w-[72px]'
+                className='!py-0 rounded-lg hover:text-[var(--black-900)] hover:bg-yellow-400 disabled:opacity-60 disabled:cursor-not-allowed h-8 w-[72px] text-sm'
               >
                 Replay
               </Button>
@@ -198,6 +228,16 @@ export const RouteItem = ({ route }: RouteItemProps) => {
           ) : (
             <img src={CloseIcon} alt="close" className="w-7 h-7" />
           )}
+        </div>
+
+        {/* Mobile copy icon */}
+        <div className="sm:hidden absolute right-4 top-4">
+          <div className="w-8 h-8 rounded-full bg-[var(--white-100-transparency-10)] flex items-center justify-center">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="3" y="3" width="8" height="8" rx="1" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+              <path d="M13 5V11C13 12.1046 12.1046 13 11 13H5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </div>
         </div>
       </button>
 

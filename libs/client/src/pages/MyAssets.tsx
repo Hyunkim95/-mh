@@ -218,7 +218,7 @@ export const MyAssets: React.FC = () => {
 
   const myAssetsCardBody = (
     <div
-      className="flex flex-col bg-[var(--chinese-black-800)] rounded-3xl pt-8 px-9 pb-9 border border-[var(--white-100-transparency-05)]"
+      className="flex flex-col bg-[var(--chinese-black-800)] rounded-3xl pt-6 px-4 pb-6 sm:pt-8 sm:px-9 sm:pb-9 border border-[var(--white-100-transparency-05)]"
       style={{
         boxShadow: "inset 0px 1px 0px var(--white-100-transparency-08)",
       }}
@@ -308,13 +308,13 @@ export const MyAssets: React.FC = () => {
 
   const historyCardBody = <History reloadTrigger={reloadTrigger} />;
   const myAssetsCardFooter = (
-    <div className="flex justify-between items-start">
+    <div className="flex flex-col sm:flex-row justify-between items-center sm:items-start gap-4">
       {isLoadingTokens ? (
-        <div className="not-italic font-medium text-sm leading-4 text-[var(--cultured-white-500)]">
+        <div className="not-italic font-medium text-sm leading-4 text-[var(--cultured-white-500)] text-center sm:text-left">
           Loading Wallet...
         </div>
       ) : (
-        <div className="not-italic font-medium text-sm leading-4 text-[var(--cultured-white-500)]">
+        <div className="not-italic font-medium text-sm leading-4 text-[var(--cultured-white-500)] text-center sm:text-left">
           {filteredTokens.length} Tokens found
         </div>
       )}
@@ -324,14 +324,14 @@ export const MyAssets: React.FC = () => {
         onClick={handleConfigureRoute}
         disabled={!selectedAsset}
         title={!selectedAsset ? "Select a token to continue" : undefined}
-        className={`inline-flex items-center gap-2 rounded-full text-black font-semibold px-6 py-3 shadow-[0_8px_24px_var(--black-900-transparency-45)] transition ${
+        className={`inline-flex items-center gap-2 rounded-full text-black font-semibold px-4 py-2 sm:px-6 sm:py-3 shadow-[0_8px_24px_var(--black-900-transparency-45)] transition w-full sm:w-auto justify-center ${
           selectedAsset
             ? "bg-[var(--corn-yellow-500)] hover:brightness-95"
             : "bg-[var(--corn-yellow-500-transparency-30)] cursor-not-allowed"
         }`}
       >
         Configure Route
-        <img src={AddIcon} alt="AddIcon" className="h-6 w-6 object-contain" />
+        <img src={AddIcon} alt="AddIcon" className="h-5 w-5 sm:h-6 sm:w-6 object-contain" />
       </button>
     </div>
   );
