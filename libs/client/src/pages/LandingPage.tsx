@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { router } from "../router";
+import { useWallet } from "@solana/wallet-adapter-react";
 
 // Import SVG assets
 import LogoIcon from "../assets/landing/logo-icon.svg";
@@ -10,6 +11,7 @@ import TumbellingIcon from "../../assets/icons/tumbelling.svg";
 import ControlIcon from "../../assets/icons/control.svg";
 
 export const LandingPage: React.FC = () => {
+  const { connected } = useWallet();
   const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -262,58 +264,47 @@ export const LandingPage: React.FC = () => {
               Send Crypto, <span className="text-mh-yellow">Privately</span>
             </h1>
 
-
-
             {/* Main Feature Card */}
             <div
               className="relative w-full max-w-[551px] mx-auto"
               style={{ animation: "fadeInUp 0.6s ease-out 0.3s both" }}
             >
               <div
-                className="p-5 sm:p-7 lg:p-8 bg-[#1D2022] rounded-2xl sm:rounded-3xl backdrop-blur-xl"
+                className="relative p-5 sm:p-7 lg:p-8 bg-[#1D2022] rounded-2xl sm:rounded-3xl backdrop-blur-xl"
                 style={{
-                  boxShadow: '23.58px 27.16px 56.39px rgba(0, 0, 0, 0.08)',
-                  border: '1px solid transparent',
-                  background: 'linear-gradient(#1D2022, #1D2022) padding-box, linear-gradient(0deg, rgba(255,255,255,0) 23%, rgba(255,255,255,0.5) 49%, rgba(255,255,255,0) 75%) border-box'
+                  boxShadow: "23.58px 27.16px 56.39px rgba(0, 0, 0, 0.08)",
+                  border: "1px solid transparent",
+                  background:
+                    "linear-gradient(#1D2022, #1D2022) padding-box, linear-gradient(0deg, rgba(255,255,255,0) 23%, rgba(255,255,255,0.5) 49%, rgba(255,255,255,0) 75%) border-box",
                 }}
               >
-                {/* Header Icons Row */}
-                <div className="flex items-center justify-between mb-10">
-                  {/* Mode Selector */}
-                  <div className="flex items-center gap-3">
-                    <button className="w-12 h-12 rounded-2xl bg-white border-2 border-transparent flex items-center justify-center text-black">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="2" y="5" width="20" height="14" rx="2" />
-                        <line x1="2" y1="10" x2="22" y2="10" />
-                      </svg>
-                    </button>
-                    <button className="w-12 h-12 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 2c0 .667.667 1 1 1 5 0 8 4.25 10 9 4.25 10 10 10 10-10 10-5 5-9 1-10 0 0 .333.333 1 1" transform="scale(0.8) translate(3,3)" />
-                        <path d="M7 14c-2 0-3-1-3-3s1-3 3-3c2 0 3 1 3 3s-1 3-3 3z" />
-                        <path d="M17 14c-2 0-3-1-3-3s1-3 3-3c2 0 3 1 3 3s-1 3-3 3z" />
-                      </svg>
-                    </button>
-                    <button className="w-12 h-12 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="3" width="7" height="7" />
-                        <rect x="14" y="3" width="7" height="7" />
-                        <rect x="14" y="14" width="7" height="7" />
-                        <rect x="3" y="14" width="7" height="7" />
-                      </svg>
-                    </button>
+                {/* Blurred Overlay - Shows when wallet is not connected */}
+                {/* {!connected && (
+                  <div
+                    className="absolute inset-0 z-50 flex items-center justify-center rounded-2xl sm:rounded-3xl"
+                    style={{
+                      backdropFilter: "blur(2px)",
+                      backgroundColor: "rgba(0, 0, 0, 0.75)",
+                    }}
+                  >
+                    <div className="w-full px-5 sm:px-7 lg:px-8">
+                      <button
+                        onClick={handleConnectWallet}
+                        className="w-full py-4 sm:py-5 bg-mh-yellow text-black font-bold rounded-2xl hover:brightness-110 hover:shadow-lg hover:shadow-mh-yellow/20 transition-all duration-300 text-base sm:text-lg"
+                      >
+                        CONNECT WALLET
+                      </button>
+                    </div>
                   </div>
-
-                  {/* Refresh Button */}
-                  <button className="w-12 h-12 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
-                      <path d="M21 3v5h-5" />
-                    </svg>
-                  </button>
-                </div>
-
-                <h2 className="font-roboto font-medium mb-8 sm:mb-10 text-left" style={{ fontSize: '19.37px', lineHeight: '1.17em', color: '#FFFFFF' }}>
+                )} */}
+                <h2
+                  className="font-roboto font-medium mb-8 sm:mb-10 text-left"
+                  style={{
+                    fontSize: "19.37px",
+                    lineHeight: "1.17em",
+                    color: "#FFFFFF",
+                  }}
+                >
                   Create Private Routes in Seconds
                 </h2>
 
@@ -333,7 +324,17 @@ export const LandingPage: React.FC = () => {
                         <span className="text-5xl sm:text-6xl lg:text-7xl font-medium text-white tracking-tight">
                           0 SOL
                         </span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-white/40 mt-2">
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="text-white/40 mt-2"
+                        >
                           <path d="M6 9l6 6 6-6" />
                         </svg>
                       </div>
@@ -349,11 +350,11 @@ export const LandingPage: React.FC = () => {
                     <div className="relative w-full h-2 bg-white/10 rounded-full">
                       <div
                         className="absolute left-0 top-0 h-full bg-mh-yellow rounded-full"
-                        style={{ width: '40%' }}
+                        style={{ width: "40%" }}
                       />
                       <div
                         className="absolute top-1/2 -translate-y-1/2 w-5 h-5 bg-mh-yellow rounded-full border-[3px] border-[#121416] cursor-pointer shadow-[0_0_15px_rgba(251,255,105,0.5)]"
-                        style={{ left: '40%' }}
+                        style={{ left: "40%" }}
                       />
                     </div>
                   </div>
@@ -449,10 +450,10 @@ export const LandingPage: React.FC = () => {
                 <h3
                   className="font-roboto font-medium"
                   style={{
-                    color: '#FFF',
-                    fontSize: '18px',
-                    lineHeight: '24px',
-                    maxWidth: '120px',
+                    color: "#FFF",
+                    fontSize: "18px",
+                    lineHeight: "24px",
+                    maxWidth: "120px",
                   }}
                 >
                   {feature.title}
@@ -484,17 +485,17 @@ export const LandingPage: React.FC = () => {
               {
                 image: "/program1.png",
                 title: "Send any amount of",
-                subtitle: "tokens onchain privately"
+                subtitle: "tokens onchain privately",
               },
               {
                 image: "/program2.png",
                 title: "Route through any",
-                subtitle: "wallets you can imagine"
+                subtitle: "wallets you can imagine",
               },
               {
                 image: "/program3.png",
                 title: "Control how long assets",
-                subtitle: "stay in each hop wallet"
+                subtitle: "stay in each hop wallet",
               },
             ].map((program, idx) => (
               <div
@@ -569,7 +570,11 @@ export const LandingPage: React.FC = () => {
 
             {/* Connector 1->2 */}
             <div className="py-2">
-              <img src="/howitworks1.svg" alt="" className="h-12 w-auto opacity-80" />
+              <img
+                src="/howitworks1.svg"
+                alt=""
+                className="h-12 w-auto opacity-80"
+              />
             </div>
 
             {/* Step 2 */}
@@ -631,7 +636,8 @@ export const LandingPage: React.FC = () => {
                       Design mode:
                     </span>{" "}
                     <span className="text-white/80">
-                      Select the wallets you want to hop through and how long tokens stay in each hop wallet before moving on
+                      Select the wallets you want to hop through and how long
+                      tokens stay in each hop wallet before moving on
                     </span>
                   </p>
                 </div>
@@ -715,19 +721,23 @@ export const LandingPage: React.FC = () => {
                     {faq.question}
                   </h3>
                   <div
-                    className={`flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full border flex items-center justify-center transition-all duration-300 ${expandedFaq === idx
-                      ? "bg-mh-yellow border-mh-yellow text-black rotate-45"
-                      : "bg-transparent border-white/20 text-white"
-                      }`}
+                    className={`flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full border flex items-center justify-center transition-all duration-300 ${
+                      expandedFaq === idx
+                        ? "bg-mh-yellow border-mh-yellow text-black rotate-45"
+                        : "bg-transparent border-white/20 text-white"
+                    }`}
                   >
-                    <span className="text-lg sm:text-xl font-light select-none">+</span>
+                    <span className="text-lg sm:text-xl font-light select-none">
+                      +
+                    </span>
                   </div>
                 </button>
                 <div
-                  className={`overflow-hidden transition-all duration-300 ${expandedFaq === idx
-                    ? "max-h-40 opacity-100 mt-4"
-                    : "max-h-0 opacity-0"
-                    }`}
+                  className={`overflow-hidden transition-all duration-300 ${
+                    expandedFaq === idx
+                      ? "max-h-40 opacity-100 mt-4"
+                      : "max-h-0 opacity-0"
+                  }`}
                 >
                   <p className="text-sm text-white/60 leading-relaxed">
                     {faq.answer}
@@ -737,10 +747,10 @@ export const LandingPage: React.FC = () => {
             ))}
           </div>
         </div>
-      </section >
+      </section>
 
       {/* Collaborate / Hop with Us Section */}
-      < section className="w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-14 lg:py-16" >
+      <section className="w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-14 lg:py-16">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-8 sm:mb-10">
             <div className="inline-flex items-center gap-2 mb-3 sm:mb-4 px-4 sm:px-5 py-2 sm:py-2.5 bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-full">
@@ -764,7 +774,8 @@ export const LandingPage: React.FC = () => {
               Let's Talk
             </h3>
             <p className="text-sm sm:text-base text-white/50 mb-6 sm:mb-8 pr-16">
-              Looking to partner with us, or resell the MultiHopper to your clients?
+              Looking to partner with us, or resell the MultiHopper to your
+              clients?
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
@@ -775,7 +786,19 @@ export const LandingPage: React.FC = () => {
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg className="w-5 h-5 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                      <svg
+                        className="w-5 h-5 text-white/30"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                        />
+                      </svg>
                     </div>
                     <input
                       type="text"
@@ -795,7 +818,19 @@ export const LandingPage: React.FC = () => {
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg className="w-5 h-5 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                      <svg
+                        className="w-5 h-5 text-white/30"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                        />
+                      </svg>
                     </div>
                     <input
                       type="email"
@@ -817,7 +852,19 @@ export const LandingPage: React.FC = () => {
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg className="w-5 h-5 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>
+                    <svg
+                      className="w-5 h-5 text-white/30"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
+                      />
+                    </svg>
                   </div>
                   <input
                     type="text"
@@ -839,7 +886,13 @@ export const LandingPage: React.FC = () => {
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       {/* Simple X/Twitter Icon */}
-                      <svg className="w-4 h-4 text-white/30" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
+                      <svg
+                        className="w-4 h-4 text-white/30"
+                        fill="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                      </svg>
                     </div>
                     <input
                       type="text"
@@ -859,7 +912,19 @@ export const LandingPage: React.FC = () => {
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg className="w-5 h-5 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                      <svg
+                        className="w-5 h-5 text-white/30"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                        />
+                      </svg>
                     </div>
                     <input
                       type="text"
@@ -904,7 +969,7 @@ export const LandingPage: React.FC = () => {
             </form>
           </div>
         </div>
-      </section >
+      </section>
 
       {/* Footer */}
       <footer className="relative mt-20">
@@ -912,7 +977,11 @@ export const LandingPage: React.FC = () => {
 
         {/* Top Wave Cap */}
         <div className="w-full h-[40px] leading-none overflow-hidden sticky-top">
-          <svg className="block w-full h-full" viewBox="0 0 1440 40" preserveAspectRatio="none">
+          <svg
+            className="block w-full h-full"
+            viewBox="0 0 1440 40"
+            preserveAspectRatio="none"
+          >
             {/* 1. Fill Path (Background Color #222426) */}
             <path
               d="M0,1 L680,1 C710,1 710,38 720,38 C730,38 730,1 760,1 L1440,1 V42 H0 Z"
@@ -930,7 +999,13 @@ export const LandingPage: React.FC = () => {
 
             {/* Arrow Icon */}
             <g transform="translate(712, 12) scale(0.6)">
-              <path d="M12 19V5M5 12l7-7 7 7" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+              <path
+                d="M12 19V5M5 12l7-7 7 7"
+                stroke="white"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </g>
           </svg>
         </div>
@@ -939,7 +1014,6 @@ export const LandingPage: React.FC = () => {
         <div className="w-full bg-[#222426] px-4 sm:px-6 lg:px-8 pb-10 sm:pb-12 lg:pb-16 pt-6">
           <div className="max-w-6xl mx-auto">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 sm:gap-10 lg:gap-12 mb-10 sm:mb-12">
-
               {/* Logo and Description (Left - Spans 5 cols) */}
               <div className="lg:col-span-5">
                 <div className="flex items-center gap-2.5 mb-4">
@@ -958,10 +1032,25 @@ export const LandingPage: React.FC = () => {
                   <p className="text-sm font-semibold text-white mb-3">
                     Stay up to date & Join our newsletter
                   </p>
-                  <form onSubmit={handleNewsletter} className="flex gap-2 max-w-md">
+                  <form
+                    onSubmit={handleNewsletter}
+                    className="flex gap-2 max-w-md"
+                  >
                     <div className="relative flex-1">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg className="w-5 h-5 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                        <svg
+                          className="w-5 h-5 text-white/30"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                          />
+                        </svg>
                       </div>
                       <input
                         type="email"
@@ -993,26 +1082,82 @@ export const LandingPage: React.FC = () => {
               <div className="lg:col-span-2">
                 <h4 className="font-semibold mb-6 text-sm">Info</h4>
                 <ul className="space-y-4 text-sm text-white/50 ">
-                  <li><a href="#how-it-works" className="hover:text-white transition-colors">How it Works</a></li>
-                  <li><a href="#collaborate" className="hover:text-white transition-colors">Collaborate</a></li>
-                  <li><a href="#faq" className="hover:text-white transition-colors">FAQ</a></li>
+                  <li>
+                    <a
+                      href="#how-it-works"
+                      className="hover:text-white transition-colors"
+                    >
+                      How it Works
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="#collaborate"
+                      className="hover:text-white transition-colors"
+                    >
+                      Collaborate
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="#faq"
+                      className="hover:text-white transition-colors"
+                    >
+                      FAQ
+                    </a>
+                  </li>
                 </ul>
               </div>
 
               <div className="lg:col-span-2">
                 <h4 className="font-semibold mb-6 text-sm">Resources</h4>
                 <ul className="space-y-4 text-sm text-white/50">
-                  <li><a href="#collaborate" className="hover:text-white transition-colors">Hop with us</a></li>
-                  <li><a href="#medium" className="hover:text-white transition-colors">Medium</a></li>
-                  <li><a href="#terms" className="hover:text-white transition-colors">Terms & Conditions</a></li>
+                  <li>
+                    <a
+                      href="#collaborate"
+                      className="hover:text-white transition-colors"
+                    >
+                      Hop with us
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="#medium"
+                      className="hover:text-white transition-colors"
+                    >
+                      Medium
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="#terms"
+                      className="hover:text-white transition-colors"
+                    >
+                      Terms & Conditions
+                    </a>
+                  </li>
                 </ul>
               </div>
 
               <div className="lg:col-span-2">
                 <h4 className="font-semibold mb-6 text-sm">Social Media</h4>
                 <ul className="space-y-4 text-sm text-white/50">
-                  <li><a href="#twitter" className="hover:text-white transition-colors">Twitter/X</a></li>
-                  <li><a href="#telegram" className="hover:text-white transition-colors">Telegram</a></li>
+                  <li>
+                    <a
+                      href="#twitter"
+                      className="hover:text-white transition-colors"
+                    >
+                      Twitter/X
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="#telegram"
+                      className="hover:text-white transition-colors"
+                    >
+                      Telegram
+                    </a>
+                  </li>
                 </ul>
               </div>
             </div>
@@ -1035,7 +1180,9 @@ export const LandingPage: React.FC = () => {
       </footer>
 
       {/* Global Styles for Animations */}
-      < style > {`
+      <style>
+        {" "}
+        {`
         @keyframes fadeInUp {
           from {
             opacity: 0;
@@ -1068,8 +1215,9 @@ export const LandingPage: React.FC = () => {
           from { transform: translateY(-8px); }
           to { transform: translateY(0); }
         }
-      `}</style >
-    </div >
+      `}
+      </style>
+    </div>
   );
 };
 
