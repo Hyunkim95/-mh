@@ -147,6 +147,7 @@ export const useSolanaAuth = () => {
     localStorage.removeItem("token");
     try {
       // Limpia el cache para evitar que userData previo permanezca en memoria
+      await disconnectWallet();
       await queryClient.cancelQueries();
       queryClient.clear();
     } finally {
