@@ -133,7 +133,6 @@ body {
 }
 
 /* Responsive variant - only applies at md breakpoint and above */
-@media (min-width: 768px) {
   .card-border-gradient {
     position: relative;
     transition: all 300ms ease-in;
@@ -212,4 +211,3 @@ body {
     position: relative;
     z-index: 1;
   }
-}
