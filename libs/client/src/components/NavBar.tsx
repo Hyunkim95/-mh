@@ -5,7 +5,7 @@ import Wallet from '../assets/navbar/connected-wallet.svg'
 import LogOutIcon from '../assets/icons/log-out-icon.svg'
 import { useSolanaAuth } from '../hooks/useSolanaAuth'
 import { router } from '../router'
-import { useRouterState } from '@tanstack/react-router'
+import {  useRouterState } from '@tanstack/react-router'
 
 export const NavBar = () => {
   const { publicKey } = useWallet()
@@ -18,11 +18,15 @@ export const NavBar = () => {
   const isDashboardActive = pathname.startsWith('/admin/multihopper')
   const isMyAssetsActive = pathname.startsWith('/my-assets')
 
+  function goToHome() {
+    router.navigate({ to: '/' });
+  }
+
   return (
     <div className='w-full flex flex-row justify-between pt-6 sm:pt-11 px-4 sm:px-20 z-50 relative'>
       <div className='flex flex-row justify-center items-center gap-2 sm:gap-4'>
         <button
-          onClick={() => router.navigate({ to: '/' })}
+          onClick={goToHome}
           className='flex flex-row items-center gap-2 sm:gap-4 hover:opacity-80 transition-opacity cursor-pointer'
         >
           <img src={Logo} alt='Logo' className='w-6 sm:w-8 h-6 sm:h-8 object-contain' />

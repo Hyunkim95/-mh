@@ -38,6 +38,13 @@ export const LandingPage: React.FC = () => {
     console.log("Newsletter subscription:", formData.newsletterEmail);
   };
 
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
+
   const faqs = [
     {
       question: "Why are we building the multihopper?",
@@ -109,69 +116,57 @@ export const LandingPage: React.FC = () => {
         <div className="max-w-7xl mx-auto">
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center justify-center">
-            {/* Gradient border container */}
-            <div
-              className="rounded-full bg-gradient-to-r from-white/20 via-white/5 to-white/20 p-[1px]"
-              style={{
-                width: "100%",
-                maxWidth: "850px",
-              }}
-            >
-              <div className="relative flex items-center justify-between px-8 py-4 rounded-full backdrop-blur-md bg-[#16181A]/80">
-                {/* Left Side: Logo + Nav Links */}
-                <div className="flex items-center gap-12 z-10">
-                  {/* Logo */}
-                  <button
-                    onClick={() => router.navigate({ to: "/" })}
-                    className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer"
-                  >
-                    <img src={LogoIcon} alt="MultiHopper" className="w-6 h-8" />
-                    <span className="font-rowdies text-xl tracking-tight text-white">
-                      MultiHopper
-                    </span>
-                  </button>
-
-                  {/* Nav Links */}
-                  <div className="flex items-center gap-10">
-                    <a
-                      href="#how-it-works"
-                      className="flex items-center gap-1.5 text-sm font-medium text-white/60 hover:text-white transition-colors duration-300"
-                    >
-                      How it Works
-                      <svg
-                        width="10"
-                        height="6"
-                        viewBox="0 0 10 6"
-                        fill="none"
-                        className="ml-0.5 opacity-60"
-                      >
-                        <path
-                          d="M1 1L5 5L9 1"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </a>
-                    <a
-                      href="#faq"
-                      className="text-sm font-medium text-white/60 hover:text-white transition-colors duration-300"
-                    >
-                      FAQ
-                    </a>
-                  </div>
+            <div className="relative flex items-center justify-between px-8 py-4 rounded-[24px] backdrop-blur-md bg-[#FAFAFA] bg-opacity-[0.01] w-[100%] max-w-[850px] header-border-gradient">
+              {/* Left Side: Logo + Nav Links */}
+              <div className="flex items-center gap-12 z-10">
+                {/* Logo */}
+                <div className="flex items-center gap-3">
+                  <img src={LogoIcon} alt="MultiHopper" className="w-6 h-8" />
+                  <span className="font-rowdies text-base text-white tracking-wide">
+                    MultiHopper
+                  </span>
                 </div>
 
-                {/* Connect Wallet Button */}
-                <div className="z-10">
-                  <button
-                    onClick={handleConnectWallet}
-                    className="px-6 py-2.5 rounded-xl text-sm font-medium text-white hover:brightness-110 transition-all duration-300 bg-[#25282B] border border-[#FBFF69] shadow-[0_0_15px_rgba(251,255,105,0.1)]"
+                {/* Nav Links */}
+                <div className="flex items-center gap-10">
+                  <a
+                    href="#how-it-works"
+                    className="flex items-center gap-1.5 text-sm font-medium text-white/60 hover:text-white transition-colors duration-300"
                   >
-                    Connect Wallet
-                  </button>
+                    How it Works
+                    <svg
+                      width="10"
+                      height="6"
+                      viewBox="0 0 10 6"
+                      fill="none"
+                      className="ml-0.5 opacity-60"
+                    >
+                      <path
+                        d="M1 1L5 5L9 1"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </a>
+                  <a
+                    href="#faq"
+                    className="text-sm font-medium text-white/60 hover:text-white transition-colors duration-300"
+                  >
+                    FAQ
+                  </a>
                 </div>
+              </div>
+
+              {/* Connect Wallet Button */}
+              <div className="z-10">
+                <button
+                  onClick={handleConnectWallet}
+                  className="px-6 py-2.5 rounded-xl text-sm font-medium text-white hover:brightness-110 transition-all duration-300 bg-[#25282B] border border-[#FBFF69] shadow-[0_0_15px_rgba(251,255,105,0.1)]"
+                >
+                  Connect Wallet
+                </button>
               </div>
             </div>
           </div>
@@ -315,7 +310,24 @@ export const LandingPage: React.FC = () => {
                 </h2>
 
                 {/* Token Input Card */}
-                <div className="bg-[#121416] rounded-2xl sm:rounded-3xl p-8 sm:p-10 mb-8">
+                <div className="relative bg-[#121416] rounded-2xl sm:rounded-3xl p-8 sm:p-10 mb-8">
+                  {/* Blurred Overlay Container */}
+                  <div
+                    className="absolute inset-0 rounded-2xl sm:rounded-3xl flex items-end justify-center pb-16"
+                    style={{
+                      backdropFilter: "blur(12px)",
+                      backgroundColor: "rgba(18, 20, 22, 0.06)",
+                      zIndex: 10,
+                    }}
+                  >
+                    <img
+                      src="/blurred-arrows.png"
+                      alt="Overlay"
+                      className="w-24 h-24 object-contain"
+                    />
+                  </div>
+
+                  {/* Original Content (now blurred in background) */}
                   <div className="flex flex-col items-center justify-center mb-10">
                     <div className="flex items-center gap-4 mb-3">
                       {/* SOL Token Icon */}
@@ -383,18 +395,21 @@ export const LandingPage: React.FC = () => {
                   onClick={handleConnectWallet}
                   className="w-full py-4 sm:py-5 bg-mh-yellow text-black font-bold rounded-2xl hover:brightness-110 hover:shadow-lg hover:shadow-mh-yellow/20 transition-all duration-300 text-base sm:text-lg"
                 >
-                  Get Started
+                  Connect To Explore
                 </button>
               </div>
             </div>
 
             {/* Subtext */}
             <p
-              className="mt-8 sm:mt-12 text-sm sm:text-base font-medium text-white/70 max-w-sm mx-auto leading-relaxed px-4"
+              className="mt-8 sm:mt-12 text-sm sm:text-base md:text-base font-medium text-white mx-auto leading-relaxed px-4 font-roboto font-semibold"
               style={{ animation: "fadeInUp 0.6s ease-out 0.4s both" }}
             >
-              Send any digital asset, bouncing it off any wallets across Web3
-              even ones you don't own
+              Send any digital asset, bouncing it off any wallets <br /> across
+              Web3{" "}
+              <span className="font-light italic text-white/70">
+                even ones you don't own
+              </span>
             </p>
 
             {/* Scroll Indicator */}
@@ -405,7 +420,7 @@ export const LandingPage: React.FC = () => {
               <img
                 src="/scroll.svg"
                 alt="Scroll down"
-                className="w-18 h-18 opacity-40 hover:opacity-70 transition-opacity duration-300 animate-bounce"
+                className="w-18 h-18 opacity-70 hover:opacity-100 transition-opacity duration-300 animate-bounce"
                 style={{ animationDuration: "2s" }}
               />
             </div>
@@ -414,21 +429,21 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* Privacy Without Complexity Section */}
-      <section className="w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-14 lg:py-16">
+      <section className="w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-14 lg:py-20">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-8 sm:mb-10">
-            <div className="inline-flex items-center gap-2 mb-3 sm:mb-4 px-4 sm:px-5 py-2 sm:py-2.5 bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-full">
+          <div className="text-center mb-8 sm:mb-14">
+            <div className="inline-flex items-center gap-2 mb-4 sm:mb-8 px-4 sm:px-5 py-2 sm:py-2.5 bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-full">
               <img src={TagStars} alt="" className="w-4 h-4 sm:w-5 sm:h-5" />
               <span className="text-xs sm:text-sm font-medium">
                 Privacy Without Complexity
               </span>
             </div>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-medium">
-              Why users choose MultiHopper
+            <h2 className="text-2xl sm:text-3xl lg:text-5xl leading-[41px] font-light">
+              Why users choose <span className="font-medium">MultiHopper</span>
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:items-center lg:justify-center gap-4 sm:gap-8">
             {[
               {
                 title: "No Private Blockchains",
@@ -445,12 +460,12 @@ export const LandingPage: React.FC = () => {
             ].map((feature, idx) => (
               <div
                 key={idx}
-                className="group p-6 sm:p-8 bg-gradient-to-br from-white/[0.03] to-transparent backdrop-blur-sm border-2 border-white/[0.06] rounded-2xl sm:rounded-3xl hover:border-mh-yellow/20 hover:bg-white/[0.04] transition-all duration-500"
+                className="group p-6 sm:pl-6 sm:pr-10 backdrop-blur-sm rounded-2xl md:rounded-[34px] card-border-gradient hover:bg-white/[0.04] transition-all duration-500 lg:max-w-[226px] lg:max-h-[155px] w-[100%] h-[100%] "
                 style={{
                   animation: `fadeInUp 0.5s ease-out ${0.1 * idx}s both`,
                 }}
               >
-                <div className="w-10 h-10 sm:w-12 sm:h-12 mb-4 sm:mb-5 group-hover:scale-110 transition-transform duration-300">
+                <div className="w-10 h-10 sm:w-[45px] sm:h-[45px] mb-4 sm:mb-5 group-hover:scale-110 transition-transform duration-300">
                   <img src={feature.icon} alt="" className="w-full h-full" />
                 </div>
                 <h3
@@ -459,7 +474,7 @@ export const LandingPage: React.FC = () => {
                     color: "#FFF",
                     fontSize: "18px",
                     lineHeight: "24px",
-                    maxWidth: "120px",
+                    maxWidth: idx == 2 ? "100px" : "120px",
                   }}
                 >
                   {feature.title}
@@ -471,16 +486,16 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* Privacy in Motion / Programmable Money Section */}
-      <section className="w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-14 lg:py-16">
+      <section className="w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-14 lg:py-20">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-8 sm:mb-10">
-            <div className="inline-flex items-center gap-2 mb-3 sm:mb-4 px-4 sm:px-5 py-2 sm:py-2.5 bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-full">
+          <div className="text-center mb-8 sm:mb-14">
+            <div className="inline-flex items-center gap-2 mb-4 sm:mb-8 px-4 sm:px-5 py-2 sm:py-2.5 bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-full">
               <img src={TagStars} alt="" className="w-4 h-4 sm:w-5 sm:h-5" />
               <span className="text-xs sm:text-sm font-medium">
                 Privacy in Motion
               </span>
             </div>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-medium">
+            <h2 className="text-2xl sm:text-3xl lg:text-5xl leading-[41px] font-light">
               Welcome to programmable money
             </h2>
           </div>
@@ -515,7 +530,7 @@ export const LandingPage: React.FC = () => {
                 <img
                   src={program.image}
                   alt={program.title}
-                  className="absolute inset-0 w-full h-full object-cover z-0 scale-[1.75] group-hover:scale-[1.85] transition-transform duration-500"
+                  className="inset-0 w-full h-full object-cover z-0 scale-[1] group-hover:scale-[1.15] transition-transform duration-500"
                 />
 
                 {/* Gradient Overlay for Text Readability */}
@@ -533,23 +548,34 @@ export const LandingPage: React.FC = () => {
               </div>
             ))}
           </div>
+
+          <div className="flex items-center justify-center w-[100%] mt-16 ">
+            <button
+              onClick={() => {
+                console.log("Send assets CTA");
+              }}
+              className="max-w-[124px] w-full py-2 sm:py-3 bg-mh-yellow text-black font-medium text-base rounded-[10px] hover:brightness-110 hover:shadow-lg hover:shadow-mh-yellow/20 transition-all duration-300"
+            >
+              Send Assets
+            </button>
+          </div>
         </div>
       </section>
 
       {/* How It Works Section */}
       <section
         id="how-it-works"
-        className="w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-14 lg:py-16"
+        className="w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-14 lg:py-20"
       >
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-8 sm:mb-10">
-            <div className="inline-flex items-center gap-2 mb-3 sm:mb-4 px-4 sm:px-5 py-2 sm:py-2.5 bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-full">
+          <div className="text-center mb-8 sm:mb-14">
+            <div className="inline-flex items-center gap-2 mb-4 sm:mb-8 px-4 sm:px-5 py-2 sm:py-2.5 bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-full">
               <img src={TagStars} alt="" className="w-4 h-4 sm:w-5 sm:h-5" />
               <span className="text-xs sm:text-sm font-medium">
                 Privacy in Motion
               </span>
             </div>
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-medium">
+            <h2 className="ext-2xl sm:text-3xl lg:text-5xl leading-[41px] font-light">
               How it all works
             </h2>
           </div>
@@ -557,25 +583,25 @@ export const LandingPage: React.FC = () => {
           {/* Vertical Flowchart - Responsive */}
           <div className="relative flex flex-col items-center">
             {/* Step 1 */}
-            <div className="relative z-10 w-full max-w-[240px] sm:max-w-[280px] p-4 sm:p-5 bg-gradient-to-br from-[#1E2023]/90 to-[#141618]/90 backdrop-blur-xl border border-white/[0.1] rounded-2xl">
+            <div className="relative z-10 w-full max-w-[240px] md:max-w-[226px] p-4 sm:p-6 bg-gradient-to-br from-[#1E2023]/90 to-[#141618]/90 backdrop-blur-xl card-border-gradient rounded-[34px]">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-lg sm:text-xl font-bold text-mh-yellow bg-mh-dark-400/80 px-3 py-1 rounded-lg">
+                <span className="text-lg sm:text-xl font-bold text-mh-yellow bg-[#232724] w-[45px] h-[45px] flex items-center justify-center rounded-lg">
                   1
                 </span>
                 <button
                   onClick={handleConnectWallet}
-                  className="px-3 sm:px-4 py-1.5 bg-mh-dark-200 border border-white/[0.1] rounded-full text-xs sm:text-sm font-medium hover:bg-mh-dark-100 transition-colors"
+                  className="px-3 sm:px-4 py-2 bg-mh-dark-200 border border-white/[0.1] rounded-[10px] text-xs sm:text-sm font-medium hover:bg-mh-dark-100 transition-colors hover:border-mh-yellow/20"
                 >
                   Connect
                 </button>
               </div>
               <p className="text-sm sm:text-base font-medium leading-snug">
-                Connect your wallet
+                Connect <br /> your wallet
               </p>
             </div>
 
             {/* Connector 1->2 */}
-            <div className="py-2">
+            <div>
               <img
                 src="/howitworks1.svg"
                 alt=""
@@ -584,12 +610,12 @@ export const LandingPage: React.FC = () => {
             </div>
 
             {/* Step 2 */}
-            <div className="relative z-10 w-full max-w-[260px] sm:max-w-[300px] p-4 sm:p-5 bg-gradient-to-br from-[#1E2023]/90 to-[#141618]/90 backdrop-blur-xl border border-white/[0.1] rounded-2xl">
-              <span className="text-lg sm:text-xl font-bold text-mh-yellow bg-mh-dark-400/80 px-3 py-1 rounded-lg mb-3 inline-block">
+            <div className="relative z-10 w-full max-w-[260px] md:max-w-[226px] p-4 sm:p-5 bg-gradient-to-br from-[#1E2023]/90 to-[#141618]/90 backdrop-blur-xl card-border-gradient rounded-[34px]">
+              <span className="text-lg sm:text-xl font-bold text-mh-yellow bg-[#232724] w-[45px] h-[45px] flex items-center justify-center rounded-lg mb-3 inline-block">
                 2
               </span>
               <p className="text-sm sm:text-base font-medium leading-snug">
-                Choose easy mode or design your route
+                Choose easy mode <br /> or design your route
               </p>
             </div>
 
@@ -599,45 +625,47 @@ export const LandingPage: React.FC = () => {
               <img
                 src="/howitworksleft.svg"
                 alt=""
-                className="absolute right-1/2 top-0 h-full w-auto translate-x-[2px]"
+                className="absolute right-1/2 top-0 h-full w-auto -translate-x-[1.25px]"
               />
               {/* Right Branch */}
               <img
                 src="/howitworksright.svg"
                 alt=""
-                className="absolute left-1/2 top-0 h-full w-auto -translate-x-[2px]"
+                className="absolute left-1/2 top-0 h-full w-auto translate-x-[1.25px]"
               />
             </div>
 
             {/* Mobile Connector (Simple Vertical) */}
-            <div className="lg:hidden w-0.5 h-8 bg-gradient-to-b from-mh-yellow/30 to-mh-yellow/10" />
+            <div className="lg:hidden w-1.5 h-8 bg-gradient-to-b from-mh-yellow/30 to-mh-yellow/10" />
 
             {/* Branching Section */}
             <div className="relative w-full">
               {/* Cards Row */}
-              <div className="flex flex-col lg:flex-row gap-8 lg:gap-24 justify-center items-start px-4">
+              <div className="flex flex-col lg:flex-row gap-8 justify-center items-center lg:items-start px-4">
                 {/* Easy Mode Card */}
-                <div className="relative z-10 w-full max-w-sm lg:w-[320px] p-4 sm:p-5 bg-gradient-to-br from-[#1E2023]/90 to-[#141618]/90 backdrop-blur-xl border border-white/[0.1] rounded-2xl">
-                  <span className="text-lg sm:text-xl font-bold text-mh-yellow bg-mh-dark-400/80 px-3 py-1 rounded-lg mb-3 inline-block">
+                <div className="relative z-10 w-full max-w-sm lg:w-[312px] h-[-webkit-fill-available] p-4 sm:p-6 bg-gradient-to-br from-[#1E2023]/90 to-[#141618]/90 backdrop-blur-xl card-border-gradient rounded-[34px]">
+                  <span className="text-lg sm:text-xl font-bold text-mh-yellow bg-[#232724] w-[45px] h-[45px] flex items-center justify-center rounded-lg mb-3 inline-block">
                     3
                   </span>
-                  <p className="text-sm leading-relaxed">
+                  <p className="text-base leading-relaxed">
                     <span className="text-mh-yellow font-semibold">
                       Easy mode:
                     </span>{" "}
-                    <span className="text-white/80">
+                    <span className="text-white/90">
                       Privacy in 3 clicks. Our system selects random wallets and
                       hops and you set completion time.
                     </span>
                   </p>
                 </div>
 
+                {/* Mobile Connector (Simple Vertical) */}
+                <div className="absolute lg:hidden w-1.5 h-8 bg-gradient-to-b from-mh-yellow/30 to-mh-yellow/10" />
                 {/* Design Mode Card */}
-                <div className="relative z-10 w-full max-w-sm lg:w-[320px] p-4 sm:p-5 bg-gradient-to-br from-[#1E2023]/90 to-[#141618]/90 backdrop-blur-xl border border-white/[0.1] rounded-2xl">
-                  <span className="text-lg sm:text-xl font-bold text-mh-yellow bg-mh-dark-400/80 px-3 py-1 rounded-lg mb-3 inline-block">
+                <div className="relative z-10 w-full max-w-sm lg:w-[312px] h-[-webkit-fill-available] p-4 sm:p-6 bg-gradient-to-br from-[#1E2023]/90 to-[#141618]/90 backdrop-blur-xl card-border-gradient rounded-[34px]">
+                  <span className="text-lg sm:text-xl font-bold text-mh-yellow bg-[#232724] w-[45px] h-[45px] flex items-center justify-center rounded-lg mb-3 inline-block">
                     3
                   </span>
-                  <p className="text-sm leading-relaxed">
+                  <p className="text-base leading-relaxed">
                     <span className="text-mh-yellow font-semibold">
                       Design mode:
                     </span>{" "}
@@ -651,11 +679,20 @@ export const LandingPage: React.FC = () => {
             </div>
 
             {/* Connector 3->4 */}
-            <div className="w-0.5 h-8 sm:h-10 bg-gradient-to-b from-mh-yellow/20 to-mh-yellow/50" />
+            <div className="hidden lg:block">
+              <img
+                src="/howitworks4.svg"
+                alt=""
+                className="h-12 w-auto opacity-80"
+              />
+            </div>
+
+             {/* Mobile Connector (Simple Vertical) */}
+            <div className="lg:hidden w-1.5 h-8 bg-gradient-to-b from-mh-yellow/30 to-mh-yellow/10" />
 
             {/* Step 4 */}
-            <div className="relative z-10 w-full max-w-[240px] sm:max-w-[280px] p-4 sm:p-5 bg-gradient-to-br from-[#1E2023]/90 to-[#141618]/90 backdrop-blur-xl border border-mh-yellow/20 rounded-2xl">
-              <span className="text-lg sm:text-xl font-bold text-mh-yellow bg-mh-dark-400/80 px-3 py-1 rounded-lg mb-3 inline-block">
+            <div className="relative z-10 w-full max-w-[240px] sm:max-w-[286px] p-4 sm:p-6 sm:pl-14 bg-gradient-to-br from-[#1E2023]/90 to-[#141618]/90 backdrop-blur-xl card-border-gradient rounded-[34px] flex flex-col justify-center">
+              <span className="text-lg sm:text-xl font-bold text-mh-yellow bg-[#232724] w-[45px] h-[45px] flex items-center justify-center rounded-lg mb-3 inline-block">
                 4
               </span>
               <p className="text-sm sm:text-base font-medium leading-snug">
@@ -669,11 +706,11 @@ export const LandingPage: React.FC = () => {
       {/* FAQ Section */}
       <section
         id="faq"
-        className="w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-14 lg:py-16"
+        className="w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-14 lg:py-20"
       >
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-8 sm:mb-10">
-            <div className="inline-flex items-center gap-2 mb-3 sm:mb-4 px-4 sm:px-5 py-2 sm:py-2.5 bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-full">
+            <div className="inline-flex items-center gap-2 mb-4 sm:mb-8 px-4 sm:px-5 py-2 sm:py-2.5 bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-full">
               <span className="text-xs sm:text-sm font-medium">FAQ</span>
             </div>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-medium mb-2">
@@ -752,14 +789,25 @@ export const LandingPage: React.FC = () => {
               </div>
             ))}
           </div>
+
+          <div className="flex items-center justify-center w-[100%] mt-16 ">
+            <button
+              onClick={() => {
+                console.log("Send assets CTA");
+              }}
+              className="max-w-[124px] w-full py-2 border border-mh-yellow bg-[#25282b] text-white font-medium rounded-xl hover:bg-mh-yellow hover:text-black transition-all duration-300 text-sm flex items-center justify-center"
+            >
+              Show more
+            </button>
+          </div>
         </div>
       </section>
 
       {/* Collaborate / Hop with Us Section */}
-      <section className="w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-14 lg:py-16">
+      <section className="w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-14 lg:py-20">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-8 sm:mb-10">
-            <div className="inline-flex items-center gap-2 mb-3 sm:mb-4 px-4 sm:px-5 py-2 sm:py-2.5 bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-full">
+            <div className="inline-flex items-center gap-2 mb-4 sm:mb-8 px-4 sm:px-5 py-2 sm:py-2.5 bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-full">
               <img src={TagStars} alt="" className="w-4 h-4 sm:w-5 sm:h-5" />
               <span className="text-xs sm:text-sm font-medium">
                 Collaborate
@@ -770,18 +818,30 @@ export const LandingPage: React.FC = () => {
             </h2>
           </div>
 
-          <div className="relative max-w-2xl mx-auto p-6 sm:p-8 lg:p-10 bg-[#16181A] border border-white/[0.08] rounded-2xl sm:rounded-3xl shadow-2xl">
+          <div
+            className="relative max-w-2xl mx-auto p-6 sm:p-8 lg:p-10 bg-[#16181A] border border-white/[0.08] rounded-2xl sm:rounded-3xl shadow-2xl"
+            style={{
+              background:
+                "linear-gradient(#1D2022, #1D2022) padding-box, linear-gradient(0deg, rgba(255,255,255,0) 23%, rgba(255,255,255,0.5) 49%, rgba(255,255,255,0) 75%) border-box",
+            }}
+          >
             {/* Bunny Icon Top Right */}
-            <div className="absolute top-8 right-8 w-12 h-12 bg-mh-yellow rounded-xl flex items-center justify-center">
-              <img src="/formbunny.svg" alt="" className="w-8 h-8" />
+            <div className="absolute top-8 right-8 w-[72px] h-[72px] bg-[#fbff69] bg-opacity-[0.26] flex items-center justify-center rounded-[17px]">
+              <div className="w-[59px] h-[59px] rounded-[17px] bg-mh-yellow  flex items-center justify-center">
+                <img
+                  src="/formbunny.png"
+                  alt=""
+                  className="w-[27px] h-[40px]"
+                />
+              </div>
             </div>
 
             <h3 className="text-xl sm:text-2xl font-semibold mb-3">
               Let's Talk
             </h3>
             <p className="text-sm sm:text-base text-white/50 mb-6 sm:mb-8 pr-16">
-              Looking to partner with us, or resell the MultiHopper to your
-              clients?
+              Looking to partner with us, or resell the <br /> MultiHopper to
+              your clients?
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
@@ -967,7 +1027,7 @@ export const LandingPage: React.FC = () => {
                 </div>
                 <button
                   type="submit"
-                  className="px-8 py-2.5 border border-mh-yellow text-white font-medium rounded-xl hover:bg-mh-yellow hover:text-black transition-all duration-300 text-sm"
+                  className="min-w-[132px] px-8 py-3 border border-mh-yellow  bg-[#25282b] text-white font-medium rounded-xl hover:bg-mh-yellow hover:text-black transition-all duration-300 text-sm"
                 >
                   Submit
                 </button>
@@ -1003,14 +1063,27 @@ export const LandingPage: React.FC = () => {
               strokeWidth="2"
             />
 
-            {/* Arrow Icon */}
-            <g transform="translate(712, 12) scale(0.6)">
+            {/* Arrow Icon - Scroll to Top Button */}
+            <g
+              transform="translate(712, 12) scale(0.6)"
+              className="cursor-pointer hover:opacity-80 transition-all duration-300"
+              onClick={scrollToTop}
+              style={{ pointerEvents: "all" }}
+            >
+              <circle
+                cx="12"
+                cy="12"
+                r="11"
+                fill="transparent"
+                className="hover:fill-white/10 transition-all duration-300"
+              />
               <path
                 d="M12 19V5M5 12l7-7 7 7"
                 stroke="white"
                 strokeWidth="3"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                className="hover:stroke-[#FBFF69] transition-colors duration-300"
               />
             </g>
           </svg>

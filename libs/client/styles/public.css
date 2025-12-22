@@ -1,13 +1,18 @@
 /* Public styles for apps consuming the client library.
    IMPORTANT: Do NOT include any Tailwind directives here to avoid double-loading Tailwind. */
 
-@import './colors.css';
-@import './typographies.css';
+@import "./colors.css";
+@import "./typographies.css";
 
 /* Global default font */
-html, body {
+html,
+body {
   font-family: var(--primary-font-family);
-  background: linear-gradient(111.66deg, var(--eerie-black-500) 20.86%, var(--chinese-black-800) 50.42%);
+  background: linear-gradient(
+    111.66deg,
+    var(--eerie-black-500) 20.86%,
+    var(--chinese-black-800) 50.42%
+  );
 }
 
 /* Keep only plain CSS utilities that do not rely on @apply */
@@ -15,7 +20,11 @@ html, body {
   position: relative;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(111.66deg, var(--eerie-black-500) 20.86%, var(--chinese-black-800) 50.42%);
+  background: linear-gradient(
+    111.66deg,
+    var(--eerie-black-500) 20.86%,
+    var(--chinese-black-800) 50.42%
+  );
 
   min-height: 100vh;
   min-width: 100vw;
@@ -55,7 +64,7 @@ html, body {
 
 /* Card border glow effect - intense glow on left and right sides */
 .card-border-glow::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   border-radius: 1.5rem;
@@ -87,3 +96,118 @@ html, body {
   position: relative;
   z-index: 1;
 }
+
+/* Header navigation border gradient - only shows as border, not background */
+.header-border-gradient {
+  position: relative;
+}
+
+.header-border-gradient::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 24px;
+  padding: 1px;
+  background: linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.06),
+      rgba(255, 255, 255, 0.06)
+    ),
+    linear-gradient(
+      276.61deg,
+      rgba(255, 255, 255, 0) 50.16%,
+      rgba(255, 255, 255, 0.5) 72.94%,
+      rgba(255, 255, 255, 0) 95.72%
+    );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.header-border-gradient > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Responsive variant - only applies at md breakpoint and above */
+  .card-border-gradient {
+    position: relative;
+    transition: all 300ms ease-in;
+  }
+
+  .card-border-gradient::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 34px;
+    padding: 1px;
+    background: linear-gradient(
+        0deg,
+        rgba(255, 255, 255, 0.06),
+        rgba(255, 255, 255, 0.06)
+      ),
+      linear-gradient(
+        276.61deg,
+        rgba(255, 255, 255, 0) 50.16%,
+        rgba(255, 255, 255, 0.5) 72.94%,
+        rgba(255, 255, 255, 0) 95.72%
+      );
+    -webkit-mask: linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 0;
+    transition: background 0.3s ease;
+  }
+
+  .card-border-gradient:hover::before {
+    background: linear-gradient(
+        0deg,
+        var(--corn-yellow-500-transparency-30),
+        var(--corn-yellow-500-transparency-30)
+      ),
+      linear-gradient(
+        276.61deg,
+        rgba(255, 239, 90, 0) 50.16%,
+        rgba(255, 239, 90, 0.5) 72.94%,
+        rgba(255, 239, 90, 0) 95.72%
+      );
+  }
+
+  .card-border-gradient > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .button-border-gradient {
+    position: relative;
+    transition: all 300ms ease-in;
+  }
+
+  .button-border-gradient::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 10px;
+    padding: 1px;
+    border: 1px solid;
+    background: linear-gradient(90deg, #fbff69 0%, #ffffff 60%, #fbff69 100%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 0;
+    transition: background 0.3s ease;
+  }
+
+  .button-border-gradient > * {
+    position: relative;
+    z-index: 1;
+  }
