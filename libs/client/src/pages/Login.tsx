@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Card } from '../components/Card'
 import { NavBar } from '../components/NavBar'
 import { useSolanaAuth } from '../hooks/useSolanaAuth'
@@ -17,7 +17,14 @@ export const Login: React.FC = () => {
     connecting,
     connected,
   } = useWallet()
-  const { authenticate, userData, isPending, isLoading } = useSolanaAuth()
+  const { 
+    authenticate, 
+    userData, 
+    isPending, 
+    isLoading, 
+    isVerifyUserWithSignaturePending,
+    isWaitingForSignature 
+  } = useSolanaAuth()
 
   // Navigate when authenticated
   useEffect(() => {
@@ -156,15 +163,26 @@ export const Login: React.FC = () => {
       </div>
       <button
         type='button'
-        onClick={() => authenticate()}
-        disabled={!connected || !publicKey || isPending || isLoading}
+        onClick={() => {
+          console.log('Login clicked', { connected, publicKey: publicKey?.toString() });
+          authenticate();
+        }}
+        disabled={!connected || !publicKey || isPending || isLoading || isVerifyUserWithSignaturePending || isWaitingForSignature}
         className={`flex items-center justify-center rounded-3xl text-[var(--black-900)] not-italic font-semibold text-base leading-5 text-center px-6 py-3 w-56 transition ${
-          connected && publicKey && !isPending && !isLoading
+          connected && publicKey && !isPending && !isLoading && !isVerifyUserWithSignaturePending && !isWaitingForSignature
             ? 'bg-[var(--corn-yellow-500)] hover:brightness-95'
             : 'bg-[var(--corn-yellow-500-transparency-30)] cursor-not-allowed'
         }`}
       >
-        {isPending ? 'Signing...' : 'Login'}
+        {isPending 
+          ? 'Preparing...' 
+          : isWaitingForSignature
+            ? 'Sign in Wallet' 
+          : isVerifyUserWithSignaturePending 
+            ? 'Verifying...' 
+            : connected 
+              ? 'Sign Message' 
+              : 'Connect Wallet'}
       </button>
     </div>
   )

@@ -21,10 +21,15 @@ export const NavBar = () => {
   return (
     <div className='w-full flex flex-row justify-between pt-11 px-20 z-50 relative'>
       <div className='flex flex-row justify-center items-center gap-4'>
-        <img src={Logo} alt='Logo' className='w-8 h-8 object-contain' />
-        <h1 className='text-xl font-bold text-[var(--white-100)]'>
-          MultiHopper
-        </h1>
+        <button
+          onClick={() => router.navigate({ to: '/' })}
+          className='flex flex-row items-center gap-4 hover:opacity-80 transition-opacity cursor-pointer'
+        >
+          <img src={Logo} alt='Logo' className='w-8 h-8 object-contain' />
+          <h1 className='text-xl font-bold text-[var(--white-100)]'>
+            MultiHopper
+          </h1>
+        </button>
         {isAdmin && (
           <div className='flex flex-row items-center gap-3 ml-4'>
             <div className='max-h-[46px]'>
