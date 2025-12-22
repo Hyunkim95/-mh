@@ -28,6 +28,7 @@ export const useSolanaAuth = () => {
   } = trpc.auth.verifyUserWithSignature.useMutation();
 
   const [error, setError] = useState<Error | null>(null);
+  const [isWaitingForSignature, setIsWaitingForSignature] = useState(false);
   const {
     publicKey,
     signMessage,
@@ -113,10 +114,16 @@ export const useSolanaAuth = () => {
 
       const isHardwareWallet = detectHardwareWallet();
 
+      // Set waiting for signature state
+      setIsWaitingForSignature(true);
+
       // Sign the message
       const signature = isHardwareWallet
         ? await signForHardwareWallet(message)
         : await signForStandardWallet(message);
+
+      // Clear waiting state once signature is obtained
+      setIsWaitingForSignature(false);
 
       // Send the signature to backend for verification
       const { token } = await verifyUserWithSignature({
@@ -133,6 +140,7 @@ export const useSolanaAuth = () => {
         err instanceof Error ? err : new Error("Authentication failed");
       setError(error);
       disconnectWallet();
+      setIsWaitingForSignature(false);
     } finally {
     }
   }, [
@@ -165,5 +173,6 @@ export const useSolanaAuth = () => {
     isFetching,
     isPending,
     isVerifyUserWithSignaturePending,
+    isWaitingForSignature,
   };
 };

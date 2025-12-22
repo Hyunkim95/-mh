@@ -175,10 +175,13 @@ export const LandingPage: React.FC = () => {
           <div className="md:hidden">
             <div className="rounded-3xl bg-gradient-to-r from-white/20 via-white/10 to-white/20 p-[1px]">
               <div className="flex items-center justify-between px-4 py-3 rounded-3xl backdrop-blur-xl bg-[#1a1c1e]/50">
-                <div className="flex items-center gap-2">
+                <button
+                  onClick={() => router.navigate({ to: "/" })}
+                  className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"
+                >
                   <img src={LogoIcon} alt="MultiHopper" className="w-4 h-6" />
                   <span className="font-rowdies text-base">MultiHopper</span>
-                </div>
+                </button>
                 <button
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                   className="p-2 rounded-lg bg-white/5 border border-white/10"
@@ -1070,12 +1073,15 @@ export const LandingPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 sm:gap-10 lg:gap-12 mb-10 sm:mb-12">
               {/* Logo and Description (Left - Spans 5 cols) */}
               <div className="lg:col-span-5">
-                <div className="flex items-center gap-2.5 mb-4">
+                <button
+                  onClick={() => router.navigate({ to: "/" })}
+                  className="flex items-center gap-2.5 mb-4 hover:opacity-80 transition-opacity cursor-pointer"
+                >
                   <img src={LogoIcon} alt="MultiHopper" className="w-7 h-9" />
                   <span className="text-xl sm:text-2xl font-rowdies">
                     MultiHopper
                   </span>
-                </div>
+                </button>
                 <p className="text-sm text-white/50 mb-8 max-w-sm leading-relaxed">
                   Smart Privacy for Onchain Transfers. Full control, total
                   privacy, 100% onchain.

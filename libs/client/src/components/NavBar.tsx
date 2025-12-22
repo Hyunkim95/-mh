@@ -23,14 +23,19 @@ export const NavBar = () => {
   }
 
   return (
-    <div className='w-full flex flex-row justify-between pt-11 px-20 z-50 relative'>
-      <div className='flex flex-row justify-center items-center gap-4'>
-        <img src={Logo} alt='Logo' className='w-8 h-8 object-contain cursor-pointer' onClick={goToHome} />
-        <h1 className='text-xl font-bold text-[var(--white-100)] cursor-pointer' onClick={goToHome}>
-          MultiHopper
-        </h1>
+    <div className='w-full flex flex-row justify-between pt-6 sm:pt-11 px-4 sm:px-20 z-50 relative'>
+      <div className='flex flex-row justify-center items-center gap-2 sm:gap-4'>
+        <button
+          onClick={goToHome}
+          className='flex flex-row items-center gap-2 sm:gap-4 hover:opacity-80 transition-opacity cursor-pointer'
+        >
+          <img src={Logo} alt='Logo' className='w-6 sm:w-8 h-6 sm:h-8 object-contain' />
+          <h1 className='text-base sm:text-xl font-bold text-[var(--white-100)]'>
+            MultiHopper
+          </h1>
+        </button>
         {isAdmin && (
-          <div className='flex flex-row items-center gap-3 ml-4'>
+          <div className='hidden md:flex flex-row items-center gap-3 ml-4'>
             <div className='max-h-[46px]'>
               <Button
                 variant='secondary'
@@ -61,10 +66,11 @@ export const NavBar = () => {
         )}
       </div>
       {publicKey && (
-        <div className='space-x-6 flex flex-row max-h-[46px]'>
+        <div className='space-x-2 sm:space-x-6 flex flex-row max-h-[46px]'>
           <Button
             onClick={() => console.log('secondary pressed')}
             variant='secondary'
+            className='!px-3 sm:!px-4'
           >
             <div className='flex flex-row gap-2 justify-center items-center'>
               <img src={Wallet} className='w-4 h-4' />
@@ -81,7 +87,7 @@ export const NavBar = () => {
             }}
             variant='icon'
           >
-            <img src={LogOutIcon} className='w-5 h-5' />
+            <img src={LogOutIcon} className='w-4 sm:w-5 h-4 sm:h-5' />
           </Button>
         </div>
       )}

@@ -679,35 +679,34 @@ walletC,15`
   }
 
   const footer = (
-    <div className='flex justify-between items-start'>
+    <div className='flex flex-col gap-4'>
       {activeKey !== 'choose' && activeKey !== 'mode' ? (
-        <div className='flex flex-col gap-3'>
-          <div className='not-italic font-medium text-base leading-4 text-[var(--white-100)]'>
+        <div className='text-center'>
+          <div className='not-italic font-medium text-sm sm:text-base leading-4 text-[var(--white-100)] mb-2'>
             {routeMode === 'easy' && easyRouteConfig.arrivalTime
               ? 'Arrival Time'
               : 'Total Estimated Time'}
           </div>
-          <div className='flex flex-row items-center gap-2 not-italic font-medium text-sm leading-4 text-[rgba(255,_255,_255,_0.46)]'>
+          <div className='not-italic font-medium text-xs sm:text-sm leading-4 text-[rgba(255,_255,_255,_0.46)]'>
             {routeMode === 'easy' && easyRouteConfig.arrivalTime ? (
               <>
                 Arrives at{' '}
-                <span className='text-[var(--laser-lemon-500)]'>
+                <span className='text-[var(--laser-lemon-500)] font-bold'>
                   {easyRouteConfig.arrivalTime.toLocaleString([], {
-                    weekday: 'short',
-                    month: 'short',
-                    day: 'numeric',
                     hour: '2-digit',
                     minute: '2-digit',
+                    hour12: false
                   })}
                 </span>
               </>
             ) : (
               <>
                 {formatDuration(totalMinutes)} total — Arrives at{' '}
-                <span className='text-[var(--laser-lemon-500)]'>
+                <span className='text-[var(--laser-lemon-500)] font-bold'>
                   {etaDate.toLocaleTimeString([], {
                     hour: '2-digit',
                     minute: '2-digit',
+                    hour12: false
                   })}
                 </span>
               </>
@@ -718,11 +717,11 @@ walletC,15`
         <div />
       )}
 
-      <div className='flex items-center gap-3'>
+      <div className='flex items-center justify-center gap-3'>
         <button
           type='button'
           onClick={handleNavigateBack}
-          className='flex items-center justify-center gap-2 rounded-3xl bg-transparent text-[var(--white-100)] not-italic font-medium text-base leading-5 px-6 py-3 transition hover:bg-white/5 border border-[var(--white-100)] w-36'
+          className='flex items-center justify-center gap-2 rounded-full bg-transparent text-[var(--white-100)] not-italic font-medium text-sm sm:text-base leading-5 px-8 sm:px-6 py-3 transition hover:bg-white/5 border border-[var(--white-100)] min-w-[120px] sm:min-w-[144px]'
         >
           Back
         </button>
@@ -736,7 +735,7 @@ walletC,15`
               (activeKey === 'configure' && routeMode === 'easy' && !canProceedFromEasyRoute) ||
               (activeKey === 'choose' && !canProceedFromChoose)
             }
-            className={`flex items-center justify-center gap-2 rounded-3xl text-[var(--black-900)] not-italic font-medium text-base leading-5 px-6 py-3 disabled:opacity-15 shadow-[0_8px_24px_rgba(0,0,0,0.45)] w-36 transition ${
+            className={`flex items-center justify-center gap-2 rounded-full text-[var(--black-900)] not-italic font-medium text-sm sm:text-base leading-5 px-8 sm:px-6 py-3 disabled:opacity-15 shadow-[0_8px_24px_rgba(0,0,0,0.45)] min-w-[120px] sm:min-w-[144px] transition ${
               activeKey === 'configure' && routeMode === 'custom'
                 ? canProceedFromHops
                   ? 'bg-[var(--laser-lemon-500)] hover:brightness-95'
@@ -755,7 +754,7 @@ walletC,15`
             type='button'
             onClick={routeMode === 'easy' ? handleEasyRouteConfirm : handleConfirm}
             disabled={routeMode === 'easy' ? !canProceedFromEasyRoute : false}
-            className={`flex items-center justify-center gap-2 rounded-3xl text-[var(--black-900)] not-italic font-medium text-base leading-5 px-6 py-3 shadow-[0_8px_24px_var(--black-900-transparency-45)] w-36 transition ${
+            className={`flex items-center justify-center gap-2 rounded-full text-[var(--black-900)] not-italic font-medium text-sm sm:text-base leading-5 px-8 sm:px-6 py-3 shadow-[0_8px_24px_var(--black-900-transparency-45)] min-w-[120px] sm:min-w-[144px] transition ${
               routeMode === 'easy' && !canProceedFromEasyRoute
                 ? 'bg-[var(--laser-lemon-500-transparency-30)] cursor-not-allowed opacity-50'
                 : 'bg-[var(--laser-lemon-500)] hover:brightness-95'
@@ -788,7 +787,7 @@ walletC,15`
           onTabChange: setActiveKey,
           rightSlot:
             activeKey === 'configure' && routeMode === 'custom' ? (
-              <div className='flex items-center gap-2'>
+              <div className='flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto'>
                 <button
                   type='button'
                   onClick={handleUploadClick}

@@ -71,7 +71,71 @@ export const AdminTokenConfigsTable: React.FC<AdminTokenConfigsTableProps> = ({
 
   return (
     <div className='rounded-3xl border border-[var(--white-100-transparency-08)] bg-[var(--chinese-black-800)] overflow-hidden'>
-      <div className='overflow-x-auto'>
+      {/* Mobile view - Cards */}
+      <div className='md:hidden'>
+        <div className='divide-y divide-[var(--white-100-transparency-06)]'>
+          {tokenConfigs.map(config => (
+            <div key={config.id} className='p-4 space-y-3'>
+              <div className='flex justify-between items-start'>
+                <div>
+                  <div className='text-xs text-[var(--white-100-transparency-60)]'>ID</div>
+                  <div className='font-medium'>#{config.id}</div>
+                </div>
+                {onView && (
+                  <button
+                    onClick={() => onView(config)}
+                    className='rounded-2xl px-3 py-1 bg-[var(--laser-lemon-500)] text-black text-xs'
+                  >
+                    View
+                  </button>
+                )}
+              </div>
+              
+              <div className='grid grid-cols-1 gap-2 text-sm'>
+                <div className='flex justify-between'>
+                  <span className='text-[var(--white-100-transparency-60)]'>Config:</span>
+                  <span className='font-mono text-xs'>{formatAddress(config.tokenConfigAddress)}</span>
+                </div>
+                <div className='flex justify-between'>
+                  <span className='text-[var(--white-100-transparency-60)]'>Token:</span>
+                  <span className='font-mono text-xs'>{formatAddress(config.tokenMint)}</span>
+                </div>
+                <div className='flex justify-between'>
+                  <span className='text-[var(--white-100-transparency-60)]'>Creator:</span>
+                  <span className='font-mono text-xs'>{formatAddress(config.creator)}</span>
+                </div>
+                <div className='flex justify-between'>
+                  <span className='text-[var(--white-100-transparency-60)]'>Min Transfer:</span>
+                  <span>{config.minTransferAmount}</span>
+                </div>
+                <div className='flex justify-between'>
+                  <span className='text-[var(--white-100-transparency-60)]'>Fee:</span>
+                  <span>{formatFeeBps(config.feeBps)}%</span>
+                </div>
+                <div className='flex justify-between'>
+                  <span className='text-[var(--white-100-transparency-60)]'>Max Hops:</span>
+                  <span>{config.maxHops}</span>
+                </div>
+                <div className='flex justify-between'>
+                  <span className='text-[var(--white-100-transparency-60)]'>Max Delay:</span>
+                  <span>{formatDuration(config.maxDelaySeconds)}</span>
+                </div>
+                <div className='flex justify-between'>
+                  <span className='text-[var(--white-100-transparency-60)]'>Timelock:</span>
+                  <span>{formatDuration(config.timelockSeconds)}</span>
+                </div>
+                <div className='flex justify-between'>
+                  <span className='text-[var(--white-100-transparency-60)]'>Flat Fee:</span>
+                  <span>{formatLamports(config.flatFeeLamports)} SOL</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Desktop/Tablet view - Table with horizontal scroll */}
+      <div className='hidden md:block overflow-x-auto'>
         <table className='min-w-full text-sm'>
           <thead className='bg-[var(--eerie-black-700)] text-[var(--white-100-transparency-70)]'>
             <tr>
