@@ -75,7 +75,7 @@ export const AmountSelector: React.FC<AmountSelectorProps> = ({
   }
 
   return (
-    <div className='flex flex-col bg-[var(--chinese-black-800)] rounded-3xl pt-[76px] px-10 pb-[72px] border border-[var(--white-100-transparency-05)] mb-1'
+    <div className='flex flex-col bg-[var(--chinese-black-800)] rounded-3xl pt-8 px-4 pb-8 sm:pt-[76px] sm:px-10 sm:pb-[72px] border border-[var(--white-100-transparency-05)] mb-1'
       style={{
         boxShadow: 'inset 0px 1px 0px var(--white-100-transparency-08)',
       }}
@@ -101,7 +101,7 @@ export const AmountSelector: React.FC<AmountSelectorProps> = ({
               onChange={handleInputChange}
               onBlur={handleInputBlur}
               onKeyDown={handleInputKeyDown}
-              className='not-italic font-medium text-[88px] leading-[103px] text-center tracking-tight bg-transparent border-none outline-none'
+              className='not-italic font-medium text-4xl sm:text-6xl md:text-[88px] leading-tight sm:leading-[103px] text-center tracking-tight bg-transparent border-none outline-none'
               style={{
                 background:
                   'linear-gradient(270deg, var(--white-100-transparency-50) 7%, var(--white-100) 53%, var(--white-100-transparency-50) 99%)',
@@ -115,7 +115,7 @@ export const AmountSelector: React.FC<AmountSelectorProps> = ({
             <div
               ref={amountDisplayRef}
               onClick={handleAmountClick}
-              className='not-italic font-medium text-[88px] leading-[103px] text-center text-transparent bg-clip-text tracking-tight drop-shadow-[0_8px_30px_var(--white-100-transparency-15)] overflow-hidden text-ellipsis whitespace-nowrap max-w-full cursor-pointer'
+              className='not-italic font-medium text-4xl sm:text-6xl md:text-[88px] leading-tight sm:leading-[103px] text-center text-transparent bg-clip-text tracking-tight drop-shadow-[0_8px_30px_var(--white-100-transparency-15)] overflow-hidden text-ellipsis whitespace-nowrap max-w-full cursor-pointer'
               style={{
                 background:
                   'linear-gradient(270deg, var(--white-100-transparency-50) 7%, var(--white-100) 53%, var(--white-100-transparency-50) 99%)',
@@ -129,7 +129,7 @@ export const AmountSelector: React.FC<AmountSelectorProps> = ({
             </div>
           )}
           <div
-            className='not-italic font-medium text-[88px] leading-[103px] text-center text-transparent bg-clip-text tracking-tight drop-shadow-[0_8px_30px_var(--white-100-transparency-15)] flex-shrink-0'
+            className='not-italic font-medium text-4xl sm:text-6xl md:text-[88px] leading-tight sm:leading-[103px] text-center text-transparent bg-clip-text tracking-tight drop-shadow-[0_8px_30px_var(--white-100-transparency-15)] flex-shrink-0'
             style={{
               background:
                 'linear-gradient(270deg, var(--white-100-transparency-50) 7%, var(--white-100) 53%, var(--white-100-transparency-50) 99%)',
@@ -168,7 +168,7 @@ export const AmountSelector: React.FC<AmountSelectorProps> = ({
           onMouseLeave={() => setHoveredAmount(false)}
         >
         <div
-          className='not-italic font-medium text-[88px] leading-[103px] text-center tracking-tight drop-shadow-[0_8px_30px_var(--white-100-transparency-15)] whitespace-nowrap'
+          className='not-italic font-medium text-4xl sm:text-6xl md:text-[88px] leading-tight sm:leading-[103px] text-center tracking-tight drop-shadow-[0_8px_30px_var(--white-100-transparency-15)] whitespace-nowrap'
           style={{
             background:
               'linear-gradient(270deg, var(--white-100-transparency-50) 7%, var(--white-100) 53%, var(--white-100-transparency-50) 99%)',

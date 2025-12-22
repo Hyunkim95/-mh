@@ -1,57 +1,57 @@
-import React, { useMemo, useState, useEffect } from 'react'
-import AddIcon from '../../assets/icons/add-icon.svg'
-import ReloadIcon from '../../assets/icons/reload-icon.svg'
-import Logo from '../assets/navbar/logo.svg'
-import { ReactComponent as WalletIcon } from '../../assets/icons/wallet-icon.svg'
-import { ReactComponent as ClockIcon } from '../../assets/icons/clock-icon.svg'
-import { TokenCard } from '../components/TokenCard'
-import { SkeletonCard } from '../components/SkeletonCard'
-import { Search } from '../components/Search'
-import { Card } from '../components/Card'
-import { useNavigate } from '@tanstack/react-router'
-import { useAtom } from 'jotai'
-import { selectedAssetAtom, type TokenAsset } from '../store/atoms'
-import { trpc } from '../trpc'
-import { NavBar } from '../components/NavBar'
+import React, { useMemo, useState, useEffect } from "react";
+import AddIcon from "../../assets/icons/add-icon.svg";
+import ReloadIcon from "../../assets/icons/reload-icon.svg";
+import Logo from "../assets/navbar/logo.svg";
+import { ReactComponent as WalletIcon } from "../../assets/icons/wallet-icon.svg";
+import { ReactComponent as ClockIcon } from "../../assets/icons/clock-icon.svg";
+import { TokenCard } from "../components/TokenCard";
+import { SkeletonCard } from "../components/SkeletonCard";
+import { Search } from "../components/Search";
+import { Card } from "../components/Card";
+import { useNavigate } from "@tanstack/react-router";
+import { useAtom } from "jotai";
+import { selectedAssetAtom, type TokenAsset } from "../store/atoms";
+import { trpc } from "../trpc";
+import { NavBar } from "../components/NavBar";
 import {
   HeliusAssetLike,
   hasContentFiles,
   hasContentMetadata,
   hasTokenInfo,
-} from '../utils/heliusAssets'
-import { History } from '../components/history'
-import { useConnection, useWallet } from '@solana/wallet-adapter-react'
-import { LAMPORTS_PER_SOL } from '@solana/web3.js'
+} from "../utils/heliusAssets";
+import { History } from "../components/history";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 
-type Token = TokenAsset & { usdValue: string }
+type Token = TokenAsset & { usdValue: string };
 
 export const MyAssets: React.FC = () => {
-  const [query, setQuery] = useState('')
-  const [activeKey, setActiveKey] = useState<string>('assets')
+  const [query, setQuery] = useState("");
+  const [activeKey, setActiveKey] = useState<string>("assets");
   const [activeCriteria, setActiveCriteria] = useState<Array<keyof Token>>([
-    'name',
-  ])
-  const navigate = useNavigate()
-  const [selectedAsset, setSelectedAsset] = useAtom(selectedAssetAtom)
-  const { connection } = useConnection()
-  const { publicKey } = useWallet()
-  const [solBalance, setSolBalance] = useState<number>(0)
-  const [solPrice, setSolPrice] = useState<number>(0)
+    "name",
+  ]);
+  const navigate = useNavigate();
+  const [selectedAsset, setSelectedAsset] = useAtom(selectedAssetAtom);
+  const { connection } = useConnection();
+  const { publicKey } = useWallet();
+  const [solBalance, setSolBalance] = useState<number>(0);
+  const [solPrice, setSolPrice] = useState<number>(0);
 
   // Fetch only tokens that are both in the user's wallet and configured in Multihopper
   const { data: crossSectionData, isLoading: isLoadingTokens } =
-    trpc.tokens.crossSectionWithTokenConfigs.useQuery()
+    trpc.tokens.crossSectionWithTokenConfigs.useQuery();
 
   // Placeholder SVG icon as data URL for tokens without images
   const placeholderIcon =
-    'data:image/svg+xml;utf8,' +
+    "data:image/svg+xml;utf8," +
     encodeURIComponent(
       `<svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <circle cx="12" cy="12" r="10" fill="#1b1c1f"/>
         <circle cx="12" cy="12" r="6" fill="#2a2c31"/>
         <circle cx="12" cy="12" r="3" fill="#3a3d44"/>
       </svg>`
-    )
+    );
 
   const [reloadTrigger, setReloadTrigger] = useState(0);
   const handleReloadClick = () => {
@@ -62,100 +62,102 @@ export const MyAssets: React.FC = () => {
   useEffect(() => {
     const fetchSolData = async () => {
       if (!publicKey || !connection) {
-        setSolBalance(0)
-        return
+        setSolBalance(0);
+        return;
       }
       try {
-        const balance = await connection.getBalance(publicKey)
-        setSolBalance(balance / LAMPORTS_PER_SOL)
+        const balance = await connection.getBalance(publicKey);
+        setSolBalance(balance / LAMPORTS_PER_SOL);
 
         // Fetch SOL price from CoinGecko
         try {
           const priceResponse = await fetch(
-            'https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd'
-          )
-          const priceData = await priceResponse.json()
+            "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd"
+          );
+          const priceData = await priceResponse.json();
           if (priceData?.solana?.usd) {
-            setSolPrice(priceData.solana.usd)
+            setSolPrice(priceData.solana.usd);
           }
         } catch (priceError) {
-          console.error('Error fetching SOL price:', priceError)
+          console.error("Error fetching SOL price:", priceError);
         }
       } catch (error) {
-        console.error('Error fetching SOL balance:', error)
-        setSolBalance(0)
+        console.error("Error fetching SOL balance:", error);
+        setSolBalance(0);
       }
-    }
-    fetchSolData()
-  }, [publicKey, connection, reloadTrigger])
+    };
+    fetchSolData();
+  }, [publicKey, connection, reloadTrigger]);
 
   const normalizedTokens: Token[] = useMemo(() => {
-    const items = crossSectionData?.tokens || []
+    const items = crossSectionData?.tokens || [];
     const splTokens = items.map((t: HeliusAssetLike) => {
-      const id: string = t?.id || ''
+      const id: string = t?.id || "";
       const name: string =
-        (hasContentMetadata(t) && t.content.metadata?.name) || 'Unknown Token'
+        (hasContentMetadata(t) && t.content.metadata?.name) || "Unknown Token";
       const symbol: string =
-        (hasContentMetadata(t) && t.content.metadata?.symbol) || id?.slice(0, 6)
+        (hasContentMetadata(t) && t.content.metadata?.symbol) ||
+        id?.slice(0, 6);
       const icon: string =
-        (hasContentFiles(t) && t.content.files?.[0]?.cdn_uri) || placeholderIcon
+        (hasContentFiles(t) && t.content.files?.[0]?.cdn_uri) ||
+        placeholderIcon;
       // Helius often includes token_info with balance/decimals; fallback if absent
       const decimals: number =
-        (hasTokenInfo(t) && typeof t.token_info.decimals === 'number'
+        (hasTokenInfo(t) && typeof t.token_info.decimals === "number"
           ? t.token_info.decimals
-          : undefined) ?? 6
+          : undefined) ?? 6;
       const balanceRaw: number = hasTokenInfo(t)
         ? Number(t.token_info.balance ?? 0)
-        : 0
+        : 0;
       // Show human readable amount
-      const amount: number = balanceRaw / 10 ** decimals
+      const amount: number = balanceRaw / 10 ** decimals;
 
       // Extract price from token_info
-      let pricePerToken: number | null = null
+      let pricePerToken: number | null = null;
       if (hasTokenInfo(t)) {
         // Try price_per_token directly
         if (
-          typeof t.token_info.price_per_token === 'number' &&
+          typeof t.token_info.price_per_token === "number" &&
           t.token_info.price_per_token > 0
         ) {
-          pricePerToken = t.token_info.price_per_token
+          pricePerToken = t.token_info.price_per_token;
         }
         // Try price_info.price_per_token
         else if (
           t.token_info.price_info &&
-          typeof t.token_info.price_info.price_per_token === 'number' &&
+          typeof t.token_info.price_info.price_per_token === "number" &&
           t.token_info.price_info.price_per_token > 0
         ) {
-          pricePerToken = t.token_info.price_info.price_per_token
+          pricePerToken = t.token_info.price_info.price_per_token;
         }
         // Try calculating from price_info.total_price and balance
         else if (
           t.token_info.price_info &&
-          typeof t.token_info.price_info.total_price === 'number' &&
+          typeof t.token_info.price_info.total_price === "number" &&
           t.token_info.price_info.total_price > 0 &&
           balanceRaw > 0
         ) {
-          pricePerToken = t.token_info.price_info.total_price / balanceRaw
+          pricePerToken = t.token_info.price_info.total_price / balanceRaw;
         }
       }
 
       // Calculate USD value if price is available
-      let usdValue = ''
+      let usdValue = "";
       if (pricePerToken && amount > 0) {
-        const totalUsd = amount * pricePerToken
+        const totalUsd = amount * pricePerToken;
         if (totalUsd > 0) {
-          usdValue = new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
+          usdValue = new Intl.NumberFormat("en-US", {
+            style: "currency",
+            currency: "USD",
             minimumFractionDigits: 2,
             maximumFractionDigits: 6,
-          }).format(totalUsd)
+          }).format(totalUsd);
         }
       }
 
       const tokenAsset: Token = {
         id,
-        tokenType: 'SPL',
+        tokenType: "SPL",
         decimals,
         icon,
         symbol,
@@ -165,64 +167,65 @@ export const MyAssets: React.FC = () => {
         address: id,
         // usdValue: usdValue ? usdValue : '', // not provided; UI tolerates empty string
         usdValue,
-      }
-      return tokenAsset
-    })
+      };
+      return tokenAsset;
+    });
 
     // Always add native SOL as the first option
-    const solUsdValue = solBalance > 0 && solPrice > 0
-      ? new Intl.NumberFormat('en-US', {
-          style: 'currency',
-          currency: 'USD',
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 6,
-        }).format(solBalance * solPrice)
-      : ''
+    const solUsdValue =
+      solBalance > 0 && solPrice > 0
+        ? new Intl.NumberFormat("en-US", {
+            style: "currency",
+            currency: "USD",
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 6,
+          }).format(solBalance * solPrice)
+        : "";
 
     const solToken: Token = {
-      id: 'So11111111111111111111111111111111111111112',
-      tokenType: 'SOL',
+      id: "So11111111111111111111111111111111111111112",
+      tokenType: "SOL",
       decimals: 9,
-      icon: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png',
-      symbol: 'SOL',
-      name: 'Solana',
+      icon: "https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png",
+      symbol: "SOL",
+      name: "Solana",
       amount: solBalance,
-      address: 'So11111111111111111111111111111111111111112',
+      address: "So11111111111111111111111111111111111111112",
       usdValue: solUsdValue,
-    }
+    };
 
-    return [solToken, ...splTokens]
-  }, [crossSectionData, solBalance, solPrice])
+    return [solToken, ...splTokens];
+  }, [crossSectionData, solBalance, solPrice]);
 
   const handleConfigureRoute = () => {
-    if (!selectedAsset) return
+    if (!selectedAsset) return;
     // Encode asset data as base64 to pass in URL
-    const assetData = btoa(JSON.stringify(selectedAsset))
-    navigate({ to: '/configure-hops', search: { asset: assetData } })
-  }
+    const assetData = btoa(JSON.stringify(selectedAsset));
+    navigate({ to: "/configure-hops", search: { asset: assetData } });
+  };
 
   // Compute filtered list based on query and token name
   const filteredTokens = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return normalizedTokens
-    const keys = (activeCriteria.length ? activeCriteria : ['name']) as Array<
+    const q = query.trim().toLowerCase();
+    if (!q) return normalizedTokens;
+    const keys = (activeCriteria.length ? activeCriteria : ["name"]) as Array<
       keyof Token
-    >
+    >;
     return normalizedTokens.filter((t: Token) =>
       keys.some((k: keyof Token) => String(t[k]).toLowerCase().includes(q))
-    )
-  }, [query, normalizedTokens, activeCriteria])
+    );
+  }, [query, normalizedTokens, activeCriteria]);
 
   const myAssetsCardBody = (
     <div
-      className='flex flex-col bg-[var(--chinese-black-800)] rounded-3xl pt-8 px-9 pb-9 border border-[var(--white-100-transparency-05)]'
+      className="flex flex-col bg-[var(--chinese-black-800)] rounded-3xl pt-6 px-4 pb-6 sm:pt-8 sm:px-9 sm:pb-9 border border-[var(--white-100-transparency-05)]"
       style={{
-        boxShadow: 'inset 0px 1px 0px var(--white-100-transparency-08)',
+        boxShadow: "inset 0px 1px 0px var(--white-100-transparency-08)",
       }}
     >
-      <div className='mb-6'>
-        <h2 className='text-xl font-semibold'>Select Token</h2>
-        <p className='text-sm text-[var(--philippine-gray-500)]'>
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold">Select Token</h2>
+        <p className="text-sm text-[var(--philippine-gray-500)]">
           Choose which token you’d like to send through a new route
         </p>
       </div>
@@ -230,17 +233,17 @@ export const MyAssets: React.FC = () => {
       <Search
         query={query}
         onQueryChange={setQuery}
-        placeholder='Search tokens'
+        placeholder="Search tokens"
         criteria={[
-          { key: 'name', label: 'Name' },
-          { key: 'symbol', label: 'Symbol' },
+          { key: "name", label: "Name" },
+          { key: "symbol", label: "Symbol" },
         ]}
         activeCriteria={activeCriteria}
         onCriteriaChange={setActiveCriteria}
         showCriteriaChips={false}
       />
 
-      <div className='grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 h-[376px] overflow-x-hidden overflow-y-auto pr-2 relative'>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 mt-3 h-[376px] overflow-x-hidden overflow-y-auto pr-2 relative">
         {isLoadingTokens ? (
           // Show skeleton cards while loading
           <>
@@ -248,27 +251,27 @@ export const MyAssets: React.FC = () => {
               <SkeletonCard key={`skeleton-${i}`} />
             ))}
             {/* Logo centered over skeleton cards */}
-            <div className='bg-[var(--chinese-black-800)] rounded-full absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none h-24 w-24'>
-              <div className='flex flex-col items-center gap-2'>
-                <div className='w-[33px] h-[49px]'>
+            <div className="bg-[var(--chinese-black-800)] rounded-full absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none h-24 w-24">
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-[33px] h-[49px]">
                   <img
                     src={Logo}
-                    alt='Loading'
-                    className='w-full h-full object-contain opacity-80'
+                    alt="Loading"
+                    className="w-full h-full object-contain opacity-80"
                   />
                 </div>
-                <div className='flex gap-1'>
+                <div className="flex gap-1">
                   <div
-                    className='w-1 h-1 rounded-full bg-[var(--white-100-transparency-60)] animate-pulse'
-                    style={{ animationDelay: '0ms' }}
+                    className="w-1 h-1 rounded-full bg-[var(--white-100-transparency-60)] animate-pulse"
+                    style={{ animationDelay: "0ms" }}
                   />
                   <div
-                    className='w-1 h-1 rounded-full bg-[var(--white-100-transparency-60)] animate-pulse'
-                    style={{ animationDelay: '150ms' }}
+                    className="w-1 h-1 rounded-full bg-[var(--white-100-transparency-60)] animate-pulse"
+                    style={{ animationDelay: "150ms" }}
                   />
                   <div
-                    className='w-1 h-1 rounded-full bg-[var(--white-100-transparency-60)] animate-pulse'
-                    style={{ animationDelay: '300ms' }}
+                    className="w-1 h-1 rounded-full bg-[var(--white-100-transparency-60)] animate-pulse"
+                    style={{ animationDelay: "300ms" }}
                   />
                 </div>
               </div>
@@ -277,7 +280,7 @@ export const MyAssets: React.FC = () => {
         ) : (
           <>
             {filteredTokens.map((token, i) => {
-              const isSelected = selectedAsset?.symbol === token.symbol
+              const isSelected = selectedAsset?.symbol === token.symbol;
               return (
                 <TokenCard
                   key={`${token.symbol}-${i}`}
@@ -289,10 +292,10 @@ export const MyAssets: React.FC = () => {
                   onClick={() => setSelectedAsset(token)}
                   selected={isSelected}
                 />
-              )
+              );
             })}
             {filteredTokens.length === 0 ? (
-              <div className='text-[var(--philippine-gray-500)] text-sm col-span-2'>
+              <div className="text-[var(--philippine-gray-500)] text-sm col-span-2">
                 No tokens found. Configure tokens in Multihopper or fund your
                 wallet.
               </div>
@@ -301,72 +304,73 @@ export const MyAssets: React.FC = () => {
         )}
       </div>
     </div>
-  )
+  );
 
-  const historyCardBody = <History reloadTrigger={reloadTrigger} />
+  const historyCardBody = <History reloadTrigger={reloadTrigger} />;
   const myAssetsCardFooter = (
-    <div className='flex justify-between items-start'>
+    <div className="flex flex-col sm:flex-row justify-between items-center sm:items-start gap-4">
       {isLoadingTokens ? (
-        <div className='not-italic font-medium text-sm leading-4 text-[var(--cultured-white-500)]'>
+        <div className="not-italic font-medium text-sm leading-4 text-[var(--cultured-white-500)] text-center sm:text-left">
           Loading Wallet...
         </div>
       ) : (
-        <div className='not-italic font-medium text-sm leading-4 text-[var(--cultured-white-500)]'>
+        <div className="not-italic font-medium text-sm leading-4 text-[var(--cultured-white-500)] text-center sm:text-left">
           {filteredTokens.length} Tokens found
         </div>
       )}
 
       <button
-        type='button'
+        type="button"
         onClick={handleConfigureRoute}
         disabled={!selectedAsset}
-        title={!selectedAsset ? 'Select a token to continue' : undefined}
-        className={`inline-flex items-center gap-2 rounded-full text-black font-semibold px-6 py-3 shadow-[0_8px_24px_var(--black-900-transparency-45)] transition ${
+        title={!selectedAsset ? "Select a token to continue" : undefined}
+        className={`inline-flex items-center gap-2 rounded-full text-black font-semibold px-4 py-2 sm:px-6 sm:py-3 shadow-[0_8px_24px_var(--black-900-transparency-45)] transition w-full sm:w-auto justify-center ${
           selectedAsset
-            ? 'bg-[var(--corn-yellow-500)] hover:brightness-95'
-            : 'bg-[var(--corn-yellow-500-transparency-30)] cursor-not-allowed'
+            ? "bg-[var(--corn-yellow-500)] hover:brightness-95"
+            : "bg-[var(--corn-yellow-500-transparency-30)] cursor-not-allowed"
         }`}
       >
         Configure Route
-        <img src={AddIcon} alt='AddIcon' className='h-6 w-6 object-contain' />
+        <img src={AddIcon} alt="AddIcon" className="h-5 w-5 sm:h-6 sm:w-6 object-contain" />
       </button>
     </div>
-  )
+  );
 
   return (
-    <div className='min-h-screen text-[var(--white-100)] flex flex-col items-center gap-9 w-full relative'>
-      <div className='min-h-screen flex w-full fixed'>
-        <div className='app-gradient-bg'>
-          <div className='ellipse-bg-one' />
-          <div className='ellipse-bg-two' />
+    <div className="min-h-screen text-[var(--white-100)] flex flex-col items-center gap-9 w-full relative">
+      <div className="min-h-screen flex w-full fixed">
+        <div className="app-gradient-bg">
+          <div className="ellipse-bg-one" />
+          <div className="ellipse-bg-two" />
         </div>
       </div>
       <NavBar />
       <Card
         cardHeader={{
           tabs: [
-            { key: 'assets', label: 'My Assets', icon: WalletIcon },
-            { key: 'history', label: 'History', icon: ClockIcon },
+            { key: "assets", label: "My Assets", icon: WalletIcon },
+            { key: "history", label: "History", icon: ClockIcon },
           ],
           activeKey,
           onTabChange: setActiveKey,
           rightSlot: (
-            <div className='h-10 w-10 rounded-lg bg-[var(--light-silver-500-transparency-04)] flex items-center justify-center'>
-              <div className='h-4 w-4 rounded-full flex items-center justify-center'
+            <div className="h-10 w-10 rounded-lg bg-[var(--light-silver-500-transparency-04)] flex items-center justify-center">
+              <div
+                className="h-4 w-4 rounded-full flex items-center justify-center"
                 onClick={handleReloadClick}
-                >
+              >
                 <img
                   src={ReloadIcon}
-                  alt='reload-icon'
-                  className='h-full w-full object-contain'
+                  alt="reload-icon"
+                  className="h-full w-full object-contain"
                 />
               </div>
             </div>
           ),
         }}
-        cardBody={activeKey === 'assets' ? myAssetsCardBody : historyCardBody}
+        cardBody={activeKey === "assets" ? myAssetsCardBody : historyCardBody}
         cardFooter={myAssetsCardFooter}
       />
     </div>
-  )
-}
+  );
+};
