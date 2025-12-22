@@ -554,7 +554,7 @@ export const LandingPage: React.FC = () => {
               onClick={() => {
                 console.log("Send assets CTA");
               }}
-              className="max-w-[124px] w-full py-2 sm:py-3 bg-mh-yellow text-black font-medium text-base rounded-[10px] hover:brightness-110 hover:shadow-lg hover:shadow-mh-yellow/20 transition-all duration-300"
+              className="max-w-[124px] w-full py-2 sm:py-3 bg-mh-yellow text-black font-medium text-base rounded-[10px] hover:brightness-110 hover:shadow-lg hover:shadow-mh-yellow/20 transition-all duration-300 font-grotesk"
             >
               Send Assets
             </button>
@@ -793,9 +793,9 @@ export const LandingPage: React.FC = () => {
           <div className="flex items-center justify-center w-[100%] mt-16 ">
             <button
               onClick={() => {
-                console.log("Send assets CTA");
+                console.log("show more CTA");
               }}
-              className="max-w-[124px] w-full py-2 border border-mh-yellow bg-[#25282b] text-white font-medium rounded-xl hover:bg-mh-yellow hover:text-black transition-all duration-300 text-sm flex items-center justify-center"
+              className="max-w-[124px] w-full py-2 border border-mh-yellow bg-[#25282b] text-white font-medium rounded-xl hover:bg-mh-yellow hover:text-black transition-all duration-300 text-sm flex items-center justify-center font-grotesk"
             >
               Show more
             </button>
@@ -1027,7 +1027,7 @@ export const LandingPage: React.FC = () => {
                 </div>
                 <button
                   type="submit"
-                  className="min-w-[132px] px-8 py-3 border border-mh-yellow  bg-[#25282b] text-white font-medium rounded-xl hover:bg-mh-yellow hover:text-black transition-all duration-300 text-sm"
+                  className="min-w-[132px] px-8 py-3 border border-mh-yellow  bg-[#25282b] text-white font-medium rounded-xl hover:bg-mh-yellow hover:text-black transition-all duration-300 text-sm font-grotesk"
                 >
                   Submit
                 </button>
