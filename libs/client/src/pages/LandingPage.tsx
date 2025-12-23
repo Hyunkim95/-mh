@@ -322,8 +322,8 @@ export const LandingPage: React.FC = () => {
                       <div 
                         className="absolute inset-x-0 top-0 h-1/3"
                         style={{
-                          backdropFilter: "blur(2px)",
-                          background: "linear-gradient(to bottom, rgba(18, 20, 22, 0.02), rgba(18, 20, 22, 0.04))",
+                          backdropFilter: "blur(1.6px)",
+                          background: "linear-gradient(to bottom, rgba(18, 20, 22, 0.016), rgba(18, 20, 22, 0.032))",
                         }}
                       />
                       
@@ -331,8 +331,8 @@ export const LandingPage: React.FC = () => {
                       <div 
                         className="absolute inset-x-0 top-1/3 h-1/3"
                         style={{
-                          backdropFilter: "blur(6px)",
-                          background: "linear-gradient(to bottom, rgba(18, 20, 22, 0.04), rgba(18, 20, 22, 0.08))",
+                          backdropFilter: "blur(4.8px)",
+                          background: "linear-gradient(to bottom, rgba(18, 20, 22, 0.032), rgba(18, 20, 22, 0.064))",
                         }}
                       />
                       
@@ -340,8 +340,8 @@ export const LandingPage: React.FC = () => {
                       <div 
                         className="absolute inset-x-0 bottom-0 h-1/3"
                         style={{
-                          backdropFilter: "blur(12px)",
-                          background: "linear-gradient(to bottom, rgba(18, 20, 22, 0.08), rgba(18, 20, 22, 0.15))",
+                          backdropFilter: "blur(9.6px)",
+                          background: "linear-gradient(to bottom, rgba(18, 20, 22, 0.064), rgba(18, 20, 22, 0.12))",
                         }}
                       />
                       
@@ -349,7 +349,7 @@ export const LandingPage: React.FC = () => {
                       <div 
                         className="absolute inset-0"
                         style={{
-                          background: "linear-gradient(to bottom, transparent 0%, rgba(18, 20, 22, 0.4) 100%)",
+                          background: "linear-gradient(to bottom, transparent 0%, rgba(18, 20, 22, 0.32) 100%)",
                         }}
                       />
                     </div>
