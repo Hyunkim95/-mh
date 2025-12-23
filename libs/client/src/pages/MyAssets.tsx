@@ -22,6 +22,7 @@ import {
 import { History } from "../components/history";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { useMobileDevice } from "../hooks/useMobileDevice";
 
 type Token = TokenAsset & { usdValue: string };
 
@@ -37,7 +38,7 @@ export const MyAssets: React.FC = () => {
   const { publicKey } = useWallet();
   const [solBalance, setSolBalance] = useState<number>(0);
   const [solPrice, setSolPrice] = useState<number>(0);
-
+  const { isMobile } = useMobileDevice();
   // Fetch only tokens that are both in the user's wallet and configured in Multihopper
   const { data: crossSectionData, isLoading: isLoadingTokens } =
     trpc.tokens.crossSectionWithTokenConfigs.useQuery();
@@ -218,15 +219,19 @@ export const MyAssets: React.FC = () => {
 
   const myAssetsCardBody = (
     <div
-      className="flex flex-col bg-[var(--chinese-black-800)] rounded-3xl pt-6 px-4 pb-6 sm:pt-8 sm:px-9 sm:pb-9 border border-[var(--white-100-transparency-05)]"
+      className="flex flex-col sm:bg-[var(--chinese-black-800)] sm:rounded-3xl pt-6 px-4 pb-6 sm:pt-8 sm:px-9 sm:pb-9 sm:border sm:border-[var(--white-100-transparency-05)]"
       style={{
-        boxShadow: "inset 0px 1px 0px var(--white-100-transparency-08)",
+        boxShadow: isMobile
+          ? undefined
+          : "inset 0px 1px 0px var(--white-100-transparency-08)",
       }}
     >
       <div className="mb-6">
         <h2 className="text-xl font-semibold">Select Token</h2>
-        <p className="text-sm text-[var(--philippine-gray-500)]">
-          Choose which token you’d like to send through a new route
+        <p className="text-sm text-[var(--philippine-gray-500)] font-light">
+          {isMobile
+            ? "Choose a token to route"
+            : "Choose which token you’d like to send through a new route"}
         </p>
       </div>
 
@@ -243,7 +248,7 @@ export const MyAssets: React.FC = () => {
         showCriteriaChips={false}
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 mt-3 h-[376px] overflow-x-hidden overflow-y-auto pr-2 relative">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-4 md:gap-y-1 mt-3 h-[376px] overflow-x-hidden overflow-y-auto pr-2 relative">
         {isLoadingTokens ? (
           // Show skeleton cards while loading
           <>
@@ -308,7 +313,11 @@ export const MyAssets: React.FC = () => {
 
   const historyCardBody = <History reloadTrigger={reloadTrigger} />;
   const myAssetsCardFooter = (
-    <div className="flex flex-col sm:flex-row justify-between items-center sm:items-start gap-4">
+    <div
+      className={`flex flex-row justify-between items-center sm:items-start gap-4 ${
+        isMobile ? "card-border-gradient py-3 pl-8 pr-3" : ""
+      }`}
+    >
       {isLoadingTokens ? (
         <div className="not-italic font-medium text-sm leading-4 text-[var(--cultured-white-500)] text-center sm:text-left">
           Loading Wallet...
@@ -324,14 +333,18 @@ export const MyAssets: React.FC = () => {
         onClick={handleConfigureRoute}
         disabled={!selectedAsset}
         title={!selectedAsset ? "Select a token to continue" : undefined}
-        className={`inline-flex items-center gap-2 rounded-full text-black font-semibold px-4 py-2 sm:px-6 sm:py-3 shadow-[0_8px_24px_var(--black-900-transparency-45)] transition w-full sm:w-auto justify-center ${
+        className={`inline-flex items-center gap-2 rounded-full text-black font-semibold px-4 py-2 sm:px-6 sm:py-3  shadow-[0_8px_24px_var(--black-900-transparency-45)] transition  sm:w-full w-40 h-[51px] sm:h-auto sm:max-w-[220px] justify-center ${
           selectedAsset
             ? "bg-[var(--corn-yellow-500)] hover:brightness-95"
             : "bg-[var(--corn-yellow-500-transparency-30)] cursor-not-allowed"
         }`}
       >
-        Configure Route
-        <img src={AddIcon} alt="AddIcon" className="h-5 w-5 sm:h-6 sm:w-6 object-contain" />
+        {!isMobile && "Configure"} Route
+        <img
+          src={AddIcon}
+          alt="AddIcon"
+          className="h-5 w-5 sm:h-6 sm:w-6 object-contain"
+        />
       </button>
     </div>
   );
@@ -367,9 +380,18 @@ export const MyAssets: React.FC = () => {
               </div>
             </div>
           ),
+          headerClasses: {
+            label: {
+              base: "!text-base md:!text-xl",
+            },
+          },
         }}
         cardBody={activeKey === "assets" ? myAssetsCardBody : historyCardBody}
-        cardFooter={myAssetsCardFooter}
+        cardFooter={activeKey === "assets" ? myAssetsCardFooter : undefined}
+        cardClasses={{
+          mainCardContainer: "sm:!w-[90%] md:!w-full",
+          cardBodyContainer: "bg-transparent",
+        }}
       />
     </div>
   );
