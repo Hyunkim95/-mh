@@ -311,20 +311,68 @@ export const LandingPage: React.FC = () => {
 
                 {/* Token Input Card */}
                 <div className="relative bg-[#121416] rounded-2xl sm:rounded-3xl p-8 sm:p-10 mb-8">
-                  {/* Blurred Overlay Container */}
+                  {/* Gradient Blur Overlay Container */}
                   <div
-                    className="absolute inset-0 rounded-2xl sm:rounded-3xl flex items-end justify-center pb-16"
-                    style={{
-                      backdropFilter: "blur(12px)",
-                      backgroundColor: "rgba(18, 20, 22, 0.06)",
-                      zIndex: 10,
-                    }}
+                    className="absolute inset-0 rounded-2xl sm:rounded-3xl overflow-hidden"
+                    style={{ zIndex: 10 }}
                   >
-                    <img
-                      src="/blurred-arrows.png"
-                      alt="Overlay"
-                      className="w-24 h-24 object-contain"
-                    />
+                    {/* Gradient layers for progressive blur effect */}
+                    <div className="absolute inset-0">
+                      {/* Top section - minimal blur */}
+                      <div 
+                        className="absolute inset-x-0 top-0 h-1/3"
+                        style={{
+                          backdropFilter: "blur(2px)",
+                          background: "linear-gradient(to bottom, rgba(18, 20, 22, 0.02), rgba(18, 20, 22, 0.04))",
+                        }}
+                      />
+                      
+                      {/* Middle section - medium blur */}
+                      <div 
+                        className="absolute inset-x-0 top-1/3 h-1/3"
+                        style={{
+                          backdropFilter: "blur(6px)",
+                          background: "linear-gradient(to bottom, rgba(18, 20, 22, 0.04), rgba(18, 20, 22, 0.08))",
+                        }}
+                      />
+                      
+                      {/* Bottom section - heavy blur */}
+                      <div 
+                        className="absolute inset-x-0 bottom-0 h-1/3"
+                        style={{
+                          backdropFilter: "blur(12px)",
+                          background: "linear-gradient(to bottom, rgba(18, 20, 22, 0.08), rgba(18, 20, 22, 0.15))",
+                        }}
+                      />
+                      
+                      {/* Additional overlay for smoother transition */}
+                      <div 
+                        className="absolute inset-0"
+                        style={{
+                          background: "linear-gradient(to bottom, transparent 0%, rgba(18, 20, 22, 0.4) 100%)",
+                        }}
+                      />
+                    </div>
+                    
+                    {/* Animated Arrows at the bottom */}
+                    <div className="absolute inset-0 flex items-end justify-center pb-16">
+                      <div className="relative">
+                        {/* Floating animation */}
+                        <img
+                          src="/blurred-arrows.png"
+                          alt="Overlay"
+                          className="w-24 h-24 object-contain relative z-20 animate-float"
+                        />
+                        {/* Pulsing glow effect */}
+                        <div className="absolute inset-0 animate-pulse-slow">
+                          <img
+                            src="/blurred-arrows.png"
+                            alt="Overlay"
+                            className="w-24 h-24 object-contain opacity-50 blur-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Original Content (now blurred in background) */}
@@ -1296,6 +1344,36 @@ export const LandingPage: React.FC = () => {
         @keyframes slideInFromTop {
           from { transform: translateY(-8px); }
           to { transform: translateY(0); }
+        }
+        
+        /* Floating animation for arrows */
+        @keyframes float {
+          0%, 100% {
+            transform: translateY(0px);
+          }
+          50% {
+            transform: translateY(-10px);
+          }
+        }
+        
+        .animate-float {
+          animation: float 3s ease-in-out infinite;
+        }
+        
+        /* Slow pulse for glow effect */
+        @keyframes pulse-slow {
+          0%, 100% {
+            opacity: 0.5;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.8;
+            transform: scale(1.1);
+          }
+        }
+        
+        .animate-pulse-slow {
+          animation: pulse-slow 3s ease-in-out infinite;
         }
       `}
       </style>
