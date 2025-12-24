@@ -46,7 +46,7 @@ export const Search = <T,>({
   return (
     <div className="w-full">
       <div
-        className="flex items-center gap-3 rounded-3xl h-12 px-4 bg-[rgba(34, 36, 38, 0.26)] border border-white/10 focus-within:border-white/20"
+        className="flex items-center gap-3 rounded-3xl h-12 px-4 bg-[#222426] border border-[#222426] focus-within:border-white/20"
         style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)' }}
       >
         <svg
@@ -71,7 +71,7 @@ export const Search = <T,>({
           onChange={(e) => onQueryChange(e.target.value)}
           placeholder={placeholder}
           aria-label={placeholder}
-          className="flex-1 h-full bg-transparent outline-none text-[18px] leading-none text-white/90 placeholder:text-white/35"
+          className="flex-1 h-full bg-transparent outline-none text-[14px] md:text-[18px] leading-none text-white/90 placeholder:text-white/35"
         />
       </div>
 

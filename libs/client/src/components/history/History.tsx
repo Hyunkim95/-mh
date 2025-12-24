@@ -3,7 +3,7 @@ import { RouteItem } from "./RouteItem";
 import { trpc } from "../../trpc";
 import { useSolanaAuth } from "../../hooks/useSolanaAuth";
 import { useWalletChangeEffect } from "../..";
-import { partition } from 'lodash';
+import { partition } from "lodash";
 
 // skeeleton loader component
 const SkeletonRouteItem = () => (
@@ -60,8 +60,7 @@ export const History = ({ reloadTrigger }: { reloadTrigger: number }) => {
   // Scroll handler for infinite load
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
-    const nearBottom =
-      el.scrollHeight - el.scrollTop - el.clientHeight < 50;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
 
     if (nearBottom && hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
@@ -84,39 +83,39 @@ export const History = ({ reloadTrigger }: { reloadTrigger: number }) => {
 
   // Auto-close route if it disappears
   useEffect(() => {
-    if (openRouteId && !routes.some(r => r.id === openRouteId)) {
-      setOpenRouteId(null)
+    if (openRouteId && !routes.some((r) => r.id === openRouteId)) {
+      setOpenRouteId(null);
     }
   }, [routes, openRouteId]);
 
   const summary = useMemo(() => {
     const [completed, pending] = partition(
       routes,
-      r => r.status === 'completed'
+      (r) => r.status === "completed"
     );
-    return `${completed.length} routes completed & ${pending.length} pending`
-  }, [routes])
+    return `${completed.length} routes completed & ${pending.length} pending`;
+  }, [routes]);
 
   const handleToggle = (id: number) => {
     setOpenRouteId((prev) => (prev === id ? null : id));
   };
 
   return (
-    <div className="flex flex-col bg-[var(--chinese-black-800)] rounded-3xl p-6 border border-[var(--white-100-transparency-05)]">
+    <div className="flex flex-col md:bg-[var(--chinese-black-800)] md:rounded-3xl md:p-6 md:border md:border-[var(--white-100-transparency-05)]">
       <div className="rounded-2xl shadow-lg flex flex-col max-h-[590px]">
         <div
-          className="overflow-y-auto bg-[var(--chinese-black-800)] p-6 space-y-4 rounded-b-2xl scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent"
+          className="overflow-y-auto md:bg-[var(--chinese-black-800)] md:p-6 md:space-y-4 rounded-b-2xl scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent"
           onScroll={handleScroll}
         >
           {isLoading ? (
-          <>
-            <SkeletonRouteItem />
-            <SkeletonRouteItem />
-            <SkeletonRouteItem />
-            <SkeletonRouteItem />
-            <SkeletonRouteItem />
-          </>
-        ) : routes.length > 0 ? (
+            <div className="flex flex-col gap-2">
+              <SkeletonRouteItem />
+              <SkeletonRouteItem />
+              <SkeletonRouteItem />
+              <SkeletonRouteItem />
+              <SkeletonRouteItem />
+            </div>
+          ) : routes.length > 0 ? (
             routes.map((route) => (
               <RouteItem
                 key={route.id}
@@ -126,9 +125,7 @@ export const History = ({ reloadTrigger }: { reloadTrigger: number }) => {
               />
             ))
           ) : (
-            <p className="text-gray-400 text-sm text-center">
-              No routes found
-            </p>
+            <p className="text-gray-400 text-sm text-center">No routes found</p>
           )}
 
           {/* Infinite loading indicator */}
@@ -140,9 +137,7 @@ export const History = ({ reloadTrigger }: { reloadTrigger: number }) => {
         </div>
       </div>
 
-      <div className="text-sm text-gray-400 pt-3 text-center">
-        {summary}
-      </div>
+      <div className="text-sm text-gray-400 pt-3 text-center">{summary}</div>
     </div>
-  )
-}
+  );
+};
