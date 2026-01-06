@@ -35,7 +35,7 @@ export const getTokenConfigPda = async (
   programId?: PublicKey
 ): Promise<PublicKey> => {
   const [tokenConfigPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("token_config"), tokenMint.toBuffer()],
+    [Buffer.from("token_config_v1"), tokenMint.toBuffer()],
     programId || MULTI_HOPPER_PROGRAM_ID
   );
   return tokenConfigPda;

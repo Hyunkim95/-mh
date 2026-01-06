@@ -543,7 +543,7 @@ export const unwrapSol = async (
 
 export const getTokenConfigPda = async (tokenMint: PublicKey) => {
   const [tokenConfigPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("token_config"), tokenMint.toBuffer()],
+    [Buffer.from("token_config_v1"), tokenMint.toBuffer()],
     params.programId
   );
   return tokenConfigPda;
