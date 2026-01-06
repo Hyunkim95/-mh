@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, publicProcedure } from '../trpc';
-import dualDirectionContractEventsService from '../solana/dual-direction-contract-events.service';
+import { dualDirectionContractEventsService } from '../solana/services/dual-direction-contract-events.service';
 
 export const dualContractEventsRouter = router({
   // Get the current status of both forward and backward schedulers

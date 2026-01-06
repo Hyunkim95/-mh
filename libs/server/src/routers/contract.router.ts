@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, publicProcedure } from "../trpc";
-import {
+import contractService, {
+  routeHasHops,
   initializeCompleteTokenConfig,
   initializeCompleteSolTokenConfig,
   updateTokenConfigWithTransaction,
@@ -17,7 +18,7 @@ import {
   params,
   serialize,
 } from "../solana/services/contract.service";
-import { PublicKey, Keypair } from "@solana/web3.js";
+import { PublicKey } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
 import executorService from "../executors/executor.service";
@@ -43,6 +44,17 @@ const initializeTokenConfigInputSchema = z.object({
   splMint: publicKeySchema,
   creator: publicKeySchema,
   tokenConfig: tokenConfigSchema,
+});
+
+const addHopsInputSchema = z.object({
+  routeId: z.number(),
+  creator: publicKeySchema,
+  hops: z.array(
+    z.object({
+      recipient: publicKeySchema,
+      scheduledAt: z.number(),
+    })
+  ),
 });
 
 const initializeTokenConfigSolInputSchema = z.object({
@@ -73,7 +85,7 @@ const getTokenConfigSolInputSchema = z.object({
 // Route validation schemas
 const hopSchema = z.object({
   recipient: publicKeySchema,
-  delaySeconds: z.number(),
+  scheduledAt: z.number()
 });
 
 const initializeRouteInputSchema = z.object({
@@ -81,14 +93,14 @@ const initializeRouteInputSchema = z.object({
   splMint: publicKeySchema,
   creator: publicKeySchema,
   hopAmount: z.string(),
-  routes: z.array(hopSchema),
+  hops: z.array(hopSchema),
 });
 
 const initializeRouteSolInputSchema = z.object({
   routeId: z.number(),
   creator: publicKeySchema,
   hopAmount: z.string(),
-  routes: z.array(hopSchema),
+  hops: z.array(hopSchema),
   splMint: publicKeySchema,
 });
 
@@ -138,7 +150,7 @@ const parseTokenConfig = (tokenConfig: z.infer<typeof tokenConfigSchema>) => {
 const parseHops = (hops: z.infer<typeof hopSchema>[]) => {
   return hops.map((hop) => ({
     recipient: new PublicKey(hop.recipient),
-    delaySeconds: new BN(hop.delaySeconds),
+    executeAt: new BN(Math.floor(new Date(hop.scheduledAt).getTime() / 1000)), // Convert to Unix timestamp
   }));
 };
 
@@ -156,26 +168,21 @@ export const contractRouter = router({
         const payer = new PublicKey(creator);
         const parsedConfig = parseTokenConfig(tokenConfig);
 
-        const tokenPairMint = Keypair.generate();
         const { transaction } = await initializeCompleteTokenConfig(
           payer,
           tokenMint,
-          tokenPairMint,
           parsedConfig
         );
 
-        const serializedTransaction = await signAndSerialize(
+        const serializedTransaction = await serialize(
           transaction,
           payer,
-          tokenPairMint,
           params.connection
         );
-        // const signature = await sendAndConfirmTransaction(params.connection, transaction, [creatorUser]);
         return {
           success: true,
           data: {
-            ...serializedTransaction,
-            tokenPairMint: tokenPairMint.publicKey.toBase58(),
+            ...serializedTransaction
           },
         };
       } catch (error) {
@@ -201,21 +208,19 @@ export const contractRouter = router({
         const creatorKey = new PublicKey(creator);
         const parsedConfig = parseTokenConfig(tokenConfig);
 
-        const { transaction, wsolMint } =
+        const { transaction } =
           await initializeCompleteSolTokenConfig(creatorKey, parsedConfig);
 
-        const serializedTransaction = await signAndSerialize(
+        const serializedTransaction = await serialize(
           transaction,
           creatorKey,
-          wsolMint,
           params.connection
         );
 
         return {
           success: true,
           data: {
-            ...serializedTransaction,
-            wsolMint: wsolMint.publicKey.toBase58(),
+            ...serializedTransaction
           },
         };
       } catch (error) {
@@ -371,11 +376,14 @@ export const contractRouter = router({
     .input(initializeRouteInputSchema)
     .mutation(async ({ input }) => {
       try {
-        const { routeId, routes } = input;
+        const { routeId, hops } = input;
         const creatorKey = new PublicKey(input.creator);
-        const parsedHops = parseHops(routes);
+        const parsedHops = parseHops(hops);
 
-        const transaction = await initializeRouteWithWrap(
+        const {
+          transaction,
+          wrappedToken
+        } = await initializeRouteWithWrap(
           creatorKey,
           creatorKey,
           new BN(routeId),
@@ -385,14 +393,12 @@ export const contractRouter = router({
           TOKEN_PROGRAM_ID
         );
 
-        // Get executor keypair for signing since we're now triggering the first hop
-        const executorWallet = executorService.getWalletByRouteId(routeId);
         const serializedTransaction = await signAndSerialize(
           transaction,
           creatorKey,
-          executorWallet,
+          wrappedToken,
           params.connection
-        );
+        )
 
         return {
           success: true,
@@ -421,23 +427,24 @@ export const contractRouter = router({
     .input(initializeRouteSolInputSchema)
     .mutation(async ({ input }) => {
       try {
-        const { routeId, routes, hopAmount } = input;
+        const { routeId, hops, hopAmount } = input;
         const creatorKey = new PublicKey(input.creator);
-        const parsedHops = parseHops(routes);
+        const parsedHops = parseHops(hops);
 
-        const transaction = await initializeRouteSolWithWrap(
+        const {
+          transaction,
+          wrappedToken
+        } = await initializeRouteSolWithWrap(
           creatorKey,
           new BN(routeId),
           new BN(hopAmount),
           parsedHops
         );
 
-        // Get executor keypair for signing since we're now triggering the first hop
-        const executorWallet = executorService.getWalletByRouteId(routeId);
         const serializedTransaction = await signAndSerialize(
           transaction,
           creatorKey,
-          executorWallet,
+          wrappedToken,
           params.connection
         );
 
@@ -457,6 +464,66 @@ export const contractRouter = router({
             error instanceof Error
               ? error.message
               : "Failed to initialize SOL route",
+        });
+      }
+    }),
+
+  routeHasHops: publicProcedure
+    .input(z.object({ routeId: z.number() }))
+    .mutation(async ({ input }) => {
+      try {
+        const result = await routeHasHops(input.routeId);
+        return {
+          success: true,
+          data: {
+            routeId: input.routeId,
+            ...result,
+          },
+        };
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to check if route has hops",
+        });
+      }
+    }),
+  
+  addHops: publicProcedure
+    .input(addHopsInputSchema)
+    .mutation(async ({
+      input
+    }) => {
+      try {
+        const { routeId, creator, hops } = input;
+        const parsedHops = parseHops(hops);
+        const creatorKey = new PublicKey(creator);
+
+        const result = await contractService.addHops(
+          creatorKey,
+          new BN(routeId),
+          parsedHops
+        );
+
+        const serialized = await serialize(
+          result,
+          new PublicKey(creator),
+          params.connection
+        );
+
+        return {
+          success: true,
+          data: serialized,
+        };
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to add hops",
         });
       }
     }),

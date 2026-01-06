@@ -3,19 +3,19 @@ import { BN } from "bn.js";
 
 export interface IHop {
   recipient: PublicKey;
-  delaySeconds: typeof BN;
+  executeAt: typeof BN;
 }
 
 export interface RouteConfig {
   creator: PublicKey;
-  routeId: typeof BN;
+  routeId: typeof  BN;
   tokenConfig: PublicKey;
   sourceOwner: PublicKey;
   executor: PublicKey;
   hops: IHop[];
   hopAmount: typeof BN;
   isFinalized: boolean;
-  createdAt: typeof BN;
+  createdAt: typeof  BN;
 }
 
 export interface RouteStateAccount {
@@ -90,13 +90,13 @@ export interface HumanReadableRouteInput {
 }
 
 export interface InitializeRouteInput {
-  routes: IHopInput[];
+  hops: IHopInput[];
   hopAmount: string;
   splMint?: string;
 }
 
 export interface InitializeRouteSOLInput {
-  routes: IHopInput[];
+  hops: IHopInput[];
   hopAmount: string;
 }
 
@@ -158,7 +158,7 @@ export const convertTimestampToRouteInput = (
   );
 
   return {
-    routes: convertedHops,
+    hops: convertedHops,
     hopAmount: hopAmountRaw.toString(),
     splMint: timestampInput.splMint,
   };
@@ -179,7 +179,7 @@ export const convertHumanReadableToRouteInput = (
   }));
 
   return {
-    routes: convertedHops,
+    hops: convertedHops,
     hopAmount: hopAmountRaw.toString(),
     splMint: humanInput.splMint,
   };
@@ -193,7 +193,7 @@ export const convertRouteInputToHumanReadable = (
     parseFloat(input.hopAmount) / Math.pow(10, tokenDecimals)
   ).toString();
 
-  const convertedHops: HumanReadableHopInput[] = input.routes.map((hop) => ({
+  const convertedHops: HumanReadableHopInput[] = input.hops.map((hop) => ({
     recipient: hop.recipient,
     delayMinutes: (parseFloat(hop.delaySeconds) / 60).toString(),
   }));

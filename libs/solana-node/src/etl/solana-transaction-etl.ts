@@ -6,6 +6,7 @@ import {
   Finality
 } from '@solana/web3.js';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import { sql, inArray } from 'drizzle-orm';
 import { BaseEtlJob, ExtractResult, TransformResult, LoadResult, EtlJobConfig } from '@libs/etl';
 import { uniqBy } from 'lodash';
 import { 
@@ -213,22 +214,37 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
     }
   }
 
-  // New method: Filter out already processed transactions using cursor metadata
+  // New method: Filter out already processed transactions using database and cursor metadata
   private async filterProcessedTransactions(transactions: ConfirmedSignatureInfo[]): Promise<ConfirmedSignatureInfo[]> {
     try {
-      // Get current cursor to check processed signatures
-      const currentCursor = await this.getCursor();
+      if (transactions.length === 0) return transactions;
+
       const processedSignatures = new Set<string>();
 
+      // First check cursor metadata for recently processed signatures
+      const currentCursor = await this.getCursor();
       if (currentCursor?.metadata?.processedSignatures) {
-        // Load processed signatures from cursor metadata
         const signatures = currentCursor.metadata.processedSignatures as string[];
         signatures.forEach(sig => processedSignatures.add(sig));
       }
 
+      // Query database for processed signatures in this batch
+      const signaturesToCheck = transactions.map(tx => tx.signature);
+      const existingSignatures = await this.db
+        .select({ signature: this.targetTable.signature })
+        .from(this.targetTable)
+        .where(inArray(this.targetTable.signature, signaturesToCheck));
+
+      // Add database results to processed set
+      existingSignatures.forEach(row => {
+        processedSignatures.add(row.signature);
+      });
+
       // Filter out already processed transactions
       const unprocessed = transactions.filter(tx => !processedSignatures.has(tx.signature));
       
+      console.log(`Filtered out ${processedSignatures.size} already processed signatures from batch of ${transactions.length}`);
+
       // Update in-memory cache
       transactions.forEach(tx => {
         this.indexedTransactions.set(tx.signature, true);
@@ -241,124 +257,145 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
     }
   }
 
-  // New method: Get recent transactions with proper cursor management
+  // New method: Get recent transactions with optimized cursor management
   private async getRecentTransactions(publicKey: PublicKey, untilSignature?: string): Promise<ConfirmedSignatureInfo[]> {
-    let hasMore = true;
-    const signatures: ConfirmedSignatureInfo[] = [];
-    let _signatures: ConfirmedSignatureInfo[] = [];
-
-    // Get the most recent processed transaction from cursor metadata
-    const mostRecent = await this.getMostRecentProcessedSignature();
-    const until = untilSignature || mostRecent;
+    // Get processed signature boundaries to optimize RPC calls
+    const boundaries = await this.getProcessedSignatureBoundaries();
+    
+    // Use the newest processed signature as the 'until' boundary to avoid re-fetching
+    const until = untilSignature || boundaries.newestProcessed;
 
     if (until && this.indexedTransactions.has(until)) {
-      console.log('Last transaction already indexed');
+      console.log('Last transaction already indexed, skipping RPC call');
       return [];
-    } 
-
-    _signatures = await this.connection.getSignaturesForAddress(
-      publicKey,
-      {
-        limit: this.solanaConfig.maxSignatures,
-        until: until,
-      }
-    );
-
-    signatures.push(..._signatures);
-    while (hasMore) {
-      if (_signatures.length >= this.solanaConfig.maxSignatures!) {
-        _signatures = await this.connection.getSignaturesForAddress(
-          publicKey,
-          {
-            limit: this.solanaConfig.maxSignatures,
-            before: _signatures[_signatures.length - 1].signature,
-            until: until,
-          }
-        );
-        signatures.push(..._signatures);
-        continue;
-      } else {
-        hasMore = false;
-      }
     }
 
-    if (until) {
-      this.indexedTransactions.set(until, true);
-    }
+    console.log(`Fetching recent transactions until: ${until ? until.substring(0, 8) + '...' : 'none'}`);
 
-    return signatures;
+    try {
+      const signatures = await this.connection.getSignaturesForAddress(
+        publicKey,
+        {
+          limit: this.solanaConfig.maxSignatures,
+          until: until,
+        }
+      );
+
+      // Pre-filter signatures against recent processed ones to reduce subsequent processing
+      const filteredSignatures = signatures.filter(sig => !boundaries.recentProcessedSignatures.has(sig.signature));
+      
+      console.log(`Fetched ${signatures.length} signatures, ${filteredSignatures.length} are potentially new`);
+
+      if (until) {
+        this.indexedTransactions.set(until, true);
+      }
+
+      return filteredSignatures;
+    } catch (error) {
+      console.error('Error fetching recent transactions:', error);
+      return [];
+    }
   }
 
-  // New method: Get historical transactions with proper cursor management
+  // New method: Get historical transactions with optimized cursor management
   private async getHistoricalTransactions(publicKey: PublicKey, beforeSignature?: string): Promise<ConfirmedSignatureInfo[]> {
-    let hasMore = true;
-    const signatures: ConfirmedSignatureInfo[] = [];
-    let _signatures: ConfirmedSignatureInfo[] = [];
-
-    const lastTransaction = await this.getLastProcessedSignature();
-    const before = beforeSignature || lastTransaction;
+    // Get processed signature boundaries to optimize RPC calls
+    const boundaries = await this.getProcessedSignatureBoundaries();
     
-    if (!before) return [];
-    if (this.indexedTransactions.has(before)) {
-      console.log('Last transaction already indexed');
-      return [];
-    }
+    // Use the oldest processed signature as the 'before' boundary to avoid re-fetching processed history
+    const before = beforeSignature || boundaries.oldestProcessed;
     
-    this.indexedTransactions.set(before, true);
-    
-    _signatures = await this.connection.getSignaturesForAddress(
-      publicKey,
-      {
-        limit: this.solanaConfig.maxSignatures,
-        before: before,
-      }
-    );
-
-    signatures.push(..._signatures);
-    while (hasMore) {
-      if (_signatures.length >= this.solanaConfig.maxSignatures!) {
-        _signatures = await this.connection.getSignaturesForAddress(
+    if (!before) {
+      console.log('No historical boundary found, fetching from beginning');
+      // If no processed signatures exist, we can fetch some historical data
+      try {
+        const signatures = await this.connection.getSignaturesForAddress(
           publicKey,
           {
             limit: this.solanaConfig.maxSignatures,
-            before: _signatures[_signatures.length - 1].signature,
           }
         );
-        signatures.push(..._signatures);
-        continue;
-      } else {
-        hasMore = false;
+        return signatures.filter(sig => !boundaries.recentProcessedSignatures.has(sig.signature));
+      } catch (error) {
+        console.error('Error fetching initial historical transactions:', error);
+        return [];
       }
     }
 
-    return signatures;
-  }
+    if (this.indexedTransactions.has(before)) {
+      console.log('Historical boundary already indexed, skipping RPC call');
+      return [];
+    }
 
-  // New method: Get most recent processed signature from cursor metadata
-  private async getMostRecentProcessedSignature(): Promise<string | undefined> {
+    console.log(`Fetching historical transactions before: ${before.substring(0, 8)}...`);
+
     try {
-      const cursor = await this.getCursor();
-      if (cursor?.metadata?.lastProcessedSignature) {
-        return cursor.metadata.lastProcessedSignature as string;
+      const signatures = await this.connection.getSignaturesForAddress(
+        publicKey,
+        {
+          limit: this.solanaConfig.maxSignatures,
+          before: before,
+        }
+      );
+
+      // Pre-filter signatures against recent processed ones
+      const filteredSignatures = signatures.filter(sig => !boundaries.recentProcessedSignatures.has(sig.signature));
+      
+      console.log(`Fetched ${signatures.length} historical signatures, ${filteredSignatures.length} are potentially new`);
+
+      if (before) {
+        this.indexedTransactions.set(before, true);
       }
-      return undefined;
+
+      return filteredSignatures;
     } catch (error) {
-      console.warn('Failed to get most recent processed signature:', error);
-      return undefined;
+      console.error('Error fetching historical transactions:', error);
+      return [];
     }
   }
 
-  // New method: Get last processed signature from cursor metadata
-  private async getLastProcessedSignature(): Promise<string | undefined> {
+
+  // New method: Get processed signature boundaries to optimize RPC calls
+  private async getProcessedSignatureBoundaries(): Promise<{
+    newestProcessed?: string;
+    oldestProcessed?: string;
+    recentProcessedSignatures: Set<string>;
+  }> {
     try {
-      const cursor = await this.getCursor();
-      if (cursor?.metadata?.lastProcessedSignature) {
-        return cursor.metadata.lastProcessedSignature as string;
-      }
-      return undefined;
+      const results = await Promise.all([
+        // Get newest processed signature
+        this.db
+          .select({ signature: this.targetTable.signature })
+          .from(this.targetTable)
+          .orderBy(sql`${this.targetTable.slot} DESC`)
+          .limit(1),
+        
+        // Get oldest processed signature
+        this.db
+          .select({ signature: this.targetTable.signature })
+          .from(this.targetTable)
+          .orderBy(sql`${this.targetTable.slot} ASC`)
+          .limit(1),
+        
+        // Get recent 100 processed signatures for immediate filtering
+        this.db
+          .select({ signature: this.targetTable.signature })
+          .from(this.targetTable)
+          .orderBy(sql`${this.targetTable.slot} DESC`)
+          .limit(100)
+      ]);
+
+      const [newestResult, oldestResult, recentResults] = results;
+      const recentProcessedSignatures = new Set(recentResults.map(r => r.signature));
+
+      return {
+        newestProcessed: newestResult[0]?.signature,
+        oldestProcessed: oldestResult[0]?.signature,
+        recentProcessedSignatures,
+      };
     } catch (error) {
-      console.warn('Failed to get last processed signature:', error);
-      return undefined;
+      console.warn('Failed to get processed signature boundaries:', error);
+      return { recentProcessedSignatures: new Set() };
     }
   }
 
@@ -564,9 +601,11 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
     }
   }
 
-  // New method: Update cursor with processed signatures
+  // Enhanced method: Update cursor with processed signatures and boundaries
   private async updateCursorWithProcessedSignatures(signatures: string[]): Promise<void> {
     try {
+      if (signatures.length === 0) return;
+
       const currentCursor = await this.getCursor();
       const existingSignatures = new Set<string>();
       
@@ -578,11 +617,16 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
       // Add new signatures to the set
       signatures.forEach(sig => existingSignatures.add(sig));
 
-      // Keep only the last 1000 signatures to prevent cursor from growing too large
-      const processedSignatures = Array.from(existingSignatures).slice(-1000);
+      // Keep only the last 500 signatures to prevent cursor from growing too large
+      // (reduced from 1000 since we now also query database for filtering)
+      const processedSignatures = Array.from(existingSignatures).slice(-500);
       const lastProcessedSignature = signatures[signatures.length - 1];
+      const firstProcessedSignature = signatures[0];
 
-      // Get current slot for metadata (signatures are strings, not objects with slot)
+      // Get current boundaries from database for better cursor state
+      const boundaries = await this.getProcessedSignatureBoundaries();
+
+      // Get current slot for metadata
       let lastIndexedSlot = 0;
       try {
         lastIndexedSlot = await this.connection.getSlot();
@@ -590,7 +634,7 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
         console.warn('Failed to get current slot for cursor metadata:', error);
       }
 
-      // Update cursor with new metadata using cursorManager
+      // Update cursor with enhanced metadata including boundaries
       await this.cursorManager.updateCursor(
         this.config.jobName,
         JSON.stringify({
@@ -602,14 +646,27 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
             lastIndexedSlot,
             processedSignatures,
             lastProcessedSignature,
+            firstProcessedSignature,
+            // Add boundary information for more efficient RPC calls
+            newestBoundary: boundaries.newestProcessed,
+            oldestBoundary: boundaries.oldestProcessed,
+            lastBatchSize: signatures.length,
+            lastUpdated: new Date().toISOString(),
           },
         }),
         {
           processedSignatures,
           lastProcessedSignature,
+          firstProcessedSignature,
           totalProcessed: processedSignatures.length,
+          boundaries: {
+            newest: boundaries.newestProcessed,
+            oldest: boundaries.oldestProcessed,
+          },
         }
       );
+
+      console.log(`Updated cursor with ${signatures.length} new signatures, boundaries: newest=${boundaries.newestProcessed?.substring(0, 8)}..., oldest=${boundaries.oldestProcessed?.substring(0, 8)}...`);
     } catch (error) {
       console.warn('Failed to update cursor with processed signatures:', error);
     }

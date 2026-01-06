@@ -25,7 +25,6 @@ export const useInitializeTokenConfig = ({
         // try connect with solana wallet
         await connect();
       }
-      console.log(connection);
       const { address, tokenConfig } = data;
 
       const transactionSignature = await initializeTokenConfig.mutateAsync({
@@ -36,15 +35,14 @@ export const useInitializeTokenConfig = ({
       const transaction = Transaction.from(
         Buffer.from(transactionSignature.data.transaction, "base64")
       );
-      const signature = await sendTransaction(transaction, connection, {
-        skipPreflight: true,
-      });
-      const latestBlockhash = await connection.getLatestBlockhash();
+      const output = await connection.simulateTransaction(transaction);
+      console.log("Simulation output:", output);
+      const signature = await sendTransaction(transaction, connection);
       const confirmation = await connection.confirmTransaction(
         {
           signature: signature,
-          blockhash: latestBlockhash.blockhash,
-          lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+          blockhash: transactionSignature.data.recentBlockhash,
+          lastValidBlockHeight: transactionSignature.data.lastValidBlockHeight,
         },
         "confirmed"
       );
@@ -88,12 +86,11 @@ export const useInitializeTokenConfig = ({
       const signature = await sendTransaction(transaction, connection, {
         skipPreflight: true,
       });
-      const latestBlockhash = await connection.getLatestBlockhash();
       const confirmation = await connection.confirmTransaction(
         {
           signature: signature,
-          blockhash: latestBlockhash.blockhash,
-          lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
+          blockhash: transactionSignature.data.recentBlockhash,
+          lastValidBlockHeight: transactionSignature.data.lastValidBlockHeight,
         },
         "confirmed"
       );

@@ -28,7 +28,7 @@ export const TokenCard: React.FC<TokenCardProps> = ({
   selected = false,
 }) => {
   const [imageError, setImageError] = useState(false);
-
+  
   return (
     <button
       type='button'

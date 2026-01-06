@@ -78,6 +78,10 @@ const getTokensAccountsWithCache = async (
   }
   userToTimestamp.set(owner, now + 1000 * 60 * 5);
   const tokens = await getTokenAccounts(owner, apiUrl);
+  console.log(
+    tokens, 
+    `Fetched ${tokens.length} tokens for owner ${owner} from Helius.`
+  )
   internalCache.set(owner, tokens);
   return tokens;
 };
@@ -86,16 +90,19 @@ export const crossSectionWithTokenConfigs = async (
   owner: string,
   apiUrl?: string
 ) => {
-  const tokens = await getTokensAccountsWithCache(owner, apiUrl);
+  const tokens = [
+    ...await getTokensAccountsWithCache(owner, apiUrl),
+  ];
   if (tokens.length === 0) {
     return {
       tokens: [],
       tokenConfigs: [],
     };
   }
-  const tokenConfigs = await tokenConfigsService.findIn(
+  const tokenConfigs = [
+    ...await tokenConfigsService.findIn(
     tokens.map((t) => t.id)
-  );
+  )];
   return {
     tokens: tokens.filter((t) =>
       tokenConfigs.some(

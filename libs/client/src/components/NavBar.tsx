@@ -5,7 +5,7 @@ import Wallet from '../assets/navbar/connected-wallet.svg'
 import LogOutIcon from '../assets/icons/log-out-icon.svg'
 import { useSolanaAuth } from '../hooks/useSolanaAuth'
 import { router } from '../router'
-import {  useRouterState } from '@tanstack/react-router'
+import { useRouterState } from '@tanstack/react-router'
 
 export const NavBar = () => {
   const { publicKey } = useWallet()
@@ -16,18 +16,14 @@ export const NavBar = () => {
     select: s => s.location.pathname,
   })
   const isDashboardActive = pathname.startsWith('/admin/multihopper')
-  const isMyAssetsActive = pathname.startsWith('/my-assets')
-
-  function goToHome() {
-    router.navigate({ to: '/' });
-  }
 
   return (
     <div className='w-full flex flex-row justify-between pt-6 sm:pt-11 px-4 sm:px-20 z-50 relative'>
-      <div className='flex flex-row justify-center items-center gap-2 sm:gap-4'>
+      <div 
+        className='flex flex-row justify-center items-center gap-4'>
         <button
-          onClick={goToHome}
-          className='flex flex-row items-center gap-2 sm:gap-4 hover:opacity-80 transition-opacity cursor-pointer'
+            className='flex flex-row items-center gap-2 sm:gap-4 hover:opacity-80 transition-opacity cursor-pointer'
+          onClick={() => router.navigate({ to: '/my-assets' })}
         >
           <img src={Logo} alt='Logo' className='w-6 sm:w-8 h-6 sm:h-8 object-contain' />
           <h1 className='text-base sm:text-xl font-bold text-[var(--white-100)]'>
@@ -46,20 +42,7 @@ export const NavBar = () => {
                 }
                 onClick={() => router.navigate({ to: '/admin/multihopper' })}
               >
-                Dashboard
-              </Button>
-            </div>
-            <div className='max-h-[46px]'>
-              <Button
-                variant='secondary'
-                className={
-                  isMyAssetsActive
-                    ? '!bg-[var(--white-100)] !text-[var(--black-900)]'
-                    : ''
-                }
-                onClick={() => router.navigate({ to: '/my-assets' })}
-              >
-                My Assets
+                Admin Dashboard
               </Button>
             </div>
           </div>

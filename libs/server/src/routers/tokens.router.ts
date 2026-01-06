@@ -16,5 +16,13 @@ export const tokensRouter = router({
       queryUser,
       process.env.HELIUS_API
     );
-  })
+  }),
+  getTokenPrice: adminProcedure
+    .input(z.string().min(1))
+    .query(async ({ input }) => {
+      return await tokensService.getTokenPrice(
+        input,
+        process.env.HELIUS_API
+      );
+    }),
 });

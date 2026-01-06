@@ -3,7 +3,7 @@ import { RouteItem } from "./RouteItem";
 import { trpc } from "../../trpc";
 import { useSolanaAuth } from "../../hooks/useSolanaAuth";
 import { useWalletChangeEffect } from "../..";
-import { partition } from "lodash";
+import { partition } from 'lodash';
 
 // skeeleton loader component
 const SkeletonRouteItem = () => (

@@ -32,27 +32,6 @@ export const DeployModal: React.FC<DeployModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const { deploy } = useDeploy()
 
-  // Calculate delay seconds from scheduled timestamps
-  const calculateDelaySeconds = (
-    hops: { scheduledAt: string }[]
-  ): { recipient: string; delaySeconds: string }[] => {
-    return hops.map((hop, index, arr) => {
-      if (index === 0) {
-        return {
-          recipient: (hop as any).recipient,
-          delaySeconds: '0',
-        }
-      }
-      const prevTime = new Date(arr[index - 1].scheduledAt).getTime()
-      const currTime = new Date(hop.scheduledAt).getTime()
-      const delayMs = Math.max(0, currTime - prevTime)
-      return {
-        recipient: (hop as any).recipient,
-        delaySeconds: Math.floor(delayMs / 1000).toString(),
-      }
-    })
-  }
-
   // Format time display
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr)
@@ -85,7 +64,10 @@ export const DeployModal: React.FC<DeployModalProps> = ({
       const deployData = {
         routeId: route.routeId,
         databaseId: route.id,
-        routes: calculateDelaySeconds(route.hops),
+        hops: route.hops.map((hop) => ({
+          recipient: hop.recipient,
+          scheduledAt: new Date(hop.scheduledAt).getTime(),
+        })),
         hopAmount: route.hopAmountRaw,
         splMint: route.tokenMint || undefined,
       }

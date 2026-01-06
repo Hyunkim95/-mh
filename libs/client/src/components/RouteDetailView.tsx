@@ -6,7 +6,6 @@ import { PublicKey } from "@solana/web3.js";
 
 import { useDeploy } from "../hooks/useDeploy";
 import {
-  convertTimestampHopsToIHopInput,
   TimestampHopInput,
 } from "../types/route";
 import { TimezoneAwareDateDisplay } from "./TimezoneAwareDatePicker";
@@ -112,14 +111,14 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
   const handleDeploy = async () => {
     if (!route || !route.hops) return;
     try {
-      // Convert timestamp-based hops to IHopInput format
-      const convertedHops = convertTimestampHopsToIHopInput(route.hops);
-
       await deploy(
         {
           routeId: route.routeId, // Contract route ID
           databaseId: route.id, // Database primary key ID
-          routes: convertedHops,
+          hops: route.hops.map((hop) => ({
+            recipient: hop.recipient,
+            scheduledAt: new Date(hop.scheduledAt).getTime(), // Convert to UNIX timestamp
+          })),
           hopAmount: route.hopAmountRaw, // Use raw amount for contract
           splMint: route.tokenMint || NATIVE_MINT.toBase58(),
         },
@@ -435,14 +434,8 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-[var(--philippine-gray-500)]">Token Config</p>
-                      <p className="font-mono text-sm break-all text-[var(--laser-lemon-500)]">
-                        {routeConfigQuery.data.data?.tokenConfig}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-[var(--philippine-gray-500)]">Source Owner</p>
-                      <p className="font-mono text-sm break-all text-[var(--laser-lemon-500)]">
+                      <p className="text-sm text-gray-600">Source Owner</p>
+                      <p className="font-mono text-sm break-all text-blue-600">
                         {routeConfigQuery.data.data?.sourceOwner}
                       </p>
                     </div>

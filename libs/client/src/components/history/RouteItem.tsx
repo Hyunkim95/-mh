@@ -46,58 +46,78 @@ export const RouteItem = ({ route }: RouteItemProps) => {
       ? new Intl.NumberFormat(undefined, { maximumFractionDigits: 6 }).format(
           Number(route.hopAmountTokens)
         )
-      : null;
+      : null
 
   const handleReplay = async () => {
-    const numericId = Number(route.id);
+    const numericId = Number(route.id)
     if (!Number.isFinite(numericId)) {
       // silently ignore if this mock item doesn't have a numeric DB id
-      return;
+      return
     }
     // fromWallet is rendered as the wallet in this component; assume it's the creator
-    await replay({ id: numericId, creator: route.creator });
-  };
+    await replay({ id: numericId, creator: route.creator })
+  }
 
   const handleDeploy = async () => {
-    if (isDeploying) return;
-    setIsDeploying(true);
+    if (isDeploying) return
+    setIsDeploying(true)
     try {
       const hopsArray = Array.isArray(route.hops) ? route.hops : [];
-      const formattedHops = hopsArray.map((hop: any) => ({
-        recipient: hop.recipient,
-        delaySeconds: String(hop.delaySeconds ?? 0),
-      }));
+      
+      // Use reduce to calculate timestamps based on delaySeconds
+      const formattedHops = hopsArray.reduce<Array<{ recipient: string; scheduledAt: number }>>(
+        (acc, hop, index) => {
+          let scheduledAt: number;
+          
+          if (index === 0) {
+            // First hop executes immediately
+            scheduledAt = Math.floor(Date.now() / 1000);
+          } else {
+            // Calculate based on previous hop's scheduledAt + current hop's delaySeconds
+            const prevScheduledAt = acc[index - 1].scheduledAt;
+            const delaySeconds = hop.delaySeconds || 0;
+            scheduledAt = prevScheduledAt + delaySeconds;
+          }
+          
+          return [...acc, {
+            recipient: hop.recipient,
+            scheduledAt,
+          }];
+        },
+        []
+      );
+      
       await deploy(
         {
           routeId: route.routeId,
           databaseId: route.id,
-          routes: formattedHops,
+          hops: formattedHops,
           hopAmount: route.hopAmountRaw,
           splMint:
-            route.tokenType === "SPL"
+            route.tokenType === 'SPL'
               ? route.tokenMint ?? undefined
               : undefined,
         },
-        route.tokenType as "SPL" | "SOL"
-      );
+        route.tokenType as 'SPL' | 'SOL'
+      )
       // Refresh the list after successful deploy to update status/button
-      await utils.routes.getByCreator.invalidate({ creator: route.creator });
+      await utils.routes.getByCreator.invalidate({ creator: route.creator })
     } finally {
-      setIsDeploying(false);
+      setIsDeploying(false)
     }
-  };
+  }
 
   const onToggle = () => {
-    setOpen(!open);
-  };
+    setOpen(!open)
+  }
 
   const getStepDetails = (step: Route) => {
     const dateOptions: Intl.DateTimeFormatOptions = {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    };
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }
 
     // // COMPLETED: stayed + departure
     // if (step.status === "completed") {
@@ -117,61 +137,54 @@ export const RouteItem = ({ route }: RouteItemProps) => {
     //   return `Expected arrival at ${arrivalDate}`;
     // }
 
-    return "";
-  };
+    return ''
+  }
 
   return (
-    <div className="relative flex flex-col bg-[var(--dark-jungle-green-500)] rounded-xl shadow-sm overflow-hidden">
+    <div className='relative flex flex-col bg-[var(--dark-jungle-green-500)] rounded-xl shadow-sm overflow-hidden'>
       {/* Header */}
-      <button
-        onClick={onToggle}
-        className="grid grid-cols-3 gap-6 sm:flex items-center justify-between w-full p-4 sm:gap-3"
-      >
+      <button onClick={onToggle}
+        className="flex items-center justify-between w-full p-4 gap-3">
         {/* Route Name & ID - Flexible with overflow */}
-        {isMobile ? undefined : (
-          <div className="flex flex-col items-start text-left min-w-0 flex-1 max-w-[140px]">
-            <div className="text-sm text-white font-medium truncate w-full overflow-x-auto scrollbar-hide">
-              {route.name || `Route`}
-            </div>
-            <div className="text-xs text-gray-400 truncate w-full">
-              #{route.id}
-            </div>
-          </div>
-        )}
+        {
+          !isMobile &&         <div className="flex flex-col items-start text-left min-w-0 flex-1 max-w-[140px]">
+          <div className="text-sm text-white font-medium truncate w-full overflow-x-auto scrollbar-hide">{route.name || `Route`}</div>
+          <div className="text-xs text-gray-400 truncate w-full">
+            #{route.id}</div>
+        </div>
+        }
 
         {/* Token info - Flexible with overflow */}
-        <div className="col-start-1 col-end-3 -order-2 md:order-0 flex flex-row gap-[10px] text-left min-w-0 flex-1 max-w-[120px]">
+        <div className="flex flex-row gap-[10px] text-left min-w-0 flex-1 max-w-[120px]">
+          {/* <img
+            src={route.token}
+            alt={route.symbol}
+            className="w-10 h-10 rounded-full justify-center items-center"
+          /> */}
           <div className="flex flex-col items-start text-left min-w-0">
-            <div className="font-medium text-white truncate w-full">
-              {route.tokenSymbol || route.tokenType}
-            </div>
+            <div className="font-medium text-white truncate w-full">{route.tokenSymbol || route.tokenType}</div>
             {formattedAmount ? (
-              <div className="text-xs text-gray-400 truncate w-full overflow-x-auto scrollbar-hide">
-                {formattedAmount}
-              </div>
+              <div className="text-xs text-gray-400 truncate w-full overflow-x-auto scrollbar-hide">{formattedAmount}</div>
             ) : null}
           </div>
         </div>
 
         {/* Creator/Wallet - Flexible with overflow */}
-        {!isMobile && (
-          <div className="flex flex-col items-start text-left min-w-0 flex-1 max-w-[140px]">
-            <div className="font-medium text-white truncate w-full overflow-x-auto scrollbar-hide">
-              {trimAddress(route.creator)}
-            </div>
-            <div className="text-xs text-gray-400 truncate w-full">
-              {isCompleted ? "Final Destination" : "Current Wallet"}
-            </div>
+        <div className="flex flex-col items-start text-left min-w-0 flex-1 max-w-[140px]">
+          <div className="font-medium text-white truncate w-full overflow-x-auto scrollbar-hide">{trimAddress(route.creator)}</div>
+          <div className="text-xs text-gray-400 truncate w-full">
+            {isCompleted ? "Final Destination" : "Current Wallet"}
           </div>
-        )}
+        </div>
 
         {/* Hops - Flexible */}
-        {!isMobile && (
-          <div className="flex flex-col items-start text-left min-w-0 flex-1 max-w-[80px]">
-            <div className="text-sm text-white font-medium">Hops</div>
-            <div className="text-xs text-gray-400">{hopsCount}</div>
-          </div>
-        )}
+        {
+          !isMobile &&         <div className="flex flex-col items-start text-left min-w-0 flex-1 max-w-[80px]">
+          <div className="text-sm text-white font-medium">Hops</div>
+          <div className="text-xs text-gray-400">{hopsCount}</div>
+        </div>
+        }
+
         {isMobile && (
           <div className="flex flex-col gap-3 col-start-1 col-end-3">
             <div className="flex items-start justify-between text-left min-w-0 flex-1 gap-3 w-full">
@@ -188,6 +201,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
             </div>
           </div>
         )}
+
         {/* Status - Flexible */}
         <div className="flex flex-col items-start text-left -order-1 md:order-0 min-w-0 flex-1 max-w-[100px]">
           <div className="text-xs text-gray-400">Status</div>
@@ -196,32 +210,33 @@ export const RouteItem = ({ route }: RouteItemProps) => {
               isCompleted ? "text-green-400" : "text-yellow-400"
             }`}
           >
-            {isCompleted ? "Completed" : isDraft ? "Draft" : "Pending"}
+            {isCompleted ? 'Completed' : isDraft ? 'Draft' : 'Pending'}
           </div>
         </div>
+
         {/* Right side status + toggle icon - Fixed width */}
         <div className="flex flex-col sm:flex-row items-center gap-3 flex-shrink-0">
           {isDraft ? (
-            <Button
-              onClick={handleDeploy}
-              disabled={isDeploying}
-              variant="ghost"
-              // className='px-3 py-1 rounded-lg text-[var(--black-900)] bg-yellow-400 hover:brightness-95 disabled:opacity-60 disabled:cursor-not-allowed'
-              className="!py-0 rounded-lg hover:text-[var(--black-900)] hover:bg-yellow-400 disabled:opacity-60 disabled:cursor-not-allowed h-8 w-[72px] order-1 md:order-0"
-            >
-              Deploy
-            </Button>
-          ) : (
-            <Button
-              onClick={handleReplay}
-              disabled={isPending}
-              variant="ghost"
-              // className='px-3 py-1 rounded-lg text-black bg-yellow-400 hover:brightness-95 disabled:opacity-60 disabled:cursor-not-allowed'
-              className="!py-0 rounded-lg hover:text-[var(--black-900)] hover:bg-yellow-400 disabled:opacity-60 disabled:cursor-not-allowed h-8 w-[72px]"
-            >
-              Replay
-            </Button>
-          )}
+              <Button
+                onClick={handleDeploy}
+                disabled={isDeploying}
+                variant='ghost'
+                // className='px-3 py-1 rounded-lg text-[var(--black-900)] bg-yellow-400 hover:brightness-95 disabled:opacity-60 disabled:cursor-not-allowed'
+                className="!py-0 rounded-lg hover:text-[var(--black-900)] hover:bg-yellow-400 disabled:opacity-60 disabled:cursor-not-allowed h-8 w-[72px] order-1 md:order-0"
+              >
+                Deploy
+              </Button>
+            ) : (
+              <Button
+                onClick={handleReplay}
+                disabled={isPending}
+                variant='ghost'
+                // className='px-3 py-1 rounded-lg text-black bg-yellow-400 hover:brightness-95 disabled:opacity-60 disabled:cursor-not-allowed'
+                className='!py-0 rounded-lg hover:text-[var(--black-900)] hover:bg-yellow-400 disabled:opacity-60 disabled:cursor-not-allowed h-8 w-[72px]'
+              >
+                Replay
+              </Button>
+            )}
           {open ? (
             <img src={OpenIcon} alt="open" className="w-7 h-7" />
           ) : (
@@ -232,50 +247,48 @@ export const RouteItem = ({ route }: RouteItemProps) => {
 
       {/* Expanded section */}
       {open && (
-        <div className="relative bg-[var(--dark-jungle-green-500)] pl-10 pr-4 pb-4 space-y-4">
+        <div className='relative bg-[var(--dark-jungle-green-500)] pl-10 pr-4 pb-4 space-y-4'>
           {(route.hops ?? []).map((step, index, steps) => {
-            const isLast = index === steps.length - 1;
-            const isCurrentHop = currentHopIndex === index + 1;
-            const isUpcoming = step.status === "upcoming";
-            const lineColor = isUpcoming ? "bg-gray-600" : "bg-yellow-400";
+            const isLast = index === steps.length - 1
+            const isCurrentHop = currentHopIndex === index + 1
+            const isUpcoming = step.status === 'upcoming'
+            const lineColor = isUpcoming ? 'bg-gray-600' : 'bg-yellow-400'
 
             return (
               <div
                 key={`${route.id}-${index}`}
                 className={`relative flex items-start bg-[var(--white-100-transparency-03)] gap-3 border ${
-                  isCurrentHop ? "border-yellow-400" : "border-transparent"
+                  isCurrentHop ? 'border-yellow-400' : 'border-transparent'
                 } rounded-2xl p-3`}
               >
                 {/* Dot + connecting line */}
-                <div className="absolute -left-[1rem] flex flex-col items-center">
+                <div className='absolute -left-[1rem] flex flex-col items-center'>
                   <div className={`w-[2px] h-[100px] ${lineColor}`} />
-                  <div className="w-3 h-3 absolute -top-[-15px] left-[-5px] rounded-full border-2 bg-yellow-400 border-yellow-400" />
+                  <div className='w-3 h-3 absolute -top-[-15px] left-[-5px] rounded-full border-2 bg-yellow-400 border-yellow-400' />
                 </div>
 
                 {/* Step content */}
-                <div className="flex-1 flex flex-row gap-3 items-center">
+                <div className='flex-1 flex flex-row gap-3 items-center'>
                   <div
                     className={`text-[11px] w-11 h-11 flex items-center justify-center rounded-2xl ${
                       isCurrentHop
-                        ? "text-[var(--black-900)] bg-yellow-300"
-                        : "text-[var(--white-100)] bg-[var(--white-100-transparency-05)]"
+                        ? 'text-[var(--black-900)] bg-yellow-300'
+                        : 'text-[var(--white-100)] bg-[var(--white-100-transparency-05)]'
                     }`}
                   >
-                    {isLast ? "Final" : `#${index + 1}`}
+                    {isLast ? 'Final' : `#${index + 1}`}
                   </div>
 
                   {/* Wallet address and details */}
-                  <div className="flex flex-col flex-1">
-                    <div className="flex flex-row items-center gap-2 justify-between">
-                      <div className="flex flex-row items-center gap-2">
-                        {step.status === "completed" && (
-                          <div className="text-[10px] text-[var(--black-900)] bg-yellow-400 w-3 h-3 rounded-[3px] flex items-center justify-center">
+                  <div className='flex flex-col flex-1'>
+                    <div className='flex flex-row items-center gap-2 justify-between'>
+                      <div className='flex flex-row items-center gap-2'>
+                        {step.status === 'completed' && (
+                          <div className='text-[10px] text-[var(--black-900)] bg-yellow-400 w-3 h-3 rounded-[3px] flex items-center justify-center'>
                             ✓
                           </div>
                         )}
-                        <div className="text-sm text-white">
-                          {trimAddress(step.recipient)}
-                        </div>
+                        <div className="text-sm text-white">{trimAddress(step.recipient)}</div>
                       </div>
                       {isCurrentHop && (
                         <span className="bg-blue-900 text-blue-200 px-2 py-1 rounded-full text-xs font-semibold">
@@ -286,10 +299,10 @@ export const RouteItem = ({ route }: RouteItemProps) => {
                   </div>
                 </div>
               </div>
-            );
+            )
           })}
         </div>
       )}
     </div>
-  );
-};
+  )
+}

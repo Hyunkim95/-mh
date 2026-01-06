@@ -61,7 +61,6 @@ export interface TokenConfigCreatedEvent {
   maxHops: number;
   maxDelaySeconds: string;
   timelockSeconds: string;
-  pairAddress: string;
   flatFeeLamports: string;
 }
 

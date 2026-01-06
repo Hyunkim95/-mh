@@ -109,13 +109,9 @@ export const getRouteConfiguration = async (
     return {
       creator: routeConfigAccount.creator.toBase58(),
       routeId: routeConfigAccount.routeId.toString(),
-      tokenConfig: routeConfigAccount.tokenConfig.toBase58(),
       sourceOwner: routeConfigAccount.sourceOwner.toBase58(),
       executor: routeConfigAccount.executor.toBase58(),
-      hops: routeConfigAccount.hops.map((hop: any) => ({
-        recipient: hop.recipient.toBase58(),
-        delaySeconds: hop.delaySeconds.toString(),
-      })),
+      hops: routeConfigAccount.hops,
       hopAmount: routeConfigAccount.hopAmount.toString(),
       isFinalized: routeConfigAccount.isFinalized,
       createdAt: routeConfigAccount.createdAt.toString(),

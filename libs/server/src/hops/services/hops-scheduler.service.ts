@@ -43,36 +43,44 @@ export const triggerHopJob = new CronJob("*/10 * * * * *", async () => {
       let currentHop;
       try {
         const routeState = await getRouteStateAccount(routeId);
+
         currentHop = routeState?.currentHopIndex || 0;
         const lastHopIndex = (routeState?.hopsCount || 1) - 1;
+        const routeConfiguration = await getRouteConfiguration(routeId);
+        const hops = routeConfiguration?.hops || [];
 
-        if (currentHop >= lastHopIndex) {
-          hopsService.markAllHopsCompleted(routeId);
+        if (hops.length === 0) {
+          console.warn(
+            `[HopScheduler] Route ${routeId} has no configured hops`
+          );
           continue;
         }
 
-        const routeConfiguration = await getRouteConfiguration(routeId);
-        const hops = routeConfiguration?.hops || [];
-        const currentHopState = hops[currentHop];
-        const delaysSeconds = currentHopState.delaySeconds;
-        const lastHopAtArray = routeState?.lastHopAt || [];
-        const lastHopExecutedAt =
-          currentHop > 0
-            ? parseInt(lastHopAtArray[currentHop - 1] || "0")
-            : parseInt(routeState?.startedAt || "0");
+        if (currentHop > lastHopIndex) {
+          await hopsService.markAllHopsCompleted(routeId);
+          continue;
+        }
 
+        const currentHopState = hops[currentHop];
+        
         const hasEnoughTimeElapsed =
-          Math.floor(Date.now() / 1000) >=
-          lastHopExecutedAt + parseInt(delaysSeconds);
+          utcNow().getTime() / 1000 >= Number(currentHopState.executeAt);
+        
 
         if (!hasEnoughTimeElapsed) {
           console.log(
             `[HopScheduler] Route ${routeId} - Not enough time elapsed for hop ${currentHop}`
+            ,
+            new Date(
+              Number(currentHopState.executeAt) * 1000
+            )
           );
           await hopsService.updateHopScheduleByIndex(
             routeId,
             currentHop,
-            new Date((lastHopExecutedAt + parseInt(delaysSeconds)) * 1000)
+            new Date(
+              Number(currentHopState.executeAt) * 1000
+            )
           );
         }
 

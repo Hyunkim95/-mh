@@ -4,6 +4,7 @@ import clsx from 'clsx'
 export interface CardHeaderTab {
   key: string
   label?: string
+  onTabClick: (key: string) => void,
   icon: string | React.ReactElement | React.ElementType
 }
 
@@ -28,8 +29,6 @@ export interface CardHeaderProps {
   tabs: CardHeaderTab[]
   // Active tab key
   activeKey: string
-  // Callback when tab changes
-  onTabChange: (key: string) => void
   // Optional right side slot (actions, selectors, etc.)
   rightSlot?: React.ReactNode
   // Optional style overrides per element/state
@@ -39,7 +38,6 @@ export interface CardHeaderProps {
 export const CardHeader: React.FC<CardHeaderProps> = ({
   tabs,
   activeKey,
-  onTabChange,
   rightSlot,
   headerClasses,
 }) => {
@@ -81,7 +79,7 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
             <button
               key={tab.key}
               type='button'
-              onClick={() => onTabChange(tab.key)}
+              onClick={() => tab.onTabClick(tab.key)}
               role='tab'
               aria-selected={isActive}
               className={`${

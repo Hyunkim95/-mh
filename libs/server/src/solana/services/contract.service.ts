@@ -5,7 +5,6 @@ import {
   SystemProgram,
   Keypair,
   sendAndConfirmTransaction,
-  clusterApiUrl,
   LAMPORTS_PER_SOL,
   TransactionInstruction,
 } from "@solana/web3.js";
@@ -183,7 +182,7 @@ export const getGuardPda = (tokenMint: PublicKey): [PublicKey, number] => {
 
 interface IHop {
   recipient: PublicKey;
-  delaySeconds: BN;
+  executeAt: BN;
 }
 
 export const params = {
@@ -205,9 +204,9 @@ const buildGuardProgram = (params: SolanaInstructionParams) => {
   );
 };
 
-export const getMintAuthority = async (mint: PublicKey) => {
+export const getMintAuthority = async (routeId: BN) => {
   const [mintAuthority] = PublicKey.findProgramAddressSync(
-    [Buffer.from("mint_authority"), mint.toBuffer()],
+    [Buffer.from("mint_authority"), routeId.toArrayLike(Buffer, "le", 8)],
     params.programId
   );
   return mintAuthority;
@@ -216,25 +215,10 @@ export const getMintAuthority = async (mint: PublicKey) => {
 const initializeTokenConfig = async (
   payer: PublicKey,
   tokenMint: PublicKey,
-  tokenPairMint: Keypair,
   tokenConfig: TokenConfig
 ) => {
   const program = buildProgram(params);
   const tokenConfigPda = await getTokenConfigPda(tokenMint);
-  const mintAuthority = await getMintAuthority(tokenPairMint.publicKey);
-  const permanentDelegate = await getPermanentDelegate(tokenPairMint.publicKey);
-
-  const vaultAuthority = await getVaultAuthority(tokenMint);
-  const vault = await getVault(vaultAuthority, tokenMint);
-
-  // Try to get original URI first - if token already has metadata, reuse it
-  const offchainMetadata = await fetchTokenMetadata(
-    params.connection,
-    tokenMint
-  );
-  const uri = offchainMetadata?.uri || "";
-  const name = offchainMetadata?.name || "SPL Token";
-  const symbol = offchainMetadata?.symbol || "SPL";
 
   return await program.methods
     .initializeTokenConfig(
@@ -244,52 +228,27 @@ const initializeTokenConfig = async (
       tokenConfig.maxHops,
       tokenConfig.maxDelaySeconds,
       tokenConfig.timelockSeconds,
-      tokenConfig.flatFeeLamports,
-      name,
-      symbol,
-      uri
+      tokenConfig.flatFeeLamports
     )
     .accountsPartial({
       creator: payer,
       tokenConfig: tokenConfigPda,
       tokenMint,
-      tokenPairMint: tokenPairMint.publicKey,
-      mintAuthority,
-      permanentDelegate,
-      vault,
-      vaultAuthority,
-      tokenProgram: TOKEN_PROGRAM_ID,
-      token2022Program: TOKEN_2022_PROGRAM_ID,
-      associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
     })
-    .signers([tokenPairMint])
     .instruction();
 };
 const initializeTokenConfigSol = async (
   payer: PublicKey,
   tokenConfig: TokenConfig,
-  wsolMint: Keypair // Accept the keypair as parameter instead of generating it
 ) => {
   const program = buildProgram(params);
 
-  console.log("initializeTokenConfigSol", "Program");
   const NATIVE_MINT = new PublicKey(
     "So11111111111111111111111111111111111111112"
   );
-  console.log("initializeTokenConfigSol", "NATIVE_MINT");
   const tokenConfigPda = await getTokenConfigPda(NATIVE_MINT);
-  console.log("initializeTokenConfigSol", "tokenConfigPda");
-  console.log("initializeTokenConfigSol", "wsolMint");
-  const mintAuthority = await getMintAuthority(wsolMint.publicKey);
-  const permanentDelegate = await getPermanentDelegate(wsolMint.publicKey);
-  const solVault = await getSolVault(payer);
-
-  // todo: find hardcoded values or upload it to ipfs ourselves
-  const name = "Wrapped SOL";
-  const symbol = "wSOL";
-  const uri = "";
-
+  
   return await program.methods
     .initializeSolTokenConfig(
       tokenConfig.minTransfer,
@@ -299,21 +258,12 @@ const initializeTokenConfigSol = async (
       tokenConfig.maxDelaySeconds,
       tokenConfig.timelockSeconds,
       tokenConfig.flatFeeLamports,
-      name,
-      symbol,
-      uri
     )
     .accountsPartial({
       creator: payer,
       tokenConfig: tokenConfigPda,
-      wsolMint: wsolMint.publicKey,
-      mintAuthority,
-      permanentDelegate,
-      solVault,
-      token2022Program: TOKEN_2022_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
     })
-    .signers([wsolMint])
     .instruction()
     .catch((error) => {
       console.log("initializeTokenConfigSol", "error", error);
@@ -368,6 +318,7 @@ const initGuardSol = async (
 
 const wrap = async (
   payer: PublicKey,
+  routeId: BN,
   tokenConfigPda: PublicKey,
   originalMint: PublicKey,
   pairMint: PublicKey,
@@ -379,9 +330,12 @@ const wrap = async (
     [Buffer.from("vault_authority"), originalMint.toBuffer()],
     params.programId
   );
+  const routeConfig = await getRouteConfigPda(
+    routeId
+  );
 
   const [wrapperMintAuth] = PublicKey.findProgramAddressSync(
-    [Buffer.from("mint_authority"), pairMint.toBuffer()],
+    [Buffer.from("mint_authority"), routeId.toArrayLike(Buffer, "le", 8)],
     params.programId
   );
 
@@ -399,16 +353,20 @@ const wrap = async (
   );
 
   return await program.methods
-    .wrap(amount)
+    .wrap(
+      routeId,
+      amount
+    )
     .accountsPartial({
       payer: payer,
       tokenConfig: tokenConfigPda,
+      routeConfig,
       originalMint,
-      pairMint,
+      routeMint: pairMint,
       originalFrom,
       vault,
       vaultAuth: vaultAuthority,
-      pairTo,
+      routeTo: pairTo,
       wrapperMintAuth,
       tokenProgram: TOKEN_2022_PROGRAM_ID,
       originalTokenProgram: TOKEN_PROGRAM_ID,
@@ -419,6 +377,7 @@ const wrap = async (
 };
 const wrapSol = async (
   payer: PublicKey,
+  routeId: BN,
   tokenConfigPda: PublicKey,
   wsolMint: PublicKey,
   amount: BN
@@ -426,6 +385,9 @@ const wrapSol = async (
   const program = buildProgram(params);
   const tokenConfigAccount = await program.account.tokenConfig.fetch(
     tokenConfigPda
+  );
+  const routeConfig = await getRouteConfigPda(
+    routeId
   );
 
   const [mintAuthority] = PublicKey.findProgramAddressSync(
@@ -442,12 +404,16 @@ const wrapSol = async (
   );
 
   return await program.methods
-    .wrapSol(amount)
+    .wrapSol(
+      routeId,
+      amount
+    )
     .accountsPartial({
       payer: payer,
       tokenConfig: tokenConfigPda,
       wsolMint,
       wsolTo,
+      routeConfig,
       mintAuthority,
       solVault,
       token2022Program: TOKEN_2022_PROGRAM_ID,
@@ -470,7 +436,7 @@ export const unwrap = async (
 ) => {
   const program = buildProgram(params);
   const vaultAuthority = await getVaultAuthority(originalMint);
-  const permanentDelegate = await getPermanentDelegate(pairMint);
+  const permanentDelegate = await getPermanentDelegate(routeId);
   const routeConfigPda = await getRouteConfigPda(routeId);
   const routeStatePda = await getRouteStatePda(routeId);
   // These need to be PDAs according to the IDL, not standard associated token accounts
@@ -502,13 +468,16 @@ export const unwrap = async (
   );
 
   return await program.methods
-    .unwrap(amount)
+    .unwrap(
+      routeId,
+      amount
+    )
     .accountsPartial({
       payer: payer,
       tokenConfig: tokenConfigPda,
       originalMint,
-      pairMint,
-      pairFrom,
+      routeMint: pairMint,
+      routeFrom: pairFrom,
       from: recipient,
       originalTo,
       to: recipient,
@@ -537,7 +506,7 @@ export const unwrapSol = async (
   routeId: BN
 ) => {
   const program = buildProgram(params);
-  const permanentDelegate = await getPermanentDelegate(wsolMint);
+  const permanentDelegate = await getPermanentDelegate(routeId);
   const tokenConfigAccount = await program.account.tokenConfig.fetch(
     tokenConfigPda
   );
@@ -551,7 +520,10 @@ export const unwrapSol = async (
   const routeConfigPda = await getRouteConfigPda(routeId);
   const routeStatePda = await getRouteStatePda(routeId);
   return await program.methods
-    .unwrapSol(amount)
+    .unwrapSol(
+      routeId,
+      amount
+    )
     .accountsPartial({
       payer,
       tokenConfig: tokenConfigPda,
@@ -593,9 +565,9 @@ export const getRouteStatePda = async (routeId: BN) => {
   return routeStatePda;
 };
 
-export const getPermanentDelegate = async (pairMint: PublicKey) => {
+export const getPermanentDelegate = async (routeId: BN) => {
   const [permanentDelegate] = PublicKey.findProgramAddressSync(
-    [Buffer.from("delegate"), pairMint.toBuffer()],
+    [Buffer.from("delegate"), routeId.toArrayLike(Buffer, "le", 8)],
     params.programId
   );
   return permanentDelegate;
@@ -632,11 +604,50 @@ export const getVault = async (
   return vault;
 };
 
+export const addHops = async (
+  creator: PublicKey,
+  routeId: BN,
+  hops: IHop[]
+) => {
+  const program = buildProgram(params);
+  console.log('Adding hops:', hops);
+  
+  const routeConfig = await getRouteConfigPda(routeId);
+  const routeState = await getRouteStatePda(routeId);
+  
+  const instruction = await program.methods
+    .addHops(
+      routeId,
+      hops
+    )
+    .accountsPartial({
+      creator: creator,
+      routeConfig: routeConfig,
+      routeState: routeState,
+    })
+    .instruction();
+
+  console.log('Add hops instruction created');
+
+  const transaction = new Transaction();
+  
+  // Add dynamic priority fee instructions
+  const priorityInstructions = await createDynamicPriorityInstructions(
+    params.connection
+  );
+  priorityInstructions.forEach((ix) => transaction.add(ix));
+  
+  transaction.add(instruction);
+  
+  return transaction;
+}
+
 const initializeRoute = async (
   payer: PublicKey,
   creator: PublicKey,
   tokenConfigPda: PublicKey,
   originalMint: PublicKey,
+  wrappedMint: PublicKey,
   routeId: BN,
   executor: PublicKey,
   hopAmount: BN,
@@ -662,9 +673,30 @@ const initializeRoute = async (
     originalMint,
     tokenConfigAccount.feeTreasury as PublicKey
   );
+  console.log(
+    'THIS IS THE ORIGINAL MINT',
+    originalMint.toBase58()
+  )
+  const mintAuthority = await getMintAuthority(routeId);
+  const permanentDelegate = await getPermanentDelegate(routeId);
+  const offchainMetadata = await fetchTokenMetadata(
+    params.connection,
+    originalMint
+  );
+  const uri = offchainMetadata?.uri || "";
+  const name = offchainMetadata?.name || "SPL Token";
+  const symbol = offchainMetadata?.symbol || "SPL";
 
   return await program.methods
-    .initializeRoute(routeId, executor, hopAmount, hops)
+    .initializeRoute(
+      routeId, 
+      executor, 
+      hopAmount, 
+      hops.length, 
+      name, 
+      symbol, 
+      uri
+    )
     .accountsPartial({
       creator: payer,
       tokenConfig: tokenConfigPda,
@@ -673,6 +705,9 @@ const initializeRoute = async (
       originalTreasuryAccount,
       originalMint,
       originalFrom,
+      routeTokenMint: wrappedMint,
+      mintAuthority,
+      permanentDelegate,
       feeTreasury: tokenConfigAccount.feeTreasury as PublicKey,
       solTreasury: tokenConfigAccount.feeTreasury as PublicKey,
       originalTokenProgram,
@@ -686,6 +721,7 @@ const initializeRouteSol = async (
   tokenConfigPda: PublicKey,
   routeId: BN,
   executor: PublicKey,
+  wSolMint: PublicKey,
   hopAmount: BN,
   hops: IHop[]
 ) => {
@@ -698,13 +734,31 @@ const initializeRouteSol = async (
     tokenConfigPda
   );
 
+  const name = "Wrapped SOL";
+  const symbol = "wSOL";
+  const uri = "";
+
+  const mintAuthority = await getMintAuthority(routeId);
+  const permanentDelegate = await getPermanentDelegate(routeId);
+
   return await program.methods
-    .initializeRouteSol(routeId, executor, hopAmount, hops)
+    .initializeRouteSol(
+      routeId, 
+      executor, 
+      hopAmount, 
+      hops.length, 
+      name, 
+      symbol, 
+      uri
+    )
     .accountsPartial({
       creator: payer,
       tokenConfig: tokenConfigPda,
       routeConfig: routeConfigPda,
       routeState: routeStatePda,
+      routeTokenMint: wSolMint,
+      mintAuthority,
+      permanentDelegate,
       solTreasury: tokenConfigAccount.feeTreasury as PublicKey,
       systemProgram: SystemProgram.programId,
     })
@@ -757,15 +811,14 @@ const initializeRouteSolWithWrap = async (
   hopAmount: BN,
   hops: IHop[]
 ) => {
-  const program = buildProgram(params);
   const tokenConfigPDA = await getTokenConfigPda(NATIVE_MINT);
-  const tokenConfigAccount = await program.account.tokenConfig.fetch(
-    tokenConfigPDA
-  );
+  const wrappedToken = Keypair.generate();
+
   const wrapIx = await wrapSol(
     payer,
+    routeId,
     tokenConfigPDA,
-    tokenConfigAccount.pairAddress as PublicKey,
+    wrappedToken.publicKey,
     hopAmount
   );
   const transaction = new Transaction();
@@ -778,7 +831,11 @@ const initializeRouteSolWithWrap = async (
 
   // Get deterministic executor for this route
   const executorWallet = executorService.getWalletByRouteId(routeId.toNumber());
-
+  const initGuardSolTx  = await initGuardSol(
+    payer,
+    wrappedToken.publicKey,
+    await getPermanentDelegate(routeId)
+  );
   // Calculate and add executor funding
   const executorFunding = calculateExecutorFunding(hops.length);
   const fundingIx = createExecutorFundingInstruction(
@@ -793,10 +850,12 @@ const initializeRouteSolWithWrap = async (
     tokenConfigPDA,
     routeId,
     executorWallet.publicKey,
+    wrappedToken.publicKey,
     hopAmount,
     hops
   );
   transaction.add(initializeRouteSolIx);
+  transaction.add(initGuardSolTx);
   transaction.add(wrapIx);
 
   // Add first hop trigger if there are hops
@@ -805,14 +864,17 @@ const initializeRouteSolWithWrap = async (
       routeId,
       tokenConfigPDA,
       executorWallet.publicKey,
-      tokenConfigAccount.pairAddress as PublicKey,
+      wrappedToken.publicKey,
       payer,
       hops[0].recipient
     );
     transaction.add(triggerIx);
   }
 
-  return transaction;
+  return {
+    transaction,
+    wrappedToken
+  };
 };
 
 const initializeRouteWithWrap = async (
@@ -824,16 +886,15 @@ const initializeRouteWithWrap = async (
   splMint: string,
   originalTokenProgram: PublicKey
 ) => {
-  const program = buildProgram(params);
-  const tokenConfigPDA = await getTokenConfigPda(new PublicKey(splMint));
-  const tokenConfigAccount = await program.account.tokenConfig.fetch(
-    tokenConfigPDA
-  );
+  const mint = new PublicKey(splMint);
+  const tokenConfigPDA = await getTokenConfigPda(mint);
+  const wrappedToken = Keypair.generate();
   const wrapIx = await wrap(
     payer,
+    routeId,
     tokenConfigPDA,
-    tokenConfigAccount.tokenMint as PublicKey,
-    tokenConfigAccount.pairAddress as PublicKey,
+    mint,
+    wrappedToken.publicKey,
     hopAmount
   );
   const transaction = new Transaction();
@@ -860,31 +921,27 @@ const initializeRouteWithWrap = async (
     payer,
     creator,
     tokenConfigPDA,
-    tokenConfigAccount.tokenMint as PublicKey,
+    mint,
+    wrappedToken.publicKey,
     routeId,
     executorWallet.publicKey,
     hopAmount,
     hops,
     originalTokenProgram
   );
+  const initGuardTx = await initGuard(
+    payer,
+    wrappedToken.publicKey,
+    await getPermanentDelegate(routeId)
+  );
   transaction.add(initializeRouteIx);
+  transaction.add(initGuardTx);
   transaction.add(wrapIx);
 
-  // Add first hop trigger if there are hops
-  if (hops.length > 0) {
-    const triggerIx = await triggerHop(
-      routeId,
-      tokenConfigPDA,
-      executorWallet.publicKey,
-      tokenConfigAccount.pairAddress as PublicKey,
-      creator,
-      hops[0].recipient
-    );
-    transaction.add(triggerIx);
-  }
-
-
-  return transaction;
+  return {
+    transaction,
+    wrappedToken
+  };
 };
 
 const triggerHop = async (
@@ -898,7 +955,7 @@ const triggerHop = async (
   const program = buildProgram(params);
   const routeStatePda = await getRouteStatePda(routeId);
   const routeConfigPda = await getRouteConfigPda(routeId);
-  const permanentDelegate = await getPermanentDelegate(pairMint);
+  const permanentDelegate = await getPermanentDelegate(routeId);
 
   const pairFrom = await getAssociatedTokenAddress(
     pairMint,
@@ -914,7 +971,9 @@ const triggerHop = async (
   );
 
   return await program.methods
-    .triggerHop()
+    .triggerHop(
+      routeId
+    )
     .accountsPartial({
       routeConfig: routeConfigPda,
       executor,
@@ -989,7 +1048,6 @@ export const signAndSerialize = async (
 export const initializeCompleteTokenConfig = async (
   payer: PublicKey,
   tokenMint: PublicKey,
-  tokenPairMint: Keypair,
   tokenConfig: TokenConfig
 ) => {
   const transaction = new Transaction();
@@ -1000,18 +1058,10 @@ export const initializeCompleteTokenConfig = async (
   const tokenConfigIx = await initializeTokenConfig(
     payer,
     tokenMint,
-    tokenPairMint,
     tokenConfig
   );
   transaction.add(tokenConfigIx);
-  const permanentDelegate = await getPermanentDelegate(tokenPairMint.publicKey);
-  const guardIx = await initGuard(
-    payer,
-    tokenPairMint.publicKey,
-    permanentDelegate
-  );
-  transaction.add(guardIx);
-  return { transaction, tokenPairMint };
+  return { transaction };
 };
 
 // Convenience function for SOL token configuration with guard
@@ -1027,27 +1077,14 @@ export const initializeCompleteSolTokenConfig = async (
   );
   priorityInstructions.forEach((ix) => transaction.add(ix));
 
-  // Generate the wSOL mint once and use it for both instructions
-  const wsolMint = Keypair.generate();
-
   // First initialize the SOL token config with the wsolMint
   const solConfigIx = await initializeTokenConfigSol(
     payer,
-    tokenConfig,
-    wsolMint
+    tokenConfig
   );
   transaction.add(solConfigIx);
 
-  const permanentDelegate = await getPermanentDelegate(wsolMint.publicKey);
-
-  // Then initialize the guard for the wSOL mint
-  const guardIx = await initGuardSol(
-    payer,
-    wsolMint.publicKey,
-    permanentDelegate
-  );
-  transaction.add(guardIx);
-  return { transaction, wsolMint };
+  return { transaction };
 };
 
 const executeHop = async (
@@ -1104,7 +1141,7 @@ const executeHop = async (
     routeId,
     tokenConfigPda,
     executorWallet.publicKey,
-    tokenConfigAccount.pairAddress,
+    routeConfigAccount.routeTokenMint,
     fromOwner,
     currentHop.recipient
   );
@@ -1117,7 +1154,7 @@ const executeHop = async (
         executorWallet.publicKey,
         recipient,
         tokenConfigPda,
-        tokenConfigAccount.pairAddress,
+        routeConfigAccount.routeTokenMint,
         routeConfigAccount.hopAmount,
         routeId
       );
@@ -1128,7 +1165,7 @@ const executeHop = async (
         recipient,
         tokenConfigPda,
         tokenConfigAccount.tokenMint,
-        tokenConfigAccount.pairAddress,
+        routeConfigAccount.routeTokenMint,
         routeConfigAccount.hopAmount,
         routeId
       );
@@ -1150,7 +1187,6 @@ export const getTokenConfigSPL = async (splMint: string) => {
     );
     return {
       splMint: tokenConfigAccount.tokenMint.toBase58(),
-      pairMint: tokenConfigAccount.pairAddress.toBase58(),
       minTransfer: tokenConfigAccount.minTransfer.toString(),
       feeBps: tokenConfigAccount.feeBps.toString(),
       feeTreasury: tokenConfigAccount.feeTreasury.toBase58(),
@@ -1176,7 +1212,6 @@ export const getTokenConfigSOL = async () => {
     );
     return {
       splMint: tokenConfigAccount.tokenMint.toBase58(),
-      pairMint: tokenConfigAccount.pairAddress.toBase58(),
       minTransfer: tokenConfigAccount.minTransfer.toString(),
       feeBps: tokenConfigAccount.feeBps.toString(),
       feeTreasury: tokenConfigAccount.feeTreasury.toBase58(),
@@ -1318,6 +1353,7 @@ const contractService = {
   initializeRouteSolWithWrap,
   initializeRouteWithWrap,
   serialize,
+  addHops,
   executeHop,
   getTokenConfigSPL,
   getTokenConfigSOL,
@@ -1326,6 +1362,29 @@ const contractService = {
   calculateExecutorFunding,
   createExecutorFundingInstruction,
 };
+
+export const routeHasHops = async (routeId: number): Promise<{
+  hasHops: boolean,
+  isDeployed: boolean
+}> => {
+  try {
+    const program = buildProgram(params);
+    const routeConfigPda = await getRouteConfigPda(new BN(routeId));
+    const routeConfigAccount = await program.account.routeConfig.fetch(
+      routeConfigPda
+    );
+    return {
+      hasHops: routeConfigAccount.hops.length > 0, 
+      isDeployed: true
+    };
+  } catch (error) {
+    console.log("Error checking route hops:", error);
+    return {
+      hasHops: false,
+      isDeployed: false
+    };
+  }
+}
 
 // Functions to get route configuration and state
 export const getRouteConfiguration = async (routeId: number) => {
@@ -1339,7 +1398,6 @@ export const getRouteConfiguration = async (routeId: number) => {
     return {
       creator: routeConfigAccount.creator.toBase58(),
       routeId: routeConfigAccount.routeId.toString(),
-      tokenConfig: routeConfigAccount.tokenConfig.toBase58(),
       sourceOwner: routeConfigAccount.sourceOwner.toBase58(),
       executor: routeConfigAccount.executor.toBase58(),
       hops: routeConfigAccount.hops.map((hop: any) => ({
@@ -1428,88 +1486,104 @@ export default contractService;
 const privateKey =
   "zNNYT4aNPQEj8YJoVshrkcaRPqdoFLm76UF9tepVDCrTQWFJMxkaqXbk6wmUuGisjCcM9fL3CM5csvDZtsVEPYs";
 export const creatorUser = Keypair.fromSecretKey(bs58.decode(privateKey));
-const splToken = new PublicKey("HL2HB3medCwhHNkzC3cdCKoknYGrBtH5MtJKbj6KSLfV");
-const treasury = new PublicKey("7kQX84vLNS32of1F3XL9H4LD5LauRej8nNz5csv7su2P");
+// const splToken = new PublicKey("HL2HB3medCwhHNkzC3cdCKoknYGrBtH5MtJKbj6KSLfV");
+// const treasury = new PublicKey("7kQX84vLNS32of1F3XL9H4LD5LauRej8nNz5csv7su2P");
 
-export const createSPLTokenConfig = async () => {
-  const pairMint = Keypair.generate();
-  const transaction = new Transaction();
-  const createSPLIx = await initializeTokenConfig(
-    creatorUser.publicKey,
-    splToken,
-    pairMint,
-    {
-      minTransfer: new BN(solToLamports(0.0001)),
-      feeBps: 500,
-      feeTreasury: treasury,
-      maxHops: 5,
-      maxDelaySeconds: new BN(100),
-      timelockSeconds: new BN(10),
-      flatFeeLamports: new BN(solToLamports(0.0001)),
-    }
-  );
-  transaction.add(createSPLIx);
-  const serialized = await serialize(
-    transaction,
-    creatorUser.publicKey,
-    params.connection
-  );
-  const serializedTransaction = Transaction.from(
-    Buffer.from(serialized.transaction, "base64")
-  );
-  try {
-    const signature = await sendAndConfirmTransaction(
-      params.connection,
-      serializedTransaction,
-      [creatorUser, pairMint]
-    );
-    console.log("Signature", signature);
-    console.log("Transaction sent", signature);
-  } catch (error) {
-    console.log("Error", error);
-  }
-};
+// export const createSPLTokenConfig = async () => {
+//   const tokenConfigPda = await getTokenConfigPda(splToken);
+//   const pairMint = Keypair.generate();
+//   console.log("Pair mint", pairMint.publicKey.toBase58());
+//   console.log("Token config PDA", tokenConfigPda.toBase58());
+//   const transaction = new Transaction();
+//   const createSPLIx = await initializeTokenConfig(
+//     creatorUser.publicKey,
+//     splToken,
+//     pairMint,
+//     {
+//       minTransfer: new BN(solToLamports(0.0001)),
+//       feeBps: 500,
+//       feeTreasury: treasury,
+//       maxHops: 5,
+//       maxDelaySeconds: new BN(100),
+//       timelockSeconds: new BN(10),
+//       flatFeeLamports: new BN(solToLamports(0.0001)),
+//     }
+//   );
+//   transaction.add(createSPLIx);
+//   const serialized = await serialize(
+//     transaction,
+//     creatorUser.publicKey,
+//     params.connection
+//   );
+//   const serializedTransaction = Transaction.from(
+//     Buffer.from(serialized, "base64")
+//   );
+//   console.log("Serialized transaction");
+//   try {
+//     const signature = await sendAndConfirmTransaction(
+//       params.connection,
+//       serializedTransaction,
+//       [creatorUser, pairMint]
+//     );
+//     console.log("Signature", signature);
+//     console.log("Transaction sent", signature);
+//   } catch (error) {
+//     console.log("Error", error);
+//   }
+// };
 
-export const createSolTokenConfig = async () => {
-  const config = {
-    minTransfer: new BN(solToLamports(0.0001)),
-    feeBps: 500,
-    feeTreasury: treasury,
-    maxHops: 5,
-    maxDelaySeconds: new BN(100),
-    timelockSeconds: new BN(10),
-    flatFeeLamports: new BN(solToLamports(0.0001)),
-  } as TokenConfig;
-  const params = {
-    connection: new Connection(process.env.SOLANA_RPC_URL || clusterApiUrl("mainnet-beta"), "finalized"),
-    payer: creatorUser.publicKey,
-    programId: MULTI_HOPPER_PROGRAM_ID,
-  };
-  const { transaction, wsolMint } = await initializeCompleteSolTokenConfig(
-    creatorUser.publicKey,
-    config
-  );
-  const serialized = await serialize(
-    transaction,
-    creatorUser.publicKey,
-    params.connection
-  );
-  const serializedTransaction = Transaction.from(
-    Buffer.from(serialized.transaction, "base64")
-  );
-  try {
-    console.log("Sending transaction");
-    const signature = await sendAndConfirmTransaction(
-      params.connection,
-      serializedTransaction,
-      [creatorUser, wsolMint]
-    );
-    console.log("Signature", signature);
-    console.log("Transaction sent", signature);
-  } catch (error) {
-    console.log("Error", error);
-  }
-};
+// export const createSolTokenConfig = async () => {
+//   console.log("Creating SOL token config");
+//   const config = {
+//     minTransfer: new BN(solToLamports(0.0001)),
+//     feeBps: 500,
+//     feeTreasury: treasury,
+//     maxHops: 5,
+//     maxDelaySeconds: new BN(100),
+//     timelockSeconds: new BN(10),
+//     flatFeeLamports: new BN(solToLamports(0.0001)),
+//   } as TokenConfig;
+//   const params = {
+//     connection: new Connection(clusterApiUrl("devnet"), "finalized"),
+//     payer: creatorUser.publicKey,
+//     programId: MULTI_HOPPER_PROGRAM_ID,
+//   };
+//   console.log("Params");
+//   const { transaction, wsolMint } = await initializeCompleteSolTokenConfig(
+//     creatorUser.publicKey,
+//     config
+//   );
+//   console.log("Transaction", transaction);
+//   console.log("Transaction created");
+//   console.log("wsolMint", wsolMint.publicKey.toBase58());
+//   const serialized = await serialize(
+//     transaction,
+//     creatorUser.publicKey,
+//     params.connection
+//   );
+//   console.log("Serialized");
+//   const serializedTransaction = Transaction.from(
+//     Buffer.from(serialized, "base64")
+//   );
+//   console.log(
+//     "Personal user",
+//     creatorUser.publicKey.toBase58(),
+//     "wsolMint",
+//     wsolMint.publicKey.toBase58()
+//   );
+//   try {
+//     console.log("Sending transaction");
+//     const signature = await sendAndConfirmTransaction(
+//       params.connection,
+//       serializedTransaction,
+//       [creatorUser, wsolMint]
+//     );
+//     console.log("Signature", signature);
+//     console.log("Transaction sent", signature);
+//   } catch (error) {
+//     console.log("Error", error);
+//   }
+// };
 
 // Hardcoded executor removed - now using deterministic executor service
 // const routeId = new BN(6969691);

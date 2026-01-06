@@ -81,6 +81,7 @@ export const HopsTab: React.FC = () => {
 
   // TODO: replace with useDeploy hook
   const handleDeploy = async (route: Route) => {
+    console.log('----------------------------')
     if (!publicKey || !sendTransaction) {
       toast.error("Please connect your wallet");
       return;
@@ -91,10 +92,27 @@ export const HopsTab: React.FC = () => {
 
       // Convert hops to the format expected by the contract
       const hopsArray = Array.isArray(route.hops) ? route.hops : [];
-      const formattedHops = hopsArray.map((hop: any) => ({
-        recipient: hop.recipient,
-        delaySeconds: hop.delaySeconds,
-      }));
+      const formattedHops = hopsArray.map((hop: any, index: number) => {
+        let scheduledAt: number;
+        
+        if (index === 0) {
+          // First hop executes immediately
+          scheduledAt = new Date().getTime();
+        } else {
+          // Calculate scheduledAt based on previous hop's scheduledAt + delaySeconds
+          const prevHop = formattedHops[index - 1];
+          const prevTime = new Date(prevHop.scheduledAt).getTime();
+          const delayMillis = (hop.delaySeconds || 0) * 1000;
+          scheduledAt = new Date(prevTime + delayMillis).getTime();
+        }
+        
+        return {
+          recipient: hop.recipient,
+          scheduledAt,
+        };
+      });
+
+      debugger;
 
       let transactionSignature;
 
@@ -102,9 +120,10 @@ export const HopsTab: React.FC = () => {
         if (!route.tokenMint) {
           throw new Error("SPL mint address is required for SPL routes");
         }
+        console.log(formattedHops)
         transactionSignature = await initializeRoute.mutateAsync({
           routeId: route.routeId,
-          routes: formattedHops,
+          hops: formattedHops,
           hopAmount: route.hopAmountRaw,
           creator: publicKey.toBase58(),
           splMint: route.tokenMint,
@@ -112,7 +131,7 @@ export const HopsTab: React.FC = () => {
       } else {
         transactionSignature = await initializeRouteSOL.mutateAsync({
           routeId: route.routeId,
-          routes: formattedHops,
+          hops: formattedHops,
           hopAmount: route.hopAmountRaw,
           creator: publicKey.toBase58(),
           splMint: "So11111111111111111111111111111111111111112", // Native SOL mint
@@ -343,7 +362,7 @@ export const HopsTab: React.FC = () => {
                             className="bg-[var(--laser-lemon-500)] hover:brightness-95 text-[var(--black-900)] px-3 py-1 rounded transition-colors"
                           >
                             Deploy
-                          </button>
+                          </button> 
                         )}
                       </div>
                     </td>

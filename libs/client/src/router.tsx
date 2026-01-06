@@ -12,6 +12,7 @@ import { RoleGuardHOC } from './components/RoleGuardHOC'
 import { MyAssets } from './pages/MyAssets'
 import { ConfigureHops } from './pages/ConfigureHops'
 import { LandingPage } from './pages/LandingPage'
+import { History } from './pages/History'
 
 // Root route component
 const RootComponent = () => {
@@ -83,6 +84,16 @@ const configureHopsRoute = createRoute({
   ),
 })
 
+const historyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/history',
+  component: () => (
+    <AuthHOC>
+      <History />
+    </AuthHOC>
+  ),
+})
+
 // Create route tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -91,6 +102,7 @@ const routeTree = rootRoute.addChildren([
   tokenConfigDetailRoute,
   myAssetsRoute,
   configureHopsRoute,
+  historyRoute,
 ])
 
 // Create router
