@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, integer, bigint, boolean } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, integer, bigint } from "drizzle-orm/pg-core";
 
 export const tokenConfigsSchema = pgTable("token_configs", {
   id: serial("id").primaryKey(),
