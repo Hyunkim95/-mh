@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, integer, bigint } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, integer, bigint, boolean } from "drizzle-orm/pg-core";
 
 export const tokenConfigsSchema = pgTable("token_configs", {
   id: serial("id").primaryKey(),
@@ -12,7 +12,7 @@ export const tokenConfigsSchema = pgTable("token_configs", {
   maxDelaySeconds: integer("max_delay").notNull(),
   timelockSeconds: integer("timelock").notNull(),
   pairAddress: varchar("pair_address").notNull(),
-  flatFeeLamports: integer("flat_fee_lamports").notNull(),
+  flatFeeLamports: integer("flat_fee_lamports").notNull()
 });
 
 export type TokenConfig = typeof tokenConfigsSchema.$inferSelect;

@@ -1,8 +1,8 @@
 import type { Config } from "drizzle-kit";
 import path from "path";
 
-const schemaPath = path.join(__dirname, "src/db/schema.ts");
-const migrationPath = path.join(__dirname, "src/db/migrations");
+const schemaPath = path.join("src/db/schema.ts");
+const migrationPath = path.join("src/db/migrations");
 
 const createDatabaseUrl = () => {
   const useSSL = true;
@@ -12,8 +12,6 @@ const createDatabaseUrl = () => {
   }
   return !useSSL ? connectionString : connectionString + "?sslmode=no-verify";
 };
-
-console.log(createDatabaseUrl());
 
 export default {
   schema: schemaPath,

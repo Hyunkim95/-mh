@@ -1,5 +1,5 @@
 import { db, NewTokenConfig, TokenConfig, tokenConfigsSchema } from "../../db";
-import { eq, ilike, inArray } from "drizzle-orm";
+import { eq, ilike, inArray, and,  } from "drizzle-orm";
 
 const create = async (tokenConfig: NewTokenConfig) => {
   return await db
@@ -16,7 +16,7 @@ const findById = async (id: number) => {
   const config = await db
     .select()
     .from(tokenConfigsSchema)
-    .where(eq(tokenConfigsSchema.id, id));
+    .where(eq(tokenConfigsSchema.id, id))
 
   if (config.length === 0) {
     return null;
@@ -38,14 +38,20 @@ const findByCreator = async (creator: string) => {
   return await db
     .select()
     .from(tokenConfigsSchema)
-    .where(ilike(tokenConfigsSchema.creator, `%${creator}%`));
+    .where(and(
+      ilike(tokenConfigsSchema.creator, `%${creator}%`)
+    ));
 };
 
 const findIn = async (mints: string[]) => {
   return await db
     .select()
     .from(tokenConfigsSchema)
-    .where(inArray(tokenConfigsSchema.tokenMint, mints));
+    .where(
+      and(
+        inArray(tokenConfigsSchema.tokenMint, mints)
+      )
+    );
 };
 
 const update = async (

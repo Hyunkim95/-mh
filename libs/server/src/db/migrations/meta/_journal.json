@@ -64,6 +64,27 @@
       "when": 1757659158000,
       "tag": "0009_melted_kinsey_walden",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1767735397651,
+      "tag": "0010_alter_min_transfer_to_bigint",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1767735397651,
+      "tag": "0011_add_token_symbol",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1767735397651,
+      "tag": "0012_noisy_madame_masque",
+      "breakpoints": true
     }
   ]
 }
