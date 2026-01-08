@@ -59,8 +59,6 @@ export interface TokenConfigCreatedEvent {
   feeBps: number;
   feeTreasury: string;
   maxHops: number;
-  maxDelaySeconds: string;
-  timelockSeconds: string;
   flatFeeLamports: string;
 }
 
@@ -72,8 +70,6 @@ export interface TokenConfigUpdatedEvent {
   feeBps: number;
   feeTreasury: string;
   maxHops: number;
-  maxDelaySeconds: string;
-  timelockSeconds: string;
   flatFeeLamports: string;
 }
 
@@ -200,10 +196,7 @@ class ContractEventsSchemaMapper
             feeBps: eventData.feeBps,
             feeTreasury: eventData.feeTreasury,
             maxHops: eventData.maxHops,
-            maxDelaySeconds: eventData.maxDelaySeconds,
-            timelockSeconds: eventData.timelockSeconds,
             flatFeeLamports: eventData.flatFeeLamports,
-            pairAddress: eventData.pairAddress,
           },
         };
       case "tokenConfigUpdated":

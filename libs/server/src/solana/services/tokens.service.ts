@@ -1,6 +1,5 @@
 import axios from "axios";
 import { get } from "lodash";
-import { tokenConfigsService } from "../../token-configs/services/token-configs.service";
 
 const internalCache = new Map<string, any>();
 const userToTimestamp = new Map<string, number>();
@@ -64,6 +63,7 @@ const getTokenAccounts = async (
     hasMore = totalAssets.length < total;
     page++;
   }
+  console.log(totalAssets, `Total assets fetched for owner ${owner}.`);
   return totalAssets.filter((asset) => asset.interface === "FungibleToken");
 };
 
@@ -99,17 +99,9 @@ export const crossSectionWithTokenConfigs = async (
       tokenConfigs: [],
     };
   }
-  const tokenConfigs = [
-    ...await tokenConfigsService.findIn(
-    tokens.map((t) => t.id)
-  )];
   return {
-    tokens: tokens.filter((t) =>
-      tokenConfigs.some(
-        (tc) => tc.tokenMint.toLowerCase() === t.id.toLowerCase()
-      )
-    ),
-    tokenConfigs,
+    tokens: tokens,
+    tokenConfigs: [],
   };
 };
 

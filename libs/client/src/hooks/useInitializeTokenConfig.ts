@@ -25,10 +25,9 @@ export const useInitializeTokenConfig = ({
         // try connect with solana wallet
         await connect();
       }
-      const { address, tokenConfig } = data;
+      const { tokenConfig } = data;
 
       const transactionSignature = await initializeTokenConfig.mutateAsync({
-        splMint: address,
         tokenConfig,
         creator: publicKey?.toBase58() ?? "",
       });

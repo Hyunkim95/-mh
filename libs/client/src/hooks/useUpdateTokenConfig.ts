@@ -19,15 +19,16 @@ export const useUpdateTokenConfig = ({
 
   const handleUpdateTokenConfig = async (data: any) => {
     try {
-      const { address, tokenConfig } = data;
+      const {  tokenConfig } = data;
       const transactionSignature = await updateTokenConfig.mutateAsync({
-        splMint: address,
         tokenConfig,
         creator: publicKey?.toBase58() ?? "",
       });
       const transaction = Transaction.from(
         Buffer.from(transactionSignature.data.transaction, "base64")
       );
+      const output = await connection.simulateTransaction(transaction);
+      console.log("Simulation output:", output);
       const signature = await sendTransaction(transaction, connection, {
         skipPreflight: true,
       });

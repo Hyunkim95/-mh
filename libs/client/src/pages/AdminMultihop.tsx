@@ -1,6 +1,5 @@
 import { useWallet } from '@solana/wallet-adapter-react'
 import { useState } from 'react'
-import { useNavigate } from '@tanstack/react-router'
 import { useInitializeTokenConfig } from '../hooks/useInitializeTokenConfig'
 import { trpc } from '../trpc'
 import { useSubmitRoute } from '../hooks/useSubmitRoute'
@@ -9,36 +8,32 @@ import { Card } from '../components/Card'
 import { NavBar } from '../components/NavBar'
 import { AdminTokenConfigForm } from '../components/admin/AdminTokenConfigForm'
 import { AdminRouteCreateForm } from '../components/admin/AdminRouteCreateForm'
-import { AdminTokenConfigsTable } from '../components/admin/AdminTokenConfigsTable'
 import { AdminHopsTab } from '../components/admin/AdminHopsTab'
+import { useUpdateTokenConfig } from '../hooks'
 
 export const AdminMultihop = () => {
   const { publicKey } = useWallet()
-  const navigate = useNavigate()
+  const {
+    handleUpdateTokenConfig,
+    tokenConfigPending: updateTokenConfigPending,
+  } = useUpdateTokenConfig({ publicKey })
   const {
     handleIntiaizlizeTokenConfig,
-    handleIntiaizlizeTokenConfigSOL,
     tokenConfigPending,
-    solTokenConfigPending,
     tokenConfigError,
-    solTokenConfigError,
   } = useInitializeTokenConfig({ publicKey })
   const initializeRoute = trpc.contract.initializeRoute.useMutation()
   const initializeRouteSOL = trpc.contract.initializeRouteSOL.useMutation()
-  const { data: tokenConfigs, isLoading: tokenConfigsLoading } =
-    trpc.tokenConfigs.getTokenConfigs.useQuery()
+  const { data: tokenConfigs } =
+    trpc.contract.getTokenConfigSPL.useQuery()
   const [activeTab, setActiveTab] = useState<
     'token-config' | 'routes' | 'hops'
   >('token-config')
 
-  const handleViewTokenConfig = (config: any) => {
-    navigate({
-      to: '/token-config/$tokenConfigId',
-      params: { tokenConfigId: config.id.toString() },
-    })
-  }
   const { userData } = useSolanaAuth()
   const { handleRouteSubmit } = useSubmitRoute({ publicKey })
+
+  const hasTokenConfig = !!tokenConfigs?.data;
 
   return (
     <div className='min-h-screen text-[var(--white-100)] flex flex-col items-center gap-9 w-full relative'>
@@ -90,12 +85,22 @@ export const AdminMultihop = () => {
                 cardBody={
                   <AdminTokenConfigForm
                     creator={userData?.publicKey || ''}
-                    feeTreasury={userData?.publicKey || ''}
+                    feeTreasury={
+                      hasTokenConfig
+                      ? tokenConfigs!.data!.feeTreasury
+                      : userData?.publicKey || ''
+                    }
                     type='SPL'
+                    isUpdate={hasTokenConfig}
                     onSubmit={async data => {
-                      await handleIntiaizlizeTokenConfig(data)
+                      hasTokenConfig ?
+                      await handleUpdateTokenConfig(data)
+                      : await handleIntiaizlizeTokenConfig(data)
                     }}
-                    isLoading={tokenConfigPending}
+                    initialValues={
+                      tokenConfigs?.data ?? undefined
+                    }
+                    isLoading={tokenConfigPending || updateTokenConfigPending}
                     error={tokenConfigError?.message}
                   />
                 }
@@ -105,32 +110,7 @@ export const AdminMultihop = () => {
                   cardBodyContainer: 'mb-0 h-auto',
                 }}
               />
-              <Card
-                cardBody={
-                  <AdminTokenConfigForm
-                    creator={userData?.publicKey || ''}
-                    feeTreasury={userData?.publicKey || ''}
-                    type='SOL'
-                    onSubmit={async data => {
-                      await handleIntiaizlizeTokenConfigSOL(data)
-                    }}
-                    isLoading={solTokenConfigPending}
-                    error={solTokenConfigError?.message}
-                  />
-                }
-                cardHeight={'auto'}
-                cardClasses={{
-                  mainCardContainer: 'px-6 py-8',
-                  cardBodyContainer: 'mb-0 h-auto',
-                }}
-              />
             </div>
-
-            <AdminTokenConfigsTable
-              tokenConfigs={tokenConfigs || []}
-              loading={tokenConfigsLoading}
-              onView={handleViewTokenConfig}
-            />
           </div>
         ) : activeTab === 'routes' ? (
           <div className='grid justify-items-center grid-cols-1 lg:grid-cols-2 gap-6'>
