@@ -26,7 +26,7 @@ export const NavBar = () => {
           onClick={() => router.navigate({ to: '/' })}
         >
           <img src={Logo} alt='Logo' className='w-6 sm:w-8 h-6 sm:h-8 object-contain' />
-          <h1 className='text-base sm:text-xl font-bold text-[var(--white-100)]'>
+          <h1 className='hidden sm:block text-base sm:text-xl font-bold text-[var(--white-100)]'>
             MultiHopper
           </h1>
         </button>

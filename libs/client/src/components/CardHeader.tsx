@@ -44,7 +44,7 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
   return (
     <div
       className={clsx(
-        'flex justify-between items-center mb-5',
+        'flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 sm:gap-0 mb-5',
         headerClasses?.mainCardHeaderContainer || ''
       )}
     >
@@ -142,7 +142,11 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
         })}
       </div>
 
-      {rightSlot && <div className='flex items-center gap-4'>{rightSlot}</div>}
+      {rightSlot && (
+        <div className='flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-start sm:justify-end'>
+          {rightSlot}
+        </div>
+      )}
     </div>
   )
 }
