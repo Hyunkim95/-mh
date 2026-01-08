@@ -1,5 +1,10 @@
 /* Multihopper themed DatePicker overrides */
 
+/* Global override for time header - applies to all datepickers */
+.react-datepicker-time__header {
+  color: var(--white-100, #fff) !important;
+}
+
 /* Scope all overrides to elements rendered with popper/calendar class 'mh-datepicker' */
 .mh-datepicker.react-datepicker,
 .mh-datepicker .react-datepicker {
@@ -14,13 +19,16 @@
 }
 
 .mh-datepicker .react-datepicker__current-month,
-.mh-datepicker .react-datepicker-time__header,
 .mh-datepicker .react-datepicker__day-name {
   color: var(--white-100) !important;
 }
 
-/* Fix "Time" header label color */
-.mh-datepicker .react-datepicker__time-container .react-datepicker-time__header {
+/* Fix "Time" header label color - needs high specificity to override default */
+.mh-datepicker .react-datepicker-time__header,
+.mh-datepicker .react-datepicker__time-container .react-datepicker-time__header,
+.react-datepicker-time__header.mh-datepicker,
+.mh-datepicker.react-datepicker .react-datepicker-time__header,
+div.react-datepicker-time__header {
   color: var(--white-100) !important;
   background: var(--chinese-black-800) !important;
 }

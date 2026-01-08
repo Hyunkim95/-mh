@@ -132,6 +132,11 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
     background: var(--laser-lemon-500) !important;
     color: var(--chinese-black-800) !important;
   }
+  .mh-easy-datepicker .react-datepicker-time__header,
+  .mh-easy-datepicker .react-datepicker__time-container .react-datepicker-time__header {
+    color: var(--white-100) !important;
+    background: var(--chinese-black-800) !important;
+  }
   `
 
   const handleAmountClick = () => {

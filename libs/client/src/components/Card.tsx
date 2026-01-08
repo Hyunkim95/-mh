@@ -38,7 +38,7 @@ export const Card: React.FC<CardProps> = ({
   return (
     <div
       className={clsx(
-        'max-w-[709px] w-full box-border px-12 py-8 rounded-3xl flex flex-col mb-10 relative',
+        'max-w-[709px] w-full box-border px-4 sm:px-12 py-6 sm:py-8 rounded-3xl flex flex-col mb-10 relative',
         cardClasses?.mainCardContainer || ''
       )}
       style={{
@@ -60,7 +60,7 @@ export const Card: React.FC<CardProps> = ({
 
       <div
         className={clsx(
-          'overflow-hidden mb-5 flex-1 min-h-0',
+          'overflow-y-auto mb-5 flex-1 min-h-0',
           cardClasses?.cardBodyContainer || ''
         )}
       >

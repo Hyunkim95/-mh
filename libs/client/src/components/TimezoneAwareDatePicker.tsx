@@ -103,13 +103,12 @@ export function TimezoneAwareDatePicker({
     border-bottom: 1px solid var(--white-100-transparency-10) !important;
   }
   .mh-datepicker .react-datepicker__current-month,
-  .mh-datepicker .react-datepicker-time__header,
-  .mh-datepicker .react-datepicker-time__caption,
-  .mh-datepicker .react-datepicker__time-name,
   .mh-datepicker .react-datepicker__day-name {
     color: var(--white-100) !important;
   }
-  .mh-datepicker .react-datepicker__time-container .react-datepicker-time__header {
+  .mh-datepicker .react-datepicker-time__header,
+  .mh-datepicker .react-datepicker__time-container .react-datepicker-time__header,
+  div.react-datepicker-time__header {
     color: var(--white-100) !important;
     background: var(--chinese-black-800) !important;
   }
