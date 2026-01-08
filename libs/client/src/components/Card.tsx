@@ -36,19 +36,26 @@ export const Card: React.FC<CardProps> = ({
   cardClasses,
 }) => {
   return (
-    <div
-      className={clsx(
-        'max-w-[709px] w-full box-border px-4 sm:px-12 py-6 sm:py-8 rounded-3xl flex flex-col mb-10 relative',
-        cardClasses?.mainCardContainer || ''
-      )}
-      style={{
-        height: cardHeight,
-        background: '#1F2224',
-        boxShadow:
-          'inset 0px 0px 0px 1px rgba(255, 255, 255, 0.1), inset 0px 1px 1px rgba(255, 255, 255, 0.15), inset 0px -1px 1px rgba(255, 255, 255, 0.1), inset 1px 0px 1px rgba(255, 255, 255, 0.1), inset -1px 0px 1px rgba(255, 255, 255, 0.1), 30.3463px 34.9442px 72.5553px rgba(0, 0, 0, 0.08)',
-        backdropFilter: 'blur(43.2205px)',
-      }}
-    >
+    <>
+      <style>{`
+        @media (min-width: 640px) {
+          .card-desktop-styles {
+            background: #1F2224;
+            box-shadow: inset 0px 0px 0px 1px rgba(255, 255, 255, 0.1), inset 0px 1px 1px rgba(255, 255, 255, 0.15), inset 0px -1px 1px rgba(255, 255, 255, 0.1), inset 1px 0px 1px rgba(255, 255, 255, 0.1), inset -1px 0px 1px rgba(255, 255, 255, 0.1), 30.3463px 34.9442px 72.5553px rgba(0, 0, 0, 0.08);
+            backdrop-filter: blur(43.2205px);
+          }
+        }
+      `}</style>
+      <div
+        className={clsx(
+          'max-w-[709px] w-full box-border px-4 sm:px-12 py-6 sm:py-8 rounded-3xl flex flex-col mb-10 relative',
+          'card-desktop-styles',
+          cardClasses?.mainCardContainer || ''
+        )}
+        style={{
+          height: cardHeight,
+        }}
+      >
       {cardHeader && (
         <CardHeader
           tabs={cardHeader.tabs}
@@ -68,6 +75,7 @@ export const Card: React.FC<CardProps> = ({
       </div>
 
       {cardFooter && cardFooter}
-    </div>
+      </div>
+    </>
   )
 }

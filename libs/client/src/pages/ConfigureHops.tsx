@@ -781,11 +781,11 @@ walletC,15`
           activeKey,
           rightSlot:
             activeKey === 'configure' && routeMode === 'custom' ? (
-              <div className='flex items-center gap-2'>
+              <div className='flex flex-wrap items-center gap-2 w-full sm:w-auto'>
                 <button
                   type='button'
                   onClick={handleUploadClick}
-                  className='bg-[var(--white-100-transparency-02)] flex items-center justify-center gap-2 rounded-2xl pl-4 pr-3 py-1 not-italic font-medium text-sm leading-4 text-nowrap text-center text-[var(--cultured-white-500)] h-10'
+                  className='bg-[var(--white-100-transparency-02)] flex items-center justify-center gap-2 rounded-2xl pl-4 pr-3 py-1 not-italic font-medium text-sm leading-4 text-nowrap text-center text-[var(--cultured-white-500)] h-10 flex-1 sm:flex-none'
                   style={{
                     boxShadow: 'inset 0px 0px 7.9px rgba(255,255,255,0.14)',
                   }}
@@ -802,7 +802,7 @@ walletC,15`
                 <button
                   type='button'
                   onClick={handleDownloadTemplate}
-                  className='bg-[var(--white-100-transparency-02)] flex items-center justify-center gap-2 rounded-2xl pl-4 pr-3 py-1 not-italic font-medium text-sm leading-4 text-nowrap text-center text-[var(--cultured-white-500)] h-10'
+                  className='bg-[var(--white-100-transparency-02)] flex items-center justify-center gap-2 rounded-2xl pl-4 pr-3 py-1 not-italic font-medium text-sm leading-4 text-nowrap text-center text-[var(--cultured-white-500)] h-10 flex-1 sm:flex-none'
                   style={{
                     boxShadow: 'inset 0px 0px 7.9px rgba(255,255,255,0.14)',
                   }}

@@ -358,7 +358,7 @@ export const MyAssets: React.FC = () => {
         </div>
       )}
 
-      <div className='grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 h-[376px] overflow-x-hidden overflow-y-auto pr-2 relative'>
+      <div className='flex flex-col gap-[15px] sm:grid sm:grid-cols-2 sm:gap-4 mt-6 h-[376px] overflow-x-hidden overflow-y-auto pr-2 relative'>
         {isLoadingTokens ? (
           // Show skeleton cards while loading
           <>

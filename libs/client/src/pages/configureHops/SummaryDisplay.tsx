@@ -53,61 +53,122 @@ export const SummaryDisplay: React.FC<SummaryDisplayProps> = ({
         />
       </div>
 
-      {/* Subtitles */}
-      <div className='grid grid-cols-[177px_auto] gap-5 text-[13px] text-[var(--white-100-transparency-60)]'>
-        <div>Token & Amount</div>
-        <div>Hop Route</div>
-      </div>
-
-      {/* Token & Amount and Hop Route */}
-      <div className='grid grid-cols-[177px_auto] gap-5'>
-        {/* Token & Amount */}
-        <div className='rounded-3xl border border-[var(--white-100-transparency-10)] bg-[var(--chinese-black-800)] p-6 flex flex-col items-center justify-center text-center'>
-          <div className='h-14 w-14 rounded-full bg-[var(--black-900-transparency-40)] mb-4 overflow-hidden flex items-center justify-center'>
-              <img
-                src={
-                  imageError ? fallbackIcon : (selectedAsset?.icon || fallbackIcon)
-                }
-                alt={selectedAsset ? `${selectedAsset.symbol}-icon` : ''}
-                className='h-full w-full object-contain'
-                onError={() => {
-                  setImageError(true);
-                }}
-              />
-          </div>
-          <div className='text-2xl font-semibold'>
-            {selectedAmount || 0} {selectedAsset?.symbol ?? ''}
-          </div>
-          <div className='text-sm text-[var(--white-100-transparency-60)]'>
-            {usdPerToken
-              ? new Intl.NumberFormat('en-US', {
-                  style: 'currency',
-                  currency: 'USD',
-                }).format(totalUsd || 0)
-              : selectedAsset?.usdValue || '—'}
+      {/* Mobile layout: flex column with labels */}
+      <div className='flex flex-col gap-[15px] sm:hidden'>
+        {/* Token & Amount section */}
+        <div className='flex flex-col gap-[15px]'>
+          <div className='text-[13px] text-[var(--white-100-transparency-60)]'>Token & Amount</div>
+          <div className='rounded-3xl border border-[var(--white-100-transparency-10)] bg-[var(--chinese-black-800)] p-6 flex flex-col items-center justify-center text-center'>
+            <div className='h-14 w-14 rounded-full bg-[var(--black-900-transparency-40)] mb-4 overflow-hidden flex items-center justify-center'>
+                <img
+                  src={
+                    imageError ? fallbackIcon : (selectedAsset?.icon || fallbackIcon)
+                  }
+                  alt={selectedAsset ? `${selectedAsset.symbol}-icon` : ''}
+                  className='h-full w-full object-contain'
+                  onError={() => {
+                    setImageError(true);
+                  }}
+                />
+            </div>
+            <div className='text-2xl font-semibold'>
+              {selectedAmount || 0} {selectedAsset?.symbol ?? ''}
+            </div>
+            <div className='text-sm text-[var(--white-100-transparency-60)]'>
+              {usdPerToken
+                ? new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: 'USD',
+                  }).format(totalUsd || 0)
+                : selectedAsset?.usdValue || '—'}
+            </div>
           </div>
         </div>
 
-        {/* Hop route list */}
-        <div className='rounded-3xl border border-[var(--white-100-transparency-10)] bg-[var(--chinese-black-500)] p-4 flex flex-col gap-3 max-h-[260px] overflow-y-auto pr-2'>
-          {hops.map((h, i) => (
-            <div
-              key={`sum-hop-${i}`}
-              className='grid grid-cols-[250px_62px] gap-2 items-center justify-center'
-            >
-              <div className='h-12 rounded-2xl bg-[var(--eerie-black-700)] border border-[var(--white-100-transparency-10)] px-4 flex items-center text-[var(--white-100-transparency-80)]'>
-                <span className='text-[var(--white-100-transparency-50)] mr-3'>
-                  #{i + 1}
-                </span>
-                <span className='truncate'>
-                  {maskAddress(h.wallet || '')}
-                </span>
+        {/* Hop Route section */}
+        <div className='flex flex-col gap-[15px]'>
+          <div className='text-[13px] text-[var(--white-100-transparency-60)]'>Hop Route</div>
+          <div className='rounded-3xl border border-[var(--white-100-transparency-10)] bg-[var(--chinese-black-500)] p-4 flex flex-col gap-3 max-h-[260px] overflow-y-auto pr-2'>
+            {hops.map((h, i) => (
+              <div
+                key={`sum-hop-mobile-${i}`}
+                className='grid grid-cols-[250px_62px] gap-2 items-center justify-center'
+              >
+                <div className='h-12 rounded-2xl bg-[var(--eerie-black-700)] border border-[var(--white-100-transparency-10)] px-4 flex items-center text-[var(--white-100-transparency-80)]'>
+                  <span className='text-[var(--white-100-transparency-50)] mr-3'>
+                    #{i + 1}
+                  </span>
+                  <span className='truncate'>
+                    {maskAddress(h.wallet || '')}
+                  </span>
+                </div>
+                <div className='h-12 rounded-2xl bg-[var(--eerie-black-700)] border border-[var(--white-100-transparency-10)] flex items-center justify-center text-[var(--white-100-transparency-80)]'>
+                  {h.delayMinutes ? formatDuration(h.delayMinutes) : '--'}
+                </div>
               </div>
-              <div className='h-12 rounded-2xl bg-[var(--eerie-black-700)] border border-[var(--white-100-transparency-10)] flex items-center justify-center text-[var(--white-100-transparency-80)]'>
-                {h.delayMinutes ? formatDuration(h.delayMinutes) : '--'}
-              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop layout: grid */}
+      <div className='hidden sm:block'>
+        {/* Subtitles */}
+        <div className='grid grid-cols-[177px_auto] gap-5 text-[13px] text-[var(--white-100-transparency-60)] mb-0'>
+          <div>Token & Amount</div>
+          <div>Hop Route</div>
+        </div>
+
+        {/* Token & Amount and Hop Route */}
+        <div className='grid grid-cols-[177px_auto] gap-5 mt-5'>
+          {/* Token & Amount */}
+          <div className='rounded-3xl border border-[var(--white-100-transparency-10)] bg-[var(--chinese-black-800)] p-6 flex flex-col items-center justify-center text-center'>
+            <div className='h-14 w-14 rounded-full bg-[var(--black-900-transparency-40)] mb-4 overflow-hidden flex items-center justify-center'>
+                <img
+                  src={
+                    imageError ? fallbackIcon : (selectedAsset?.icon || fallbackIcon)
+                  }
+                  alt={selectedAsset ? `${selectedAsset.symbol}-icon` : ''}
+                  className='h-full w-full object-contain'
+                  onError={() => {
+                    setImageError(true);
+                  }}
+                />
             </div>
-          ))}
+            <div className='text-2xl font-semibold'>
+              {selectedAmount || 0} {selectedAsset?.symbol ?? ''}
+            </div>
+            <div className='text-sm text-[var(--white-100-transparency-60)]'>
+              {usdPerToken
+                ? new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: 'USD',
+                  }).format(totalUsd || 0)
+                : selectedAsset?.usdValue || '—'}
+            </div>
+          </div>
+
+          {/* Hop route list */}
+          <div className='rounded-3xl border border-[var(--white-100-transparency-10)] bg-[var(--chinese-black-500)] p-4 flex flex-col gap-3 max-h-[260px] overflow-y-auto pr-2'>
+            {hops.map((h, i) => (
+              <div
+                key={`sum-hop-desktop-${i}`}
+                className='grid grid-cols-[250px_62px] gap-2 items-center justify-center'
+              >
+                <div className='h-12 rounded-2xl bg-[var(--eerie-black-700)] border border-[var(--white-100-transparency-10)] px-4 flex items-center text-[var(--white-100-transparency-80)]'>
+                  <span className='text-[var(--white-100-transparency-50)] mr-3'>
+                    #{i + 1}
+                  </span>
+                  <span className='truncate'>
+                    {maskAddress(h.wallet || '')}
+                  </span>
+                </div>
+                <div className='h-12 rounded-2xl bg-[var(--eerie-black-700)] border border-[var(--white-100-transparency-10)] flex items-center justify-center text-[var(--white-100-transparency-80)]'>
+                  {h.delayMinutes ? formatDuration(h.delayMinutes) : '--'}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 

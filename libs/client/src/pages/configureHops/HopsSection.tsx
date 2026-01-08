@@ -102,7 +102,7 @@ export const HopsSection: React.FC<HopsSectionProps> = ({
 
         {/* Scrollable content with sticky header */}
         <div className='flex flex-col max-h-[360px] overflow-visible overflow-x-hidden pr-1 gap-5'>
-          <div className='sticky top-0 z-10 bg-[var(--chinese-black-800-transparency-95)] backdrop-blur-sm pb-3'>
+          <div className='sticky top-0 z-10 bg-[var(--chinese-black-800-transparency-95)] backdrop-blur-sm pb-3 hidden sm:block'>
             <div className='grid grid-cols-[177px_auto] gap-3 items-center text-[17px] text-[var(--white-100-transparency-70)]'>
               <div>Hops</div>
               <div>Delays</div>
