@@ -277,21 +277,19 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
               Hops
             </div>
             <div
-              className="h-[140px] sm:flex-1 bg-[#131416] rounded-[20px] sm:rounded-[24px] border border-[#25282c] flex flex-col items-center justify-center relative cursor-pointer group hover:border-[var(--laser-lemon-500)]/40 transition-all duration-300"
-              onClick={() => onHopCountChange(hopCount >= 5 ? 1 : hopCount + 1)}
-              title="Click to cycle hops"
+              className="h-[140px] sm:flex-1 bg-[#131416] rounded-[20px] sm:rounded-[24px] border border-[#25282c] flex flex-col items-center justify-center relative group hover:border-[var(--laser-lemon-500)]/40 transition-all duration-300"
             >
               {/* Central Glow Background */}
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(251,255,105,0.06)_0%,transparent_55%)] rounded-[24px]" />
 
               <div className="flex flex-col items-center justify-center h-full z-10">
-                {/* Top lines */}
+                {/* Top indicator lines - show up to 5 */}
                 <div className="flex gap-1 sm:gap-1.5 mb-1 sm:mb-2">
-                  {[1, 2, 3].map(i => (
+                  {[1, 2, 3, 4, 5].map(i => (
                     <div
                       key={`top-${i}`}
                       className={clsx(
-                        'w-[2px] sm:w-[3px] h-6 sm:h-10 rounded-full transition-all duration-500',
+                        'w-[2px] sm:w-[3px] h-4 sm:h-6 rounded-full transition-all duration-500',
                         i <= hopCount
                           ? 'bg-[var(--laser-lemon-500)] shadow-[0_0_15px_rgba(251,255,105,0.5)]'
                           : 'bg-[#25282c] shadow-none opacity-30'
@@ -300,18 +298,51 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
                   ))}
                 </div>
 
-                {/* Configured Number */}
-                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-[var(--laser-lemon-500)] flex items-center justify-center shadow-[0_0_35px_rgba(251,255,105,0.4)] z-10 my-1 group-hover:scale-110 transition-transform duration-300">
-                  <span className="text-2xl sm:text-3xl font-bold text-[var(--chinese-black-800)]">{hopCount}</span>
+                {/* Hop counter with +/- buttons */}
+                <div className="flex items-center gap-2 sm:gap-3">
+                  {/* Minus button */}
+                  <button
+                    type="button"
+                    onClick={() => onHopCountChange(Math.max(1, hopCount - 1))}
+                    disabled={hopCount <= 1}
+                    className={clsx(
+                      'w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-200',
+                      hopCount <= 1
+                        ? 'bg-[#25282c] text-[#555] cursor-not-allowed'
+                        : 'bg-[#25282c] text-[var(--white-100)] hover:bg-[#35383c] active:scale-95'
+                    )}
+                  >
+                    <span className="text-xl sm:text-2xl font-bold leading-none">−</span>
+                  </button>
+
+                  {/* Configured Number */}
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-[var(--laser-lemon-500)] flex items-center justify-center shadow-[0_0_35px_rgba(251,255,105,0.4)] z-10">
+                    <span className="text-2xl sm:text-3xl font-bold text-[var(--chinese-black-800)]">{hopCount}</span>
+                  </div>
+
+                  {/* Plus button */}
+                  <button
+                    type="button"
+                    onClick={() => onHopCountChange(Math.min(10, hopCount + 1))}
+                    disabled={hopCount >= 10}
+                    className={clsx(
+                      'w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-200',
+                      hopCount >= 10
+                        ? 'bg-[#25282c] text-[#555] cursor-not-allowed'
+                        : 'bg-[#25282c] text-[var(--white-100)] hover:bg-[#35383c] active:scale-95'
+                    )}
+                  >
+                    <span className="text-xl sm:text-2xl font-bold leading-none">+</span>
+                  </button>
                 </div>
 
-                {/* Bottom lines */}
+                {/* Bottom indicator lines - show 6-10 */}
                 <div className="flex gap-1 sm:gap-1.5 mt-1 sm:mt-2">
-                  {[1, 2, 3].map(i => (
+                  {[6, 7, 8, 9, 10].map(i => (
                     <div
                       key={`bottom-${i}`}
                       className={clsx(
-                        'w-[2px] sm:w-[3px] h-6 sm:h-10 rounded-full transition-all duration-500',
+                        'w-[2px] sm:w-[3px] h-4 sm:h-6 rounded-full transition-all duration-500',
                         i <= hopCount
                           ? 'bg-[var(--laser-lemon-500)] shadow-[0_0_15px_rgba(251,255,105,0.5)]'
                           : 'bg-[#25282c] shadow-none opacity-30'

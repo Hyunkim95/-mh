@@ -104,8 +104,14 @@ export function TimezoneAwareDatePicker({
   }
   .mh-datepicker .react-datepicker__current-month,
   .mh-datepicker .react-datepicker-time__header,
+  .mh-datepicker .react-datepicker-time__caption,
+  .mh-datepicker .react-datepicker__time-name,
   .mh-datepicker .react-datepicker__day-name {
     color: var(--white-100) !important;
+  }
+  .mh-datepicker .react-datepicker__time-container .react-datepicker-time__header {
+    color: var(--white-100) !important;
+    background: var(--chinese-black-800) !important;
   }
   .mh-datepicker .react-datepicker__day { color: var(--white-100) !important; }
   .mh-datepicker .react-datepicker__day:hover { background: var(--white-100-transparency-10) !important; }
@@ -165,7 +171,7 @@ export function TimezoneAwareDatePicker({
             }
             calendarClassName={`shadow-lg border ${calendarClassName || ""}`.trim()}
             popperClassName={`z-50 ${popperClassName || ""}`.trim()}
-            timeIntervals={15}
+            timeIntervals={2}
             timeCaption="Time"
             inline={inlineOnly}
           />

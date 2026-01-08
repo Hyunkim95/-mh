@@ -19,6 +19,12 @@
   color: var(--white-100) !important;
 }
 
+/* Fix "Time" header label color */
+.mh-datepicker .react-datepicker__time-container .react-datepicker-time__header {
+  color: var(--white-100) !important;
+  background: var(--chinese-black-800) !important;
+}
+
 .mh-datepicker .react-datepicker__day {
   color: var(--white-100) !important;
 }

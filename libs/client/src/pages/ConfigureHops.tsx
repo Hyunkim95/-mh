@@ -678,9 +678,9 @@ walletC,15`
   }
 
   const footer = (
-    <div className='flex justify-between items-start'>
+    <div className={`flex ${isMobile ? 'flex-col-reverse gap-4' : 'flex-row justify-between items-start'}`}>
       {activeKey !== 'choose' && activeKey !== 'mode' ? (
-        <div className='flex flex-col gap-3'>
+        <div className={`flex flex-col gap-3 ${isMobile ? 'w-full' : ''}`}>
           <div className='not-italic font-medium text-base leading-4 text-[var(--white-100)]'>
             {routeMode === 'easy' && easyRouteConfig.arrivalTime
               ? 'Arrival Time'
@@ -717,11 +717,11 @@ walletC,15`
         <div />
       )}
 
-      <div className='flex items-center gap-3'>
+      <div className={`flex items-center gap-3 ${isMobile ? 'w-full' : ''}`}>
         <button
           type='button'
           onClick={handleNavigateBack}
-          className='flex items-center justify-center gap-2 rounded-3xl bg-transparent text-[var(--white-100)] not-italic font-medium text-base leading-5 px-6 py-3 transition hover:bg-white/5 border border-[var(--white-100)] w-36'
+          className={`flex items-center justify-center gap-2 rounded-3xl bg-transparent text-[var(--white-100)] not-italic font-medium text-base leading-5 px-6 py-3 transition hover:bg-white/5 border border-[var(--white-100)] ${isMobile ? 'flex-1' : 'w-36'}`}
         >
           Back
         </button>
@@ -735,7 +735,7 @@ walletC,15`
               (activeKey === 'configure' && routeMode === 'easy' && !canProceedFromEasyRoute) ||
               (activeKey === 'choose' && !canProceedFromChoose)
             }
-            className={`flex items-center justify-center gap-2 rounded-3xl text-[var(--black-900)] not-italic font-medium text-base leading-5 px-6 py-3 disabled:opacity-15 shadow-[0_8px_24px_rgba(0,0,0,0.45)] w-36 transition ${
+            className={`flex items-center justify-center gap-2 rounded-3xl text-[var(--black-900)] not-italic font-medium text-base leading-5 px-6 py-3 disabled:opacity-15 shadow-[0_8px_24px_rgba(0,0,0,0.45)] transition ${
               activeKey === 'configure' && routeMode === 'custom'
                 ? canProceedFromHops
                   ? 'bg-[var(--laser-lemon-500)] hover:brightness-95'
@@ -745,7 +745,7 @@ walletC,15`
                   ? 'bg-[var(--laser-lemon-500)] hover:brightness-95'
                   : 'bg-[var(--laser-lemon-500-transparency-30)] cursor-not-allowed'
                 : 'bg-[var(--laser-lemon-500)] hover:brightness-95'
-            }  ${isMobile ? "w-full min-w-[unset]" : undefined}`}
+            } ${isMobile ? 'flex-1' : 'w-36'}`}
           >
             Next Step
           </button>
@@ -754,11 +754,11 @@ walletC,15`
             type='button'
             onClick={routeMode === 'easy' ? handleEasyRouteConfirm : handleConfirm}
             disabled={routeMode === 'easy' ? !canProceedFromEasyRoute : false}
-            className={`flex items-center justify-center gap-2 rounded-3xl text-[var(--black-900)] not-italic font-medium text-base leading-5 px-6 py-3 shadow-[0_8px_24px_var(--black-900-transparency-45)] w-36 transition ${
+            className={`flex items-center justify-center gap-2 rounded-3xl text-[var(--black-900)] not-italic font-medium text-base leading-5 px-6 py-3 shadow-[0_8px_24px_var(--black-900-transparency-45)] transition ${
               routeMode === 'easy' && !canProceedFromEasyRoute
                 ? 'bg-[var(--laser-lemon-500-transparency-30)] cursor-not-allowed opacity-50'
                 : 'bg-[var(--laser-lemon-500)] hover:brightness-95'
-            }  ${isMobile ? "w-full min-w-[unset]" : undefined}`}
+            } ${isMobile ? 'flex-1' : 'w-36'}`}
           >
             {isSubmitting ? 'Confirming…' : 'Confirm'}
           </button>

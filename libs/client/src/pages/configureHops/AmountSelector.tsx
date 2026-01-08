@@ -101,7 +101,7 @@ export const AmountSelector: React.FC<AmountSelectorProps> = ({
               onChange={handleInputChange}
               onBlur={handleInputBlur}
               onKeyDown={handleInputKeyDown}
-              className='not-italic font-medium text-6xl md:text-[88px] leading-tight sm:leading-[103px] text-center tracking-tight bg-transparent border-none outline-none'
+              className='not-italic font-medium text-4xl sm:text-6xl md:text-[88px] leading-tight sm:leading-[103px] text-center tracking-tight bg-transparent border-none outline-none'
               style={{
                 background:
                   'linear-gradient(270deg, var(--white-100-transparency-50) 7%, var(--white-100) 53%, var(--white-100-transparency-50) 99%)',
@@ -115,7 +115,7 @@ export const AmountSelector: React.FC<AmountSelectorProps> = ({
             <div
               ref={amountDisplayRef}
               onClick={handleAmountClick}
-              className='not-italic font-medium text-6xl md:text-[88px] leading-tight sm:leading-[103px] text-center text-transparent bg-clip-text tracking-tight drop-shadow-[0_8px_30px_var(--white-100-transparency-15)] overflow-hidden text-ellipsis whitespace-nowrap max-w-full cursor-pointer'
+              className='not-italic font-medium text-4xl sm:text-6xl md:text-[88px] leading-tight sm:leading-[103px] text-center text-transparent bg-clip-text tracking-tight drop-shadow-[0_8px_30px_var(--white-100-transparency-15)] overflow-hidden text-ellipsis whitespace-nowrap max-w-full cursor-pointer'
               style={{
                 background:
                   'linear-gradient(270deg, var(--white-100-transparency-50) 7%, var(--white-100) 53%, var(--white-100-transparency-50) 99%)',
@@ -129,7 +129,7 @@ export const AmountSelector: React.FC<AmountSelectorProps> = ({
             </div>
           )}
           <div
-            className='not-italic font-medium text-6xl md:text-[88px] leading-tight sm:leading-[103px] text-center text-transparent bg-clip-text tracking-tight drop-shadow-[0_8px_30px_var(--white-100-transparency-15)] flex-shrink-0'
+            className='not-italic font-medium text-4xl sm:text-6xl md:text-[88px] leading-tight sm:leading-[103px] text-center text-transparent bg-clip-text tracking-tight drop-shadow-[0_8px_30px_var(--white-100-transparency-15)] flex-shrink-0'
             style={{
               background:
                 'linear-gradient(270deg, var(--white-100-transparency-50) 7%, var(--white-100) 53%, var(--white-100-transparency-50) 99%)',
