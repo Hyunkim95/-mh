@@ -23,7 +23,7 @@ export const NavBar = () => {
         className='flex flex-row justify-center items-center gap-4'>
         <button
             className='flex flex-row items-center gap-2 sm:gap-4 hover:opacity-80 transition-opacity cursor-pointer'
-          onClick={() => router.navigate({ to: '/my-assets' })}
+          onClick={() => router.navigate({ to: '/' })}
         >
           <img src={Logo} alt='Logo' className='w-6 sm:w-8 h-6 sm:h-8 object-contain' />
           <h1 className='text-base sm:text-xl font-bold text-[var(--white-100)]'>
