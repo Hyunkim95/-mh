@@ -116,19 +116,12 @@ export class ContractEventProcessor {
   async processTokenConfigUpdatedEvent(event: ContractEvent): Promise<void> {
     const eventData = event.eventData as TokenConfigUpdatedEvent;
     tokenConfigsService.update(eventData.tokenConfig.toString(), {
-      tokenMint: eventData.tokenMint.toString(),
       minTransferAmount: this.convertHexToNumber(
         eventData.minTransfer.toString()
       ),
       feeBps: Number(eventData.feeBps),
       feeTreasury: eventData.feeTreasury.toString(),
       maxHops: Number(eventData.maxHops),
-      maxDelaySeconds: this.convertHexToNumber(
-        eventData.maxDelaySeconds.toString()
-      ),
-      timelockSeconds: this.convertHexToNumber(
-        eventData.timelockSeconds.toString()
-      ),
       flatFeeLamports: this.convertHexToNumber(
         eventData.flatFeeLamports.toString()
       ),
@@ -359,7 +352,7 @@ export class ContractEventProcessor {
     const eventData = event.eventData as TokenConfigCreatedEvent;
     tokenConfigsService.create({
       tokenConfigAddress: eventData.tokenConfig.toString(),
-      tokenMint: eventData.tokenMint.toString(),
+      tokenMint: 'Deprecated',
       creator: eventData.creator.toString(),
       minTransferAmount: this.convertHexToNumber(
         eventData.minTransfer.toString()
@@ -367,12 +360,8 @@ export class ContractEventProcessor {
       feeBps: Number(eventData.feeBps),
       feeTreasury: eventData.feeTreasury.toString(),
       maxHops: Number(eventData.maxHops),
-      maxDelaySeconds: this.convertHexToNumber(
-        eventData.maxDelaySeconds.toString()
-      ),
-      timelockSeconds: this.convertHexToNumber(
-        eventData.timelockSeconds.toString()
-      ),
+      maxDelaySeconds: 0,
+      timelockSeconds: 0,
       flatFeeLamports: this.convertHexToNumber(
         eventData.flatFeeLamports.toString()
       ),

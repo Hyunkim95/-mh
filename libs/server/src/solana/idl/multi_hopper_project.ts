@@ -111,7 +111,35 @@ export type MultiHopperProject = {
           "signer": true
         },
         {
-          "name": "tokenConfig"
+          "name": "tokenConfig",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "routeConfig",
@@ -407,7 +435,35 @@ export type MultiHopperProject = {
           "signer": true
         },
         {
-          "name": "tokenConfig"
+          "name": "tokenConfig",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "routeConfig",
@@ -557,122 +613,6 @@ export type MultiHopperProject = {
       ]
     },
     {
-      "name": "initializeSolTokenConfig",
-      "discriminator": [
-        102,
-        181,
-        226,
-        225,
-        116,
-        126,
-        33,
-        76
-      ],
-      "accounts": [
-        {
-          "name": "creator",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "tokenConfig",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  116,
-                  111,
-                  107,
-                  101,
-                  110,
-                  95,
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              },
-              {
-                "kind": "const",
-                "value": [
-                  6,
-                  155,
-                  136,
-                  87,
-                  254,
-                  171,
-                  129,
-                  132,
-                  251,
-                  104,
-                  127,
-                  99,
-                  70,
-                  24,
-                  192,
-                  53,
-                  218,
-                  196,
-                  57,
-                  220,
-                  26,
-                  235,
-                  59,
-                  85,
-                  152,
-                  160,
-                  240,
-                  0,
-                  0,
-                  0,
-                  0,
-                  1
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "minTransfer",
-          "type": "u64"
-        },
-        {
-          "name": "feeBps",
-          "type": "u16"
-        },
-        {
-          "name": "feeTreasury",
-          "type": "pubkey"
-        },
-        {
-          "name": "maxHops",
-          "type": "u8"
-        },
-        {
-          "name": "maxDelaySeconds",
-          "type": "u64"
-        },
-        {
-          "name": "timelockSeconds",
-          "type": "u64"
-        },
-        {
-          "name": "flatFeeLamports",
-          "type": "u64"
-        }
-      ]
-    },
-    {
       "name": "initializeTokenConfig",
       "discriminator": [
         60,
@@ -709,18 +649,18 @@ export type MultiHopperProject = {
                   110,
                   102,
                   105,
-                  103
+                  103,
+                  95,
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108
                 ]
-              },
-              {
-                "kind": "account",
-                "path": "tokenMint"
               }
             ]
           }
-        },
-        {
-          "name": "tokenMint"
         },
         {
           "name": "systemProgram",
@@ -737,20 +677,16 @@ export type MultiHopperProject = {
           "type": "u16"
         },
         {
+          "name": "signer",
+          "type": "pubkey"
+        },
+        {
           "name": "feeTreasury",
           "type": "pubkey"
         },
         {
           "name": "maxHops",
           "type": "u8"
-        },
-        {
-          "name": "maxDelaySeconds",
-          "type": "u64"
-        },
-        {
-          "name": "timelockSeconds",
-          "type": "u64"
         },
         {
           "name": "flatFeeLamports",
@@ -1434,76 +1370,6 @@ export type MultiHopperProject = {
       ]
     },
     {
-      "name": "updateSolTokenConfig",
-      "discriminator": [
-        29,
-        64,
-        77,
-        200,
-        16,
-        63,
-        122,
-        86
-      ],
-      "accounts": [
-        {
-          "name": "tokenConfig",
-          "writable": true
-        },
-        {
-          "name": "creator",
-          "signer": true,
-          "relations": [
-            "tokenConfig"
-          ]
-        }
-      ],
-      "args": [
-        {
-          "name": "minTransfer",
-          "type": {
-            "option": "u64"
-          }
-        },
-        {
-          "name": "feeBps",
-          "type": {
-            "option": "u16"
-          }
-        },
-        {
-          "name": "feeTreasury",
-          "type": {
-            "option": "pubkey"
-          }
-        },
-        {
-          "name": "maxHops",
-          "type": {
-            "option": "u8"
-          }
-        },
-        {
-          "name": "maxDelaySeconds",
-          "type": {
-            "option": "u64"
-          }
-        },
-        {
-          "name": "timelockSeconds",
-          "type": {
-            "option": "u64"
-          }
-        },
-        {
-          "name": "flatFeeLamports",
-          "type": {
-            "option": "u64"
-          }
-        }
-      ]
-    },
-    {
       "name": "updateTokenConfig",
       "discriminator": [
         231,
@@ -1518,14 +1384,43 @@ export type MultiHopperProject = {
       "accounts": [
         {
           "name": "tokenConfig",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "creator",
-          "signer": true,
-          "relations": [
-            "tokenConfig"
-          ]
+          "signer": true
+        },
+        {
+          "name": "signer",
+          "signer": true
         }
       ],
       "args": [
@@ -1542,6 +1437,12 @@ export type MultiHopperProject = {
           }
         },
         {
+          "name": "signer",
+          "type": {
+            "option": "pubkey"
+          }
+        },
+        {
           "name": "feeTreasury",
           "type": {
             "option": "pubkey"
@@ -1551,18 +1452,6 @@ export type MultiHopperProject = {
           "name": "maxHops",
           "type": {
             "option": "u8"
-          }
-        },
-        {
-          "name": "maxDelaySeconds",
-          "type": {
-            "option": "u64"
-          }
-        },
-        {
-          "name": "timelockSeconds",
-          "type": {
-            "option": "u64"
           }
         },
         {
@@ -2256,7 +2145,7 @@ export type MultiHopperProject = {
     {
       "code": 6020,
       "name": "unauthorized",
-      "msg": "Unauthorized: only creator can modify route"
+      "msg": "unauthorized"
     },
     {
       "code": 6021,
@@ -2350,6 +2239,10 @@ export type MultiHopperProject = {
           {
             "name": "routeId",
             "type": "u64"
+          },
+          {
+            "name": "originalMint",
+            "type": "pubkey"
           },
           {
             "name": "routeTokenMint",
@@ -2472,10 +2365,6 @@ export type MultiHopperProject = {
             "type": "pubkey"
           },
           {
-            "name": "tokenMint",
-            "type": "pubkey"
-          },
-          {
             "name": "minTransfer",
             "type": "u64"
           },
@@ -2492,12 +2381,8 @@ export type MultiHopperProject = {
             "type": "u8"
           },
           {
-            "name": "maxDelaySeconds",
-            "type": "u64"
-          },
-          {
-            "name": "timelockSeconds",
-            "type": "u64"
+            "name": "signer",
+            "type": "pubkey"
           },
           {
             "name": "flatFeeLamports",
@@ -2524,10 +2409,6 @@ export type MultiHopperProject = {
             "type": "pubkey"
           },
           {
-            "name": "tokenMint",
-            "type": "pubkey"
-          },
-          {
             "name": "minTransfer",
             "type": "u64"
           },
@@ -2540,16 +2421,12 @@ export type MultiHopperProject = {
             "type": "pubkey"
           },
           {
+            "name": "signer",
+            "type": "pubkey"
+          },
+          {
             "name": "maxHops",
             "type": "u8"
-          },
-          {
-            "name": "maxDelaySeconds",
-            "type": "u64"
-          },
-          {
-            "name": "timelockSeconds",
-            "type": "u64"
           },
           {
             "name": "flatFeeLamports",
@@ -2572,10 +2449,6 @@ export type MultiHopperProject = {
             "type": "pubkey"
           },
           {
-            "name": "tokenMint",
-            "type": "pubkey"
-          },
-          {
             "name": "minTransfer",
             "type": "u64"
           },
@@ -2584,20 +2457,16 @@ export type MultiHopperProject = {
             "type": "u16"
           },
           {
+            "name": "signer",
+            "type": "pubkey"
+          },
+          {
             "name": "feeTreasury",
             "type": "pubkey"
           },
           {
             "name": "maxHops",
             "type": "u8"
-          },
-          {
-            "name": "maxDelaySeconds",
-            "type": "u64"
-          },
-          {
-            "name": "timelockSeconds",
-            "type": "u64"
           },
           {
             "name": "flatFeeLamports",

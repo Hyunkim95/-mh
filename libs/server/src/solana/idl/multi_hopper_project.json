@@ -105,7 +105,35 @@
           "signer": true
         },
         {
-          "name": "token_config"
+          "name": "token_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "route_config",
@@ -401,7 +429,35 @@
           "signer": true
         },
         {
-          "name": "token_config"
+          "name": "token_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "route_config",
@@ -551,122 +607,6 @@
       ]
     },
     {
-      "name": "initialize_sol_token_config",
-      "discriminator": [
-        102,
-        181,
-        226,
-        225,
-        116,
-        126,
-        33,
-        76
-      ],
-      "accounts": [
-        {
-          "name": "creator",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "token_config",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  116,
-                  111,
-                  107,
-                  101,
-                  110,
-                  95,
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              },
-              {
-                "kind": "const",
-                "value": [
-                  6,
-                  155,
-                  136,
-                  87,
-                  254,
-                  171,
-                  129,
-                  132,
-                  251,
-                  104,
-                  127,
-                  99,
-                  70,
-                  24,
-                  192,
-                  53,
-                  218,
-                  196,
-                  57,
-                  220,
-                  26,
-                  235,
-                  59,
-                  85,
-                  152,
-                  160,
-                  240,
-                  0,
-                  0,
-                  0,
-                  0,
-                  1
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "min_transfer",
-          "type": "u64"
-        },
-        {
-          "name": "fee_bps",
-          "type": "u16"
-        },
-        {
-          "name": "fee_treasury",
-          "type": "pubkey"
-        },
-        {
-          "name": "max_hops",
-          "type": "u8"
-        },
-        {
-          "name": "max_delay_seconds",
-          "type": "u64"
-        },
-        {
-          "name": "timelock_seconds",
-          "type": "u64"
-        },
-        {
-          "name": "flat_fee_lamports",
-          "type": "u64"
-        }
-      ]
-    },
-    {
       "name": "initialize_token_config",
       "discriminator": [
         60,
@@ -703,18 +643,18 @@
                   110,
                   102,
                   105,
-                  103
+                  103,
+                  95,
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108
                 ]
-              },
-              {
-                "kind": "account",
-                "path": "token_mint"
               }
             ]
           }
-        },
-        {
-          "name": "token_mint"
         },
         {
           "name": "system_program",
@@ -731,20 +671,16 @@
           "type": "u16"
         },
         {
+          "name": "signer",
+          "type": "pubkey"
+        },
+        {
           "name": "fee_treasury",
           "type": "pubkey"
         },
         {
           "name": "max_hops",
           "type": "u8"
-        },
-        {
-          "name": "max_delay_seconds",
-          "type": "u64"
-        },
-        {
-          "name": "timelock_seconds",
-          "type": "u64"
         },
         {
           "name": "flat_fee_lamports",
@@ -1428,76 +1364,6 @@
       ]
     },
     {
-      "name": "update_sol_token_config",
-      "discriminator": [
-        29,
-        64,
-        77,
-        200,
-        16,
-        63,
-        122,
-        86
-      ],
-      "accounts": [
-        {
-          "name": "token_config",
-          "writable": true
-        },
-        {
-          "name": "creator",
-          "signer": true,
-          "relations": [
-            "token_config"
-          ]
-        }
-      ],
-      "args": [
-        {
-          "name": "min_transfer",
-          "type": {
-            "option": "u64"
-          }
-        },
-        {
-          "name": "fee_bps",
-          "type": {
-            "option": "u16"
-          }
-        },
-        {
-          "name": "fee_treasury",
-          "type": {
-            "option": "pubkey"
-          }
-        },
-        {
-          "name": "max_hops",
-          "type": {
-            "option": "u8"
-          }
-        },
-        {
-          "name": "max_delay_seconds",
-          "type": {
-            "option": "u64"
-          }
-        },
-        {
-          "name": "timelock_seconds",
-          "type": {
-            "option": "u64"
-          }
-        },
-        {
-          "name": "flat_fee_lamports",
-          "type": {
-            "option": "u64"
-          }
-        }
-      ]
-    },
-    {
       "name": "update_token_config",
       "discriminator": [
         231,
@@ -1512,14 +1378,43 @@
       "accounts": [
         {
           "name": "token_config",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "creator",
-          "signer": true,
-          "relations": [
-            "token_config"
-          ]
+          "signer": true
+        },
+        {
+          "name": "signer",
+          "signer": true
         }
       ],
       "args": [
@@ -1536,6 +1431,12 @@
           }
         },
         {
+          "name": "signer",
+          "type": {
+            "option": "pubkey"
+          }
+        },
+        {
           "name": "fee_treasury",
           "type": {
             "option": "pubkey"
@@ -1545,18 +1446,6 @@
           "name": "max_hops",
           "type": {
             "option": "u8"
-          }
-        },
-        {
-          "name": "max_delay_seconds",
-          "type": {
-            "option": "u64"
-          }
-        },
-        {
-          "name": "timelock_seconds",
-          "type": {
-            "option": "u64"
           }
         },
         {
@@ -2250,7 +2139,7 @@
     {
       "code": 6020,
       "name": "Unauthorized",
-      "msg": "Unauthorized: only creator can modify route"
+      "msg": "Unauthorized"
     },
     {
       "code": 6021,
@@ -2344,6 +2233,10 @@
           {
             "name": "route_id",
             "type": "u64"
+          },
+          {
+            "name": "original_mint",
+            "type": "pubkey"
           },
           {
             "name": "route_token_mint",
@@ -2466,10 +2359,6 @@
             "type": "pubkey"
           },
           {
-            "name": "token_mint",
-            "type": "pubkey"
-          },
-          {
             "name": "min_transfer",
             "type": "u64"
           },
@@ -2486,12 +2375,8 @@
             "type": "u8"
           },
           {
-            "name": "max_delay_seconds",
-            "type": "u64"
-          },
-          {
-            "name": "timelock_seconds",
-            "type": "u64"
+            "name": "signer",
+            "type": "pubkey"
           },
           {
             "name": "flat_fee_lamports",
@@ -2518,10 +2403,6 @@
             "type": "pubkey"
           },
           {
-            "name": "token_mint",
-            "type": "pubkey"
-          },
-          {
             "name": "min_transfer",
             "type": "u64"
           },
@@ -2534,16 +2415,12 @@
             "type": "pubkey"
           },
           {
+            "name": "signer",
+            "type": "pubkey"
+          },
+          {
             "name": "max_hops",
             "type": "u8"
-          },
-          {
-            "name": "max_delay_seconds",
-            "type": "u64"
-          },
-          {
-            "name": "timelock_seconds",
-            "type": "u64"
           },
           {
             "name": "flat_fee_lamports",
@@ -2566,10 +2443,6 @@
             "type": "pubkey"
           },
           {
-            "name": "token_mint",
-            "type": "pubkey"
-          },
-          {
             "name": "min_transfer",
             "type": "u64"
           },
@@ -2578,20 +2451,16 @@
             "type": "u16"
           },
           {
+            "name": "signer",
+            "type": "pubkey"
+          },
+          {
             "name": "fee_treasury",
             "type": "pubkey"
           },
           {
             "name": "max_hops",
             "type": "u8"
-          },
-          {
-            "name": "max_delay_seconds",
-            "type": "u64"
-          },
-          {
-            "name": "timelock_seconds",
-            "type": "u64"
           },
           {
             "name": "flat_fee_lamports",

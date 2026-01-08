@@ -96,10 +96,7 @@ export const triggerHopJob = new CronJob("*/10 * * * * *", async () => {
         // Attempt to trigger the hop
         await contractService.executeHop(
           new PublicKey(routeDB?.creator),
-          new BN(routeDB?.id),
-          routeDB.tokenMint
-            ? new PublicKey(routeDB.tokenMint)
-            : new PublicKey("So11111111111111111111111111111111111111112")
+          new BN(routeDB?.id)        
         );
 
         // If successful, remove from failed hops map

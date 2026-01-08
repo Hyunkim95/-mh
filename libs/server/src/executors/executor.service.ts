@@ -36,6 +36,21 @@ const getWalletByRouteId = (routeId: number): Keypair => {
   return Keypair.fromSeed(seed);
 };
 
+const getSigner = (): Keypair => {
+  const executorSeed = process.env.EXECUTOR_SEED || "executor_seed";
+  if (!executorSeed) {
+    throw new Error("EXECUTOR_SEED environment variable is required");
+  }
+
+  // Create deterministic seed from routeId and env seed
+  const seedString = `${executorSeed}_signer`;
+  const hash = crypto.createHash("sha256").update(seedString).digest();
+
+  // Create keypair from the first 32 bytes of the hash
+  const seed = hash.slice(0, 32);
+  return Keypair.fromSeed(seed);
+}
+
 /**
  * Gets the balance of an executor wallet for a given routeId
  * @param routeId - The route ID to get balance for
@@ -143,6 +158,7 @@ const executorService = {
   getExecutorPublicKey,
   // Backward compatibility
   getKeypair,
+  getSigner
 };
 
 export default executorService;

@@ -41,7 +41,6 @@ const tokenConfigSchema = z.object({
 });
 
 const initializeTokenConfigInputSchema = z.object({
-  splMint: publicKeySchema,
   creator: publicKeySchema,
   tokenConfig: tokenConfigSchema,
 });
@@ -63,7 +62,6 @@ const initializeTokenConfigSolInputSchema = z.object({
 });
 
 const updateTokenConfigInputSchema = z.object({
-  splMint: publicKeySchema,
   creator: publicKeySchema,
   tokenConfig: tokenConfigSchema,
 });
@@ -71,11 +69,6 @@ const updateTokenConfigInputSchema = z.object({
 const updateTokenConfigSolInputSchema = z.object({
   creator: publicKeySchema,
   tokenConfig: tokenConfigSchema,
-});
-
-const getTokenConfigInputSchema = z.object({
-  splMint: publicKeySchema,
-  creator: publicKeySchema,
 });
 
 const getTokenConfigSolInputSchema = z.object({
@@ -163,14 +156,12 @@ export const contractRouter = router({
     .input(initializeTokenConfigInputSchema)
     .mutation(async ({ input }) => {
       try {
-        const { splMint, tokenConfig, creator } = input;
-        const tokenMint = new PublicKey(splMint);
+        const { tokenConfig, creator } = input;
         const payer = new PublicKey(creator);
         const parsedConfig = parseTokenConfig(tokenConfig);
 
         const { transaction } = await initializeCompleteTokenConfig(
           payer,
-          tokenMint,
           parsedConfig
         );
 
@@ -242,20 +233,20 @@ export const contractRouter = router({
     .input(updateTokenConfigInputSchema)
     .mutation(async ({ input }) => {
       try {
-        const { splMint, tokenConfig, creator } = input;
-        const tokenMint = new PublicKey(splMint);
+        const { tokenConfig, creator } = input;
         const payer = new PublicKey(creator);
         const parsedConfig = parseTokenConfig(tokenConfig);
 
         const transaction = await updateTokenConfigWithTransaction(
           payer,
-          tokenMint,
           parsedConfig
         );
+        const signer = executorService.getSigner();
 
-        const serializedTransaction = await serialize(
+        const serializedTransaction = await signAndSerialize(
           transaction,
           payer,
+          signer,
           params.connection
         );
 
@@ -321,11 +312,9 @@ export const contractRouter = router({
    * GET /contract/get-token-config-spl
    */
   getTokenConfigSPL: publicProcedure
-    .input(getTokenConfigInputSchema)
-    .query(async ({ input }) => {
+    .query(async () => {
       try {
-        const { splMint, creator } = input;
-        const result = await getTokenConfigSPL(splMint);
+        const result = await getTokenConfigSPL();
 
         return {
           success: true,
@@ -699,13 +688,12 @@ export const contractRouter = router({
     .input(triggerHopInputSchema)
     .mutation(async ({ input }) => {
       try {
-        const { routeId, creator, splMint } = input;
+        const { routeId, creator } = input;
 
         // Execute the hop using the simplified signature
         const signature = await executeHop(
           new PublicKey(creator),
           new BN(routeId),
-          new PublicKey(splMint)
         );
 
         return {
