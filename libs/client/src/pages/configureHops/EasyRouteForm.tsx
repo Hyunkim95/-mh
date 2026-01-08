@@ -237,7 +237,7 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
                 showTimeSelect
                 dateFormat="EEEE d MMMM HH:mm"
                 minDate={minDate}
-                timeIntervals={15}
+                timeIntervals={2}
                 timeCaption="Time"
                 customInput={<DateCustomInput />}
                 calendarClassName="mh-easy-datepicker"
