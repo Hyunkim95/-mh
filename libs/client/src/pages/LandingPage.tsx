@@ -581,7 +581,7 @@ export const LandingPage: React.FC = () => {
           </div>
 
           {/* Program Images with Text Overlays */}
-          <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
+          <div className='grid justify-items-center grid-cols-1 md:grid-cols-3 gap-6'>
             {[
               {
                 image: '/program1.png',
@@ -601,7 +601,7 @@ export const LandingPage: React.FC = () => {
             ].map((program, idx) => (
               <div
                 key={idx}
-                className='group relative h-[360px] sm:h-[347px] w-full overflow-hidden rounded-[32px] border border-white/[0.08] bg-[#16181A] hover:scale-[1.02] transition-all duration-500'
+                className='group relative h-[360px] sm:h-[347px] w-full max-w-[305px] overflow-hidden rounded-[32px] border border-white/[0.08] bg-[#16181A] hover:scale-[1.02] transition-all duration-500'
                 style={{
                   animation: `fadeInUp 0.5s ease-out ${0.1 * idx}s both`,
                 }}
@@ -634,7 +634,11 @@ export const LandingPage: React.FC = () => {
               onClick={() => {
                 console.log('Send assets CTA')
               }}
-              className='max-w-[124px] w-full py-2 sm:py-3 bg-mh-yellow text-black font-medium text-base rounded-[10px] hover:brightness-110 hover:shadow-lg hover:shadow-mh-yellow/20 transition-all duration-300 font-grotesk'
+              className='not-italic font-medium text-sm text-center max-w-[124px] w-full py-2 bg-mh-yellow text-black rounded-xl hover:brightness-110 hover:shadow-lg hover:shadow-mh-yellow/20 transition-all duration-300'
+              style={{
+                // fontFamily: 'Clash Grotesk Variable',
+                fontFamily: 'Space Grotesk',
+              }}
             >
               Send Assets
             </button>
@@ -649,12 +653,19 @@ export const LandingPage: React.FC = () => {
       >
         <div className='max-w-5xl mx-auto'>
           <div className='text-center mb-8 sm:mb-14'>
-            <div className='inline-flex items-center gap-2 mb-4 sm:mb-8 px-4 sm:px-5 py-2 sm:py-2.5 bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-full'>
-              <img src={TagStars} alt='' className='w-4 h-4 sm:w-5 sm:h-5' />
-              <span className='text-xs sm:text-sm font-medium'>
+          <div
+              className='inline-flex items-center gap-3 mb-6 sm:mb-8 px-3 sm:px-3 py-2 sm:py-2 bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-2xl'
+              style={{ animation: 'fadeInUp 0.6s ease-out' }}
+            >
+              <img src={MotionIcon} alt='' className='w-4 h-4 sm:w-5 sm:h-5' />
+              <span
+                className='text-xs sm:text-base not-italic font-medium leading-5 text-white'
+                style={{ fontFamily: 'Roboto, sans-serif' }}
+              >
                 Privacy in Motion
               </span>
             </div>
+
             <h2 className='ext-2xl sm:text-3xl lg:text-5xl leading-[41px] font-light'>
               How it all works
             </h2>
