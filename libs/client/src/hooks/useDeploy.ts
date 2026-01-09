@@ -5,11 +5,14 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { trpc } from "../trpc";
 
+// Maximum hops that can fit in a single transaction (matches backend)
+const HOPS_PER_BATCH = 4;
+
 export const useDeploy = () => {
   const { publicKey, sendTransaction } = useWallet();
   const { connection } = useConnection();
   const initializeRoute = trpc.contract.initializeRoute.useMutation();
-  const addHops = trpc.contract.addHops.useMutation();
+  const addHopsBatched = trpc.contract.addHopsBatched.useMutation();
   const initializeRouteSOL = trpc.contract.initializeRouteSOL.useMutation();
   const markDeployed = trpc.routes.markDeployed.useMutation();
   const checkRouteStatus = trpc.contract.routeHasHops.useMutation();
@@ -115,36 +118,75 @@ export const useDeploy = () => {
     creator: string,
     hops: { recipient: string; scheduledAt: number }[]
   ) => {
+    if (!sendTransaction) {
+      throw new Error("Wallet not connected");
+    }
+
     try {
-      const result = await addHops.mutateAsync({
+      // Use batched endpoint to get all transactions
+      const result = await addHopsBatched.mutateAsync({
         routeId,
         creator,
         hops,
       });
-      const transaction = Transaction.from(
-        Buffer.from(result.data.transaction, "base64")
-      );
-      const simulation = await connection.simulateTransaction(transaction);
-      console.log("Transaction simulation:", simulation);
-      const signature = await sendTransaction(transaction, connection, {
-        skipPreflight: true,
-        preflightCommitment: "confirmed",
-      });
-      toast.loading("Confirming transaction...", { id: "deploy" });
 
-      // Wait for confirmation
-      const confirmation = await connection.confirmTransaction(
-        {
-          signature: signature,
-          blockhash: result.data.recentBlockhash,
-          lastValidBlockHeight: result.data.lastValidBlockHeight,
+      const { transactions, totalBatches, totalHops } = result.data;
+      console.log(`Adding ${totalHops} hops in ${totalBatches} batch(es)`);
+
+      // Process each batch transaction sequentially
+      for (let i = 0; i < transactions.length; i++) {
+        const batchNum = i + 1;
+        const batchData = transactions[i];
+
+        toast.loading(
+          `Adding hops (batch ${batchNum}/${totalBatches})...`,
+          { id: "deploy" }
+        );
+
+        const transaction = Transaction.from(
+          Buffer.from(batchData.transaction, "base64")
+        );
+
+        // Simulate before sending
+        const simulation = await connection.simulateTransaction(transaction);
+        console.log(`Batch ${batchNum} simulation:`, simulation);
+
+        if (simulation.value.err) {
+          throw new Error(
+            `Batch ${batchNum} simulation failed: ${JSON.stringify(simulation.value.err)}`
+          );
         }
-      );
 
-      if (confirmation.value.err) {
-        throw new Error(`Transaction failed: ${confirmation.value.err}`);
+        // Send the transaction
+        const signature = await sendTransaction(transaction, connection, {
+          skipPreflight: true,
+          preflightCommitment: "confirmed",
+        });
+
+        toast.loading(
+          `Confirming batch ${batchNum}/${totalBatches}...`,
+          { id: "deploy" }
+        );
+
+        // Wait for confirmation
+        const confirmation = await connection.confirmTransaction(
+          {
+            signature: signature,
+            blockhash: batchData.recentBlockhash,
+            lastValidBlockHeight: batchData.lastValidBlockHeight,
+          }
+        );
+
+        if (confirmation.value.err) {
+          throw new Error(
+            `Batch ${batchNum} transaction failed: ${JSON.stringify(confirmation.value.err)}`
+          );
+        }
+
+        console.log(`Batch ${batchNum}/${totalBatches} confirmed: ${signature}`);
       }
 
+      console.log(`All ${totalBatches} batch(es) completed successfully`);
     } catch (error) {
       console.error("Adding hops failed:", error);
       toast.error(
@@ -182,34 +224,26 @@ export const useDeploy = () => {
       });
       const { hasHops, isDeployed } = routeStatus.data || { hasHops: false, isDeployed: false };
 
-      let totalSteps = 2;
-      let currentStep = 0;
+      // Calculate number of hop batches needed
+      const hopBatches = Math.ceil(data.hops.length / HOPS_PER_BATCH);
 
       // Show initial progress
-      toast.loading(
-        `Deploying route (Step ${currentStep + 1}/${totalSteps}): Checking status...`,
-        { id: "deploy" }
-      );
+      toast.loading("Deploying route: Checking status...", { id: "deploy" });
 
       if (!isDeployed) {
         // Step 1: Initialize route
-        currentStep = 1;
-        toast.loading(
-          `Deploying route (Step ${currentStep}/${totalSteps}): Initializing route...`,
-          { id: "deploy" }
-        );
+        toast.loading("Deploying route: Initializing...", { id: "deploy" });
 
         const initSignature = await initializeRouteMutation(data, type);
-        
-        // Step 2: Add hops
-        currentStep = 2;
+
+        // Step 2: Add hops (may require multiple batches)
         toast.loading(
-          `Deploying route (Step ${currentStep}/${totalSteps}): Adding hops...`,
+          `Deploying route: Adding ${data.hops.length} hops${hopBatches > 1 ? ` in ${hopBatches} batches` : ""}...`,
           { id: "deploy" }
         );
 
         await addHopsMutation(data.routeId, publicKey.toBase58(), data.hops);
-        
+
         // Mark as deployed in database
         await markDeployed.mutateAsync({
           id: data.databaseId,
@@ -217,20 +251,24 @@ export const useDeploy = () => {
           deploymentTxHash: initSignature,
         });
 
-        toast.success("Route deployed successfully with all hops!", { id: "deploy" });
+        toast.success(
+          `Route deployed successfully with ${data.hops.length} hops!`,
+          { id: "deploy" }
+        );
         return initSignature;
       } else if (!hasHops) {
         // Route initialized but no hops - just add hops
-        totalSteps = 1;
-        currentStep = 1;
         toast.loading(
-          `Adding hops (Step ${currentStep}/${totalSteps}): Processing...`,
+          `Adding ${data.hops.length} hops${hopBatches > 1 ? ` in ${hopBatches} batches` : ""}...`,
           { id: "deploy" }
         );
 
         await addHopsMutation(data.routeId, publicKey.toBase58(), data.hops);
-        
-        toast.success("Hops added successfully!", { id: "deploy" });
+
+        toast.success(
+          `${data.hops.length} hops added successfully!`,
+          { id: "deploy" }
+        );
         return "hops-added";
       } else {
         // Already fully deployed

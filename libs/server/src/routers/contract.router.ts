@@ -518,6 +518,51 @@ export const contractRouter = router({
     }),
 
   /**
+   * Add hops in batches to avoid Solana's transaction size limit
+   * Returns multiple serialized transactions for routes with many hops
+   * POST /contract/add-hops-batched
+   */
+  addHopsBatched: publicProcedure
+    .input(addHopsInputSchema)
+    .mutation(async ({ input }) => {
+      try {
+        const { routeId, creator, hops } = input;
+        const parsedHops = parseHops(hops);
+        const creatorKey = new PublicKey(creator);
+
+        // Get all batch transactions
+        const transactions = await contractService.addHopsBatched(
+          creatorKey,
+          new BN(routeId),
+          parsedHops
+        );
+
+        // Serialize each transaction
+        const serializedTransactions = await Promise.all(
+          transactions.map((tx) => serialize(tx, creatorKey, params.connection))
+        );
+
+        return {
+          success: true,
+          data: {
+            transactions: serializedTransactions,
+            totalBatches: serializedTransactions.length,
+            totalHops: hops.length,
+            hopsPerBatch: contractService.HOPS_PER_BATCH,
+          },
+        };
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to add hops in batches",
+        });
+      }
+    }),
+
+  /**
    * Get route configuration
    * GET /contract/get-route-config
    */
