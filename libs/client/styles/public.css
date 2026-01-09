@@ -144,17 +144,30 @@ body {
     inset: 0;
     border-radius: 34px;
     padding: 1px;
-    background: linear-gradient(
-        0deg,
-        rgba(255, 255, 255, 0.06),
-        rgba(255, 255, 255, 0.06)
-      ),
-      linear-gradient(
-        276.61deg,
-        rgba(255, 255, 255, 0) 50.16%,
-        rgba(255, 255, 255, 0.5) 72.94%,
-        rgba(255, 255, 255, 0) 95.72%
-      );
+    background: conic-gradient(
+      from 0deg at 50% 50%,
+      rgba(255, 255, 255, 0.06) 0deg,
+      rgba(255, 255, 255, 0.06) 90deg,
+      rgba(255, 255, 255, 0.06) 110deg,
+      rgba(255, 255, 255, 0.1) 125deg,
+      rgba(255, 255, 255, 0.4) 130deg,
+      rgba(255, 255, 255, 0.8) 135deg,
+      rgba(255, 255, 255, 0.9) 140deg,
+      rgba(255, 255, 255, 0.8) 145deg,
+      rgba(255, 255, 255, 0.4) 150deg,
+      rgba(255, 255, 255, 0.1) 160deg,
+      rgba(255, 255, 255, 0.06) 170deg,
+      rgba(255, 255, 255, 0.06) 270deg,
+      rgba(255, 255, 255, 0.1) 290deg,
+      rgba(255, 255, 255, 0.4) 305deg,
+      rgba(255, 255, 255, 0.8) 310deg,
+      rgba(255, 255, 255, 0.9) 315deg,
+      rgba(255, 255, 255, 0.8) 320deg,
+      rgba(255, 255, 255, 0.4) 325deg,
+      rgba(255, 255, 255, 0.1) 340deg,
+      rgba(255, 255, 255, 0.06) 350deg,
+      rgba(255, 255, 255, 0.06) 360deg
+    );
     -webkit-mask: linear-gradient(#fff 0 0) content-box,
       linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
@@ -166,17 +179,30 @@ body {
   }
 
   .card-border-gradient:hover::before {
-    background: linear-gradient(
-        0deg,
-        var(--corn-yellow-500-transparency-30),
-        var(--corn-yellow-500-transparency-30)
-      ),
-      linear-gradient(
-        276.61deg,
-        rgba(255, 239, 90, 0) 50.16%,
-        rgba(255, 239, 90, 0.5) 72.94%,
-        rgba(255, 239, 90, 0) 95.72%
-      );
+    background: conic-gradient(
+      from 0deg at 50% 50%,
+      rgba(255, 239, 90, 0.1) 0deg,
+      rgba(255, 239, 90, 0.1) 90deg,
+      rgba(255, 239, 90, 0.1) 110deg,
+      rgba(255, 239, 90, 0.15) 125deg,
+      rgba(255, 239, 90, 0.5) 130deg,
+      rgba(255, 239, 90, 0.9) 135deg,
+      rgba(255, 239, 90, 1) 140deg,
+      rgba(255, 239, 90, 0.9) 145deg,
+      rgba(255, 239, 90, 0.5) 150deg,
+      rgba(255, 239, 90, 0.15) 160deg,
+      rgba(255, 239, 90, 0.1) 170deg,
+      rgba(255, 239, 90, 0.1) 270deg,
+      rgba(255, 239, 90, 0.15) 290deg,
+      rgba(255, 239, 90, 0.5) 305deg,
+      rgba(255, 239, 90, 0.9) 310deg,
+      rgba(255, 239, 90, 1) 315deg,
+      rgba(255, 239, 90, 0.9) 320deg,
+      rgba(255, 239, 90, 0.5) 325deg,
+      rgba(255, 239, 90, 0.15) 340deg,
+      rgba(255, 239, 90, 0.1) 350deg,
+      rgba(255, 239, 90, 0.1) 360deg
+    );
   }
 
   .card-border-gradient > * {
