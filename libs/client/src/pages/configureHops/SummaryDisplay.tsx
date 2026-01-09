@@ -92,7 +92,7 @@ export const SummaryDisplay: React.FC<SummaryDisplayProps> = ({
             {hops.map((h, i) => (
               <div
                 key={`sum-hop-mobile-${i}`}
-                className='grid grid-cols-[250px_62px] gap-2 items-center justify-center'
+                className='grid grid-cols-[140px_62px] gap-2 items-center justify-center'
               >
                 <div className='h-12 rounded-2xl bg-[var(--eerie-black-700)] border border-[var(--white-100-transparency-10)] px-4 flex items-center text-[var(--white-100-transparency-80)]'>
                   <span className='text-[var(--white-100-transparency-50)] mr-3'>
@@ -153,7 +153,7 @@ export const SummaryDisplay: React.FC<SummaryDisplayProps> = ({
             {hops.map((h, i) => (
               <div
                 key={`sum-hop-desktop-${i}`}
-                className='grid grid-cols-[250px_62px] gap-2 items-center justify-center'
+                className='grid grid-cols-[140px_62px] sm:grid-cols-[250px_62px] gap-2 items-center justify-center'
               >
                 <div className='h-12 rounded-2xl bg-[var(--eerie-black-700)] border border-[var(--white-100-transparency-10)] px-4 flex items-center text-[var(--white-100-transparency-80)]'>
                   <span className='text-[var(--white-100-transparency-50)] mr-3'>

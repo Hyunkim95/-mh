@@ -423,13 +423,13 @@ export const MyAssets: React.FC = () => {
   )
 
   const myAssetsCardFooter = (
-    <div className='flex justify-between items-start'>
+    <div className='flex flex-row items-center justify-between sm:items-start'>
       {isLoadingTokens && inputMode === 'search' ? (
-        <div className='not-italic font-medium text-sm leading-4 text-[var(--cultured-white-500)]'>
+        <div className='not-italic font-medium text-xs sm:text-sm leading-4 text-[var(--cultured-white-500)]'>
           Loading Wallet...
         </div>
       ) : (
-        <div className='not-italic font-medium text-sm leading-4 text-[var(--cultured-white-500)]'>
+        <div className='not-italic font-medium text-xs sm:text-sm leading-4 text-[var(--cultured-white-500)]'>
           {inputMode === 'manual' 
             ? (isValidatingAddress ? 'Validating token...' : manualToken ? '1 Token ready' : 'Enter token address')
             : `${filteredTokens.length} Tokens found`}
@@ -441,7 +441,7 @@ export const MyAssets: React.FC = () => {
         onClick={handleConfigureRoute}
         disabled={!selectedAsset}
         title={!selectedAsset ? 'Select a token to continue' : undefined}
-        className={`inline-flex items-center gap-2 rounded-full text-black font-semibold px-6 py-3 shadow-[0_8px_24px_var(--black-900-transparency-45)] transition ${
+        className={`inline-flex items-center gap-2 rounded-full text-black font-semibold px-3 sm:px-6 py-3 shadow-[0_8px_24px_var(--black-900-transparency-45)] transition ${
           selectedAsset
             ? 'bg-[var(--corn-yellow-500)] hover:brightness-95'
             : 'bg-[var(--corn-yellow-500-transparency-30)] cursor-not-allowed'
