@@ -598,35 +598,87 @@ export const LandingPage: React.FC = () => {
                 title: 'Control how long assets',
                 subtitle: 'stay in each hop wallet',
               },
-            ].map((program, idx) => (
-              <div
-                key={idx}
-                className='group relative h-[360px] sm:h-[347px] w-full max-w-[305px] overflow-hidden rounded-[32px] border border-white/[0.08] bg-[#16181A] hover:scale-[1.02] transition-all duration-500'
-                style={{
-                  animation: `fadeInUp 0.5s ease-out ${0.1 * idx}s both`,
-                }}
-              >
-                {/* Full Width Background Image */}
-                <img
-                  src={program.image}
-                  alt={program.title}
-                  className='inset-0 w-full h-full object-cover z-0 scale-[1] group-hover:scale-[1.15] transition-transform duration-500'
-                />
+            ].map((program, idx) => {
+              const isCenterCard = idx === 1;
+              const borderThickness = isCenterCard ? 2 : 1;
+              
+              return (
+                <div
+                  key={idx}
+                  className='group relative h-[360px] sm:h-[345px] w-full max-w-[301px] rounded-[32px]'
+                  style={{
+                    animation: `fadeInUp 0.5s ease-out ${0.1 * idx}s both`,
+                    padding: `${borderThickness}px`,
+                    background: '#16181A',
+                  }}
+                >
+                {/* Border element - separate from content to avoid transform issues */}
+                {isCenterCard ? (
+                  <>
+                    {/* Left border - solid yellow */}
+                    <div className='absolute left-0 top-[32px] bottom-[32px] w-[1px] bg-[#FBFF69] pointer-events-none' style={{ zIndex: 0 }} />
+                    {/* Top border - gradient yellow to white */}
+                    <div className='absolute left-[32px] top-0 right-[32px] h-[1px] bg-gradient-to-r from-[#FBFF69] to-[#FFFFFF] pointer-events-none' style={{ zIndex: 0 }} />
+                    {/* Right border - solid white */}
+                    <div className='absolute right-0 top-[32px] bottom-[32px] w-[1px] bg-[#FFFFFF] pointer-events-none' style={{ zIndex: 0 }} />
+                    {/* Bottom border - gradient yellow to white */}
+                    <div className='absolute left-[32px] bottom-0 right-[32px] h-[1px] bg-gradient-to-r from-[#FBFF69] to-[#FFFFFF] pointer-events-none' style={{ zIndex: 0 }} />
+                    {/* Top-left corner - yellow with rounded corner */}
+                    <div className='absolute top-0 left-0 w-[32px] h-[32px] pointer-events-none overflow-hidden' style={{ zIndex: 0 }}>
+                      <div className='absolute top-0 left-0 w-[34px] h-[34px] border-t-[2px] border-l-[2px] border-[#FBFF69] rounded-tl-[32px]' style={{ marginTop: '-1px', marginLeft: '-1px' }} />
+                    </div>
+                    {/* Top-right corner - white with rounded corner */}
+                    <div className='absolute top-0 right-0 w-[32px] h-[32px] pointer-events-none overflow-hidden' style={{ zIndex: 0 }}>
+                      <div className='absolute top-0 right-0 w-[34px] h-[34px] border-t-[2px] border-r-[2px] border-[#FFFFFF] rounded-tr-[32px]' style={{ marginTop: '-1px', marginRight: '-1px' }} />
+                    </div>
+                    {/* Bottom-left corner - yellow with rounded corner */}
+                    <div className='absolute bottom-0 left-0 w-[32px] h-[32px] pointer-events-none overflow-hidden' style={{ zIndex: 0 }}>
+                      <div className='absolute bottom-0 left-0 w-[34px] h-[34px] border-b-[2px] border-l-[2px] border-[#FBFF69] rounded-bl-[32px]' style={{ marginBottom: '-1px', marginLeft: '-1px' }} />
+                    </div>
+                    {/* Bottom-right corner - white with rounded corner */}
+                    <div className='absolute bottom-0 right-0 w-[32px] h-[32px] pointer-events-none overflow-hidden' style={{ zIndex: 0 }}>
+                      <div className='absolute bottom-0 right-0 w-[34px] h-[34px] border-b-[2px] border-r-[2px] border-[#FFFFFF] rounded-br-[32px]' style={{ marginBottom: '-1px', marginRight: '-1px' }} />
+                    </div>
+                  </>
+                ) : (
+                  <div 
+                    className='card-border-gradient-large-border absolute inset-0 pointer-events-none' 
+                    style={{ zIndex: 0 }} 
+                  />
+                )}
+                  
+                  {/* Content wrapper to ensure proper stacking - isolated from border */}
+                  <div 
+                    className='relative w-full h-full overflow-hidden rounded-[30px] bg-[#16181A] group-hover:scale-[1.02] transition-transform duration-500' 
+                    style={{ 
+                      zIndex: 1,
+                      transformOrigin: 'center center'
+                    }}
+                  >
+                    {/* Full Width Background Image */}
+                    <img
+                      src={program.image}
+                      alt={program.title}
+                      className='absolute inset-0 w-full h-full object-cover scale-[1] group-hover:scale-[1.15] transition-transform duration-500'
+                      style={{ transformOrigin: 'center center' }}
+                    />
 
-                {/* Gradient Overlay for Text Readability */}
-                <div className='absolute inset-0 bg-gradient-to-b from-black/80 via-black/20 to-transparent z-10' />
+                    {/* Gradient Overlay for Text Readability */}
+                    <div className='absolute inset-0 bg-gradient-to-b from-black/80 via-black/20 to-transparent' />
 
-                {/* Text Overlay */}
-                <div className='absolute top-8 left-8 z-20 max-w-[80%] text-lg text-white not-italic'>
-                  <h3 className='drop-shadow-lg font-medium leading-5'>
-                    {program.title}
-                  </h3>
-                  <p className='drop-shadow-md font-extralight'>
-                    {program.subtitle}
-                  </p>
+                    {/* Text Overlay */}
+                    <div className='absolute top-8 left-8 max-w-[80%] text-lg text-white not-italic'>
+                      <h3 className='drop-shadow-lg font-medium leading-5'>
+                        {program.title}
+                      </h3>
+                      <p className='drop-shadow-md font-extralight'>
+                        {program.subtitle}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className='flex items-center justify-center w-[100%] mt-16 '>
@@ -666,7 +718,12 @@ export const LandingPage: React.FC = () => {
               </span>
             </div>
 
-            <h2 className='ext-2xl sm:text-3xl lg:text-5xl leading-[41px] font-light'>
+            <h2
+              className='not-italic font-normal leading-10 text-center text-2xl sm:text-4xl lg:text-5xl'
+              style={{
+                fontFamily: 'Roboto, sans-serif',
+              }}
+            >
               How it all works
             </h2>
           </div>
@@ -674,21 +731,39 @@ export const LandingPage: React.FC = () => {
           {/* Vertical Flowchart - Responsive */}
           <div className='relative flex flex-col items-center'>
             {/* Step 1 */}
-            <div className='relative z-10 w-full max-w-[240px] md:max-w-[226px] p-4 sm:p-6 bg-gradient-to-br from-[#1E2023]/90 to-[#141618]/90 backdrop-blur-xl card-border-gradient rounded-[34px]'>
+            <div className='relative z-10 w-full max-w-[240px] md:max-w-[226px] p-4 sm:p-6 bg-[#1D2022] backdrop-blur-xl card-border-gradient rounded-[34px]'>
               <div className='flex items-center justify-between mb-3'>
-                <span className='text-lg sm:text-xl font-bold text-mh-yellow bg-[#232724] w-[45px] h-[45px] flex items-center justify-center rounded-lg'>
+                <span
+                  className='not-italic font-medium leading-6 text-center text-lg sm:text-xl text-[#FBFF69] bg-[#232724] w-[45px] h-[45px] flex items-center justify-center rounded-lg'
+                  style={{
+                    fontFamily: 'Roboto, sans-serif',
+                  }}
+                >
                   1
                 </span>
                 <button
                   onClick={handleConnectWallet}
-                  className='px-3 sm:px-4 py-2 bg-mh-dark-200 border border-white/[0.1] rounded-[10px] text-xs sm:text-sm font-medium hover:bg-mh-dark-100 transition-colors hover:border-mh-yellow/20'
+                  // className='text-xs sm:text-sm not-italic font-medium text-center px-3 sm:px-[24px] py-[5px] bg-mh-dark-200 border border-white/[0.1] rounded-[10px] hover:bg-mh-dark-100 transition-colors hover:border-mh-yellow/20'
+                  className='text-xs sm:text-sm not-italic font-medium text-center px-3 sm:px-[24px] py-[6px] rounded-[10px] hover:border-mh-yellow/20'
+                  style={{
+                    backgroundImage: 'url(/bg-btn.png)',
+                    backgroundColor: 'transparent',
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'center',
+                    backgroundSize: 'contain',
+                  }}
                 >
                   Connect
                 </button>
               </div>
-              <p className='text-sm sm:text-base font-medium leading-snug'>
+              <div
+                className='not-italic font-medium leading-6 text-sm sm:text-base'
+                style={{
+                  fontFamily: 'Roboto, sans-serif',
+                }}
+              >
                 Connect <br /> your wallet
-              </p>
+              </div>
             </div>
 
             {/* Connector 1->2 */}
@@ -696,22 +771,32 @@ export const LandingPage: React.FC = () => {
               <img
                 src='/howitworks1.svg'
                 alt=''
-                className='h-12 w-auto opacity-80'
+                className='h-[52px] w-auto opacity-80 mt-[-4px] mb-[-10px]'
               />
             </div>
 
             {/* Step 2 */}
-            <div className='relative z-10 w-full max-w-[260px] md:max-w-[226px] p-4 sm:p-5 bg-gradient-to-br from-[#1E2023]/90 to-[#141618]/90 backdrop-blur-xl card-border-gradient rounded-[34px]'>
-              <span className='text-lg sm:text-xl font-bold text-mh-yellow bg-[#232724] w-[45px] h-[45px] flex items-center justify-center rounded-lg mb-3 inline-block'>
+            <div className='relative z-10 w-full max-w-[240px] md:max-w-[226px] p-4 sm:p-6 bg-[#1D2022] backdrop-blur-xl card-border-gradient rounded-[34px]'>
+              <span
+                className='not-italic font-medium leading-6 text-center text-lg sm:text-xl text-[#FBFF69] bg-[#232724] w-[45px] h-[45px] flex items-center justify-center rounded-lg mb-3'
+                style={{
+                  fontFamily: 'Roboto, sans-serif',
+                }}
+              >
                 2
               </span>
-              <p className='text-sm sm:text-base font-medium leading-snug'>
+              <p
+                className='not-italic font-medium leading-6 text-sm sm:text-base'
+                style={{
+                  fontFamily: 'Roboto, sans-serif',
+                }}
+              >
                 Choose easy mode <br /> or design your route
               </p>
             </div>
 
             {/* Branching Connectors */}
-            <div className='relative w-full max-w-[800px] h-[60px] hidden lg:block'>
+            <div className='relative w-full max-w-[800px] h-[60px] hidden lg:block mt-[-22px]'>
               {/* Left Branch */}
               <img
                 src='/howitworksleft.svg'
@@ -734,16 +819,26 @@ export const LandingPage: React.FC = () => {
               {/* Cards Row */}
               <div className='flex flex-col lg:flex-row gap-8 justify-center items-center lg:items-start px-4'>
                 {/* Easy Mode Card */}
-                <div className='relative z-10 w-full max-w-sm lg:w-[312px] h-[-webkit-fill-available] p-4 sm:p-6 bg-gradient-to-br from-[#1E2023]/90 to-[#141618]/90 backdrop-blur-xl card-border-gradient rounded-[34px]'>
-                  <span className='text-lg sm:text-xl font-bold text-mh-yellow bg-[#232724] w-[45px] h-[45px] flex items-center justify-center rounded-lg mb-3 inline-block'>
+                <div className='relative z-10 w-full max-w-[312px] h-[201px] p-4 sm:p-6 bg-[#1D2022] backdrop-blur-xl card-border-gradient rounded-[34px]'>
+                  <span
+                    className='not-italic font-medium leading-6 text-center text-lg sm:text-xl text-[#FBFF69] bg-[#232724] w-[45px] h-[45px] flex items-center justify-center rounded-lg mb-3'
+                    style={{
+                      fontFamily: 'Roboto, sans-serif',
+                    }}
+                  >
                     3
                   </span>
-                  <p className='text-base leading-relaxed'>
-                    <span className='text-mh-yellow font-semibold'>
+                  <p
+                    className='not-italic text-base leading-[22px] w-[255px]'
+                    style={{
+                      fontFamily: 'Roboto, sans-serif',
+                    }}
+                  >
+                    <span className='text-mh-yellow font-medium'>
                       Easy mode:
                     </span>{' '}
-                    <span className='text-white/90'>
-                      Privacy in 3 clicks. Our system selects random wallets and
+                    <span className='text-white font-light'>
+                      Privacy in 3 clicks. Our system selects random wallets,
                       hops and you set completion time.
                     </span>
                   </p>
@@ -752,15 +847,25 @@ export const LandingPage: React.FC = () => {
                 {/* Mobile Connector (Simple Vertical) */}
                 <div className='absolute lg:hidden w-1.5 h-8 bg-gradient-to-b from-mh-yellow/30 to-mh-yellow/10' />
                 {/* Design Mode Card */}
-                <div className='relative z-10 w-full max-w-sm lg:w-[312px] h-[-webkit-fill-available] p-4 sm:p-6 bg-gradient-to-br from-[#1E2023]/90 to-[#141618]/90 backdrop-blur-xl card-border-gradient rounded-[34px]'>
-                  <span className='text-lg sm:text-xl font-bold text-mh-yellow bg-[#232724] w-[45px] h-[45px] flex items-center justify-center rounded-lg mb-3 inline-block'>
+                <div className='relative z-10 w-full max-w-[312px] h-[201px] p-4 sm:p-6 bg-[#1D2022] backdrop-blur-xl card-border-gradient rounded-[34px]'>
+                  <span
+                    className='not-italic font-medium leading-6 text-center text-lg sm:text-xl text-[#FBFF69] bg-[#232724] w-[45px] h-[45px] flex items-center justify-center rounded-lg mb-3'
+                    style={{
+                      fontFamily: 'Roboto, sans-serif',
+                    }}
+                  >
                     3
                   </span>
-                  <p className='text-base leading-relaxed'>
-                    <span className='text-mh-yellow font-semibold'>
+                  <p
+                    className='not-italic text-base leading-[22px] w-[250px]'
+                    style={{
+                      fontFamily: 'Roboto, sans-serif',
+                    }}
+                  >
+                    <span className='text-mh-yellow font-medium'>
                       Design mode:
                     </span>{' '}
-                    <span className='text-white/80'>
+                    <span className='text-white font-light'>
                       Select the wallets you want to hop through and how long
                       tokens stay in each hop wallet before moving on
                     </span>
@@ -774,7 +879,7 @@ export const LandingPage: React.FC = () => {
               <img
                 src='/howitworks4.svg'
                 alt=''
-                className='h-12 w-auto opacity-80'
+                className='h-[52px] w-auto opacity-80 mb-[-14px]'
               />
             </div>
 
@@ -782,11 +887,21 @@ export const LandingPage: React.FC = () => {
             <div className='lg:hidden w-1.5 h-8 bg-gradient-to-b from-mh-yellow/30 to-mh-yellow/10' />
 
             {/* Step 4 */}
-            <div className='relative z-10 w-full max-w-[240px] sm:max-w-[286px] p-4 sm:p-6 sm:pl-14 bg-gradient-to-br from-[#1E2023]/90 to-[#141618]/90 backdrop-blur-xl card-border-gradient rounded-[34px] flex flex-col justify-center'>
-              <span className='text-lg sm:text-xl font-bold text-mh-yellow bg-[#232724] w-[45px] h-[45px] flex items-center justify-center rounded-lg mb-3 inline-block'>
+            <div className='relative z-10 w-full max-w-[286px] md:max-w-[286px] h-[140px] p-4 sm:p-6 bg-[#1D2022] backdrop-blur-xl card-border-gradient rounded-[34px]'>
+              <span
+                className='not-italic font-medium leading-6 text-center text-lg sm:text-xl text-[#FBFF69] bg-[#232724] w-[45px] h-[45px] flex items-center justify-center rounded-lg mb-3'
+                style={{
+                  fontFamily: 'Roboto, sans-serif',
+                }}
+              >
                 4
               </span>
-              <p className='text-sm sm:text-base font-medium leading-snug'>
+              <p
+                className='not-italic font-medium leading-6 text-sm sm:text-base'
+                style={{
+                  fontFamily: 'Roboto, sans-serif',
+                }}
+              >
                 Send your assets
               </p>
             </div>
