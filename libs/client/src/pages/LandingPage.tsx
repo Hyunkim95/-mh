@@ -7,6 +7,8 @@ import LogoIcon from '../assets/landing/logo-icon.svg'
 import TagStars from '../assets/landing/tag-stars.svg'
 import PrivacyIcon from '../assets/landing/privacy-icon.svg'
 import MotionIcon from '../assets/landing/motion-icon.svg'
+import CollaborateIcon from '../assets/landing/collaborate-icon.svg'
+import LtsBunnyIcon from '../assets/landing/lts-bunny-icon.svg'
 import CheckmarkIcon from '../assets/landing/checkmark-icon.svg'
 import SocialIcons from '../assets/landing/social-icons.svg'
 import TumbellingIcon from '../../assets/icons/tumbelling.svg'
@@ -170,7 +172,7 @@ export const LandingPage: React.FC = () => {
               <div className='z-10'>
                 <button
                   onClick={handleConnectWallet}
-                  className='px-5 py-2 rounded-xl not-italic font-medium text-xs text-center text-white hover:brightness-110 transition-all duration-300 bg-[#25282B] border border-[#FBFF69] shadow-[0_0_15px_rgba(251,255,105,0.1)]'
+                  className='px-5 py-2 rounded-xl not-italic font-medium text-xs text-center text-white shadow-[0_0_15px_rgba(251,255,105,0.1)] bg-[url("/cnnt-wllt-bg-btn.png")] bg-no-repeat bg-center bg-contain hover:bg-none hover:bg-mh-yellow hover:text-black transition-all duration-300'
                 >
                   Connect Wallet
                 </button>
@@ -468,14 +470,12 @@ export const LandingPage: React.FC = () => {
               className='mt-8 sm:mt-12 text-sm sm:text-base md:text-base not-italic font-semibold leading-5 text-center text-white mx-auto px-4'
               style={{
                 fontFamily: 'Roboto, sans-serif',
-                animation: 'fadeInUp 0.6s ease-out 0.4s both'
+                animation: 'fadeInUp 0.6s ease-out 0.4s both',
               }}
             >
               Send any digital asset, bouncing it off any wallets <br /> across
               Web3{' '}
-              <span className='font-light italic'>
-                even ones you don't own
-              </span>
+              <span className='font-light italic'>even ones you don't own</span>
             </p>
 
             {/* Scroll Indicator */}
@@ -599,9 +599,9 @@ export const LandingPage: React.FC = () => {
                 subtitle: 'stay in each hop wallet',
               },
             ].map((program, idx) => {
-              const isCenterCard = idx === 1;
-              const borderThickness = isCenterCard ? 2 : 1;
-              
+              const isCenterCard = idx === 1
+              const borderThickness = isCenterCard ? 2 : 1
+
               return (
                 <div
                   key={idx}
@@ -612,47 +612,83 @@ export const LandingPage: React.FC = () => {
                     background: '#16181A',
                   }}
                 >
-                {/* Border element - separate from content to avoid transform issues */}
-                {isCenterCard ? (
-                  <>
-                    {/* Left border - solid yellow */}
-                    <div className='absolute left-0 top-[32px] bottom-[32px] w-[1px] bg-[#FBFF69] pointer-events-none' style={{ zIndex: 0 }} />
-                    {/* Top border - gradient yellow to white */}
-                    <div className='absolute left-[32px] top-0 right-[32px] h-[1px] bg-gradient-to-r from-[#FBFF69] to-[#FFFFFF] pointer-events-none' style={{ zIndex: 0 }} />
-                    {/* Right border - solid white */}
-                    <div className='absolute right-0 top-[32px] bottom-[32px] w-[1px] bg-[#FFFFFF] pointer-events-none' style={{ zIndex: 0 }} />
-                    {/* Bottom border - gradient yellow to white */}
-                    <div className='absolute left-[32px] bottom-0 right-[32px] h-[1px] bg-gradient-to-r from-[#FBFF69] to-[#FFFFFF] pointer-events-none' style={{ zIndex: 0 }} />
-                    {/* Top-left corner - yellow with rounded corner */}
-                    <div className='absolute top-0 left-0 w-[32px] h-[32px] pointer-events-none overflow-hidden' style={{ zIndex: 0 }}>
-                      <div className='absolute top-0 left-0 w-[34px] h-[34px] border-t-[2px] border-l-[2px] border-[#FBFF69] rounded-tl-[32px]' style={{ marginTop: '-1px', marginLeft: '-1px' }} />
-                    </div>
-                    {/* Top-right corner - white with rounded corner */}
-                    <div className='absolute top-0 right-0 w-[32px] h-[32px] pointer-events-none overflow-hidden' style={{ zIndex: 0 }}>
-                      <div className='absolute top-0 right-0 w-[34px] h-[34px] border-t-[2px] border-r-[2px] border-[#FFFFFF] rounded-tr-[32px]' style={{ marginTop: '-1px', marginRight: '-1px' }} />
-                    </div>
-                    {/* Bottom-left corner - yellow with rounded corner */}
-                    <div className='absolute bottom-0 left-0 w-[32px] h-[32px] pointer-events-none overflow-hidden' style={{ zIndex: 0 }}>
-                      <div className='absolute bottom-0 left-0 w-[34px] h-[34px] border-b-[2px] border-l-[2px] border-[#FBFF69] rounded-bl-[32px]' style={{ marginBottom: '-1px', marginLeft: '-1px' }} />
-                    </div>
-                    {/* Bottom-right corner - white with rounded corner */}
-                    <div className='absolute bottom-0 right-0 w-[32px] h-[32px] pointer-events-none overflow-hidden' style={{ zIndex: 0 }}>
-                      <div className='absolute bottom-0 right-0 w-[34px] h-[34px] border-b-[2px] border-r-[2px] border-[#FFFFFF] rounded-br-[32px]' style={{ marginBottom: '-1px', marginRight: '-1px' }} />
-                    </div>
-                  </>
-                ) : (
-                  <div 
-                    className='card-border-gradient-large-border absolute inset-0 pointer-events-none' 
-                    style={{ zIndex: 0 }} 
-                  />
-                )}
-                  
+                  {/* Border element - separate from content to avoid transform issues */}
+                  {isCenterCard ? (
+                    <>
+                      {/* Left border - solid yellow */}
+                      <div
+                        className='absolute left-0 top-[32px] bottom-[32px] w-[1px] bg-[#FBFF69] pointer-events-none'
+                        style={{ zIndex: 0 }}
+                      />
+                      {/* Top border - gradient yellow to white */}
+                      <div
+                        className='absolute left-[32px] top-0 right-[32px] h-[1px] bg-gradient-to-r from-[#FBFF69] to-[#FFFFFF] pointer-events-none'
+                        style={{ zIndex: 0 }}
+                      />
+                      {/* Right border - solid white */}
+                      <div
+                        className='absolute right-0 top-[32px] bottom-[32px] w-[1px] bg-[#FFFFFF] pointer-events-none'
+                        style={{ zIndex: 0 }}
+                      />
+                      {/* Bottom border - gradient yellow to white */}
+                      <div
+                        className='absolute left-[32px] bottom-0 right-[32px] h-[1px] bg-gradient-to-r from-[#FBFF69] to-[#FFFFFF] pointer-events-none'
+                        style={{ zIndex: 0 }}
+                      />
+                      {/* Top-left corner - yellow with rounded corner */}
+                      <div
+                        className='absolute top-0 left-0 w-[32px] h-[32px] pointer-events-none overflow-hidden'
+                        style={{ zIndex: 0 }}
+                      >
+                        <div
+                          className='absolute top-0 left-0 w-[34px] h-[34px] border-t-[2px] border-l-[2px] border-[#FBFF69] rounded-tl-[32px]'
+                          style={{ marginTop: '-1px', marginLeft: '-1px' }}
+                        />
+                      </div>
+                      {/* Top-right corner - white with rounded corner */}
+                      <div
+                        className='absolute top-0 right-0 w-[32px] h-[32px] pointer-events-none overflow-hidden'
+                        style={{ zIndex: 0 }}
+                      >
+                        <div
+                          className='absolute top-0 right-0 w-[34px] h-[34px] border-t-[2px] border-r-[2px] border-[#FFFFFF] rounded-tr-[32px]'
+                          style={{ marginTop: '-1px', marginRight: '-1px' }}
+                        />
+                      </div>
+                      {/* Bottom-left corner - yellow with rounded corner */}
+                      <div
+                        className='absolute bottom-0 left-0 w-[32px] h-[32px] pointer-events-none overflow-hidden'
+                        style={{ zIndex: 0 }}
+                      >
+                        <div
+                          className='absolute bottom-0 left-0 w-[34px] h-[34px] border-b-[2px] border-l-[2px] border-[#FBFF69] rounded-bl-[32px]'
+                          style={{ marginBottom: '-1px', marginLeft: '-1px' }}
+                        />
+                      </div>
+                      {/* Bottom-right corner - white with rounded corner */}
+                      <div
+                        className='absolute bottom-0 right-0 w-[32px] h-[32px] pointer-events-none overflow-hidden'
+                        style={{ zIndex: 0 }}
+                      >
+                        <div
+                          className='absolute bottom-0 right-0 w-[34px] h-[34px] border-b-[2px] border-r-[2px] border-[#FFFFFF] rounded-br-[32px]'
+                          style={{ marginBottom: '-1px', marginRight: '-1px' }}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <div
+                      className='card-border-gradient-large-border absolute inset-0 pointer-events-none'
+                      style={{ zIndex: 0 }}
+                    />
+                  )}
+
                   {/* Content wrapper to ensure proper stacking - isolated from border */}
-                  <div 
-                    className='relative w-full h-full overflow-hidden rounded-[30px] bg-[#16181A] group-hover:scale-[1.02] transition-transform duration-500' 
-                    style={{ 
+                  <div
+                    className='relative w-full h-full overflow-hidden rounded-[30px] bg-[#16181A] group-hover:scale-[1.02] transition-transform duration-500'
+                    style={{
                       zIndex: 1,
-                      transformOrigin: 'center center'
+                      transformOrigin: 'center center',
                     }}
                   >
                     {/* Full Width Background Image */}
@@ -677,7 +713,7 @@ export const LandingPage: React.FC = () => {
                     </div>
                   </div>
                 </div>
-              );
+              )
             })}
           </div>
 
@@ -705,7 +741,7 @@ export const LandingPage: React.FC = () => {
       >
         <div className='max-w-5xl mx-auto'>
           <div className='text-center mb-8 sm:mb-14'>
-          <div
+            <div
               className='inline-flex items-center gap-3 mb-6 sm:mb-8 px-3 sm:px-3 py-2 sm:py-2 bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-2xl'
               style={{ animation: 'fadeInUp 0.6s ease-out' }}
             >
@@ -743,15 +779,14 @@ export const LandingPage: React.FC = () => {
                 </span>
                 <button
                   onClick={handleConnectWallet}
-                  // className='text-xs sm:text-sm not-italic font-medium text-center px-3 sm:px-[24px] py-[5px] bg-mh-dark-200 border border-white/[0.1] rounded-[10px] hover:bg-mh-dark-100 transition-colors hover:border-mh-yellow/20'
-                  className='text-xs sm:text-sm not-italic font-medium text-center px-3 sm:px-[24px] py-[6px] rounded-[10px] hover:border-mh-yellow/20'
-                  style={{
-                    backgroundImage: 'url(/bg-btn.png)',
-                    backgroundColor: 'transparent',
-                    backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'center',
-                    backgroundSize: 'contain',
-                  }}
+                  className='text-xs sm:text-sm not-italic font-medium text-center px-3 sm:px-[24px] py-[6px] rounded-[10px] bg-[url("/cnnt-bg-btn.png")] bg-no-repeat bg-center bg-contain hover:bg-none hover:bg-mh-yellow hover:text-black transition-all duration-300'
+                  // style={{
+                  //   backgroundImage: 'url(/cnnt-bg-btn.png)',
+                  //   backgroundColor: 'transparent',
+                  //   backgroundRepeat: 'no-repeat',
+                  //   backgroundPosition: 'center',
+                  //   backgroundSize: 'contain',
+                  // }}
                 >
                   Connect
                 </button>
@@ -916,22 +951,39 @@ export const LandingPage: React.FC = () => {
       >
         <div className='max-w-3xl mx-auto'>
           <div className='text-center mb-8 sm:mb-10'>
-            <div className='inline-flex items-center gap-2 mb-4 sm:mb-8 px-4 sm:px-5 py-2 sm:py-2.5 bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-full'>
-              <span className='text-xs sm:text-sm font-medium'>FAQ</span>
+            <div className='inline-flex items-center gap-2 mb-4 sm:mb-8 px-4 sm:px-6 py-2 sm:py-2.5 bg-white/[0.04] backdrop-blur-xl border border-white/[0.06] rounded-2xl'>
+              <span className='text-xs sm:text-sm not-italic font-medium leading-5'>
+                FAQ
+              </span>
             </div>
-            <h2 className='text-2xl sm:text-3xl lg:text-4xl font-medium mb-2'>
+            <h2
+              className='text-2xl sm:text-3xl lg:text-4xl mb-7 not-italic font-normal leading-10 text-center'
+              style={{
+                fontFamily: 'Roboto, sans-serif',
+              }}
+            >
               Frequently asked questions
             </h2>
-            <p className='text-sm sm:text-base text-white/50'>
+            <p
+              className='text-sm sm:text-base text-white/50 not-italic font-normal leading-6 text-center'
+              style={{
+                fontFamily: 'Roboto, sans-serif',
+              }}
+            >
               Have questions? We're here to help.
             </p>
           </div>
 
           {/* Search Bar */}
           <div className='mb-6 sm:mb-8'>
-            <div className='flex items-center bg-mh-dark-400/40 border border-white/[0.06] rounded-xl sm:rounded-2xl overflow-hidden'>
+            <div
+              className='flex items-center rounded-xl sm:rounded-2xl overflow-hidden'
+              style={{
+                backgroundColor: '#242728',
+              }}
+            >
               <svg
-                className='w-5 h-5 ml-4 sm:ml-6 text-white/30 flex-shrink-0'
+                className='w-5 h-5 ml-6 sm:ml-6 text-white/30 flex-shrink-0'
                 fill='none'
                 stroke='currentColor'
                 viewBox='0 0 24 24'
@@ -946,19 +998,24 @@ export const LandingPage: React.FC = () => {
               <input
                 type='text'
                 placeholder='Search questions...'
-                className='flex-1 px-3 sm:px-4 py-3.5 sm:py-4 bg-transparent text-sm sm:text-base text-white placeholder-white/30 focus:outline-none'
+                className='flex-1 pl-2 sm:pl-3 pr-3 sm:pr-4 py-4 sm:py-5 bg-transparent not-italic font-medium leading-6 text-sm sm:text-base text-white placeholder-white/40 focus:outline-none'
+                style={{
+                  fontFamily: 'Roboto, sans-serif',
+                }}
               />
-              <button className='mr-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-mh-yellow text-black font-semibold rounded-lg sm:rounded-xl hover:brightness-110 transition-all text-sm'>
+              <button className='mr-4 px-4 sm:px-6 py-2 sm:py-2.5 bg-mh-yellow text-black font-semibold rounded-lg sm:rounded-xl hover:brightness-110 transition-all text-sm'>
                 Search
               </button>
             </div>
           </div>
 
-          <div className='space-y-3 sm:space-y-4'>
+          <div className='space-y-3 sm:space-y-[22px]'>
             {faqs.map((faq, idx) => (
               <div
                 key={idx}
-                className='p-4 sm:p-6 bg-[#16181A] border border-white/[0.08] rounded-2xl sm:rounded-3xl hover:border-white/[0.15] transition-colors duration-300'
+                className={`p-4 sm:p-6 rounded-2xl sm:rounded-3xl hover:border-white/[0.15] transition-all duration-300 ${
+                  expandedFaq === idx ? 'bg-[#151719]' : 'bg-[#202224]'
+                }`}
               >
                 <button
                   onClick={() =>
@@ -966,7 +1023,12 @@ export const LandingPage: React.FC = () => {
                   }
                   className='w-full flex items-center justify-between text-left gap-4'
                 >
-                  <h3 className='text-sm sm:text-base lg:text-lg font-medium text-white'>
+                  <h3
+                    className='text-sm sm:text-base lg:text-lg font-medium text-white leading-5'
+                    style={{
+                      fontFamily: 'Roboto, sans-serif',
+                    }}
+                  >
                     {faq.question}
                   </h3>
                   <div
@@ -984,11 +1046,16 @@ export const LandingPage: React.FC = () => {
                 <div
                   className={`overflow-hidden transition-all duration-300 ${
                     expandedFaq === idx
-                      ? 'max-h-40 opacity-100 mt-4'
+                      ? 'max-h-40 opacity-100 mt-3'
                       : 'max-h-0 opacity-0'
                   }`}
                 >
-                  <p className='text-sm text-white/60 leading-relaxed'>
+                  <p
+                    className='text-sm text-white/65 not-italic font-light leading-[18px]'
+                    style={{
+                      fontFamily: 'Roboto, sans-serif',
+                    }}
+                  >
                     {faq.answer}
                   </p>
                 </div>
@@ -1001,7 +1068,7 @@ export const LandingPage: React.FC = () => {
               onClick={() => {
                 console.log('show more CTA')
               }}
-              className='max-w-[124px] w-full py-2 border border-mh-yellow bg-[#25282b] text-white font-medium rounded-xl hover:bg-mh-yellow hover:text-black transition-all duration-300 text-sm flex items-center justify-center font-grotesk'
+              className='max-w-[124px] w-full py-2 font-medium rounded-xl text-white bg-[url("/sm-bg-btn.png")] bg-no-repeat bg-center bg-contain hover:bg-none hover:bg-mh-yellow hover:text-black transition-all duration-300 text-sm flex items-center justify-center font-grotesk'
             >
               Show more
             </button>
@@ -1013,13 +1080,29 @@ export const LandingPage: React.FC = () => {
       <section className='w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-14 lg:py-20'>
         <div className='max-w-6xl mx-auto'>
           <div className='text-center mb-8 sm:mb-10'>
-            <div className='inline-flex items-center gap-2 mb-4 sm:mb-8 px-4 sm:px-5 py-2 sm:py-2.5 bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-full'>
-              <img src={TagStars} alt='' className='w-4 h-4 sm:w-5 sm:h-5' />
-              <span className='text-xs sm:text-sm font-medium'>
+            <div
+              className='inline-flex items-center gap-3 mb-6 sm:mb-8 px-3 sm:px-3 py-2 sm:py-2 bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] rounded-2xl'
+              style={{ animation: 'fadeInUp 0.6s ease-out' }}
+            >
+              <img
+                src={CollaborateIcon}
+                alt=''
+                className='w-4 h-4 sm:w-5 sm:h-5'
+              />
+              <span
+                className='text-xs sm:text-base not-italic font-medium leading-5 text-white'
+                style={{ fontFamily: 'Roboto, sans-serif' }}
+              >
                 Collaborate
               </span>
             </div>
-            <h2 className='text-2xl sm:text-3xl lg:text-4xl font-medium'>
+
+            <h2
+              className='text-2xl sm:text-3xl lg:text-4xl not-italic font-normal leading-10 text-center'
+              style={{
+                fontFamily: 'Roboto, sans-serif',
+              }}
+            >
               Hop with Us
             </h2>
           </div>
@@ -1034,18 +1117,24 @@ export const LandingPage: React.FC = () => {
             {/* Bunny Icon Top Right */}
             <div className='absolute top-8 right-8 w-[72px] h-[72px] bg-[#fbff69] bg-opacity-[0.26] flex items-center justify-center rounded-[17px]'>
               <div className='w-[59px] h-[59px] rounded-[17px] bg-mh-yellow  flex items-center justify-center'>
-                <img
-                  src='/formbunny.png'
-                  alt=''
-                  className='w-[27px] h-[40px]'
-                />
+                <img src={LtsBunnyIcon} alt='' className='w-[33px] h-[47px]' />
               </div>
             </div>
 
-            <h3 className='text-xl sm:text-2xl font-semibold mb-3'>
+            <h3
+              className='text-xl sm:text-2xl mb-3 not-italic font-normal leading-6'
+              style={{
+                fontFamily: 'Roboto, sans-serif',
+              }}
+            >
               Let's Talk
             </h3>
-            <p className='text-sm sm:text-base text-white/50 mb-6 sm:mb-8 pr-16'>
+            <p
+              className='text-sm sm:text-base text-white/60 mb-6 sm:mb-8 pr-16 not-italic font-light leading-6'
+              style={{
+                fontFamily: 'Roboto, sans-serif',
+              }}
+            >
               Looking to partner with us, or resell the <br /> MultiHopper to
               your clients?
             </p>
@@ -1053,7 +1142,12 @@ export const LandingPage: React.FC = () => {
             <form onSubmit={handleSubmit} className='space-y-4 sm:space-y-6'>
               <div className='grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6'>
                 <div>
-                  <label className='block text-xs sm:text-sm text-white/50 mb-2'>
+                  <label
+                    className='block text-xs sm:text-sm text-white/60 mb-2 not-italic font-normal leading-6'
+                    style={{
+                      fontFamily: 'Roboto, sans-serif',
+                    }}
+                  >
                     Full Name*
                   </label>
                   <div className='relative'>
@@ -1079,13 +1173,18 @@ export const LandingPage: React.FC = () => {
                       onChange={e =>
                         setFormData({ ...formData, fullName: e.target.value })
                       }
-                      className='w-full pl-10 pr-4 py-3 sm:py-3.5 bg-[#1E2023] border border-white/[0.06] rounded-xl text-sm sm:text-base text-white placeholder-white/30 focus:outline-none focus:border-mh-yellow/30 transition-colors'
+                      className='w-full pl-10 pr-4 py-2 sm:py-2 bg-[#232628] border border-white/[0.06] rounded-2xl text-sm sm:text-base text-white placeholder-[rgba(255,255,255,0.18)] focus:outline-none focus:border-mh-yellow/30 transition-colors not-italic leading-5'
                       required
                     />
                   </div>
                 </div>
                 <div>
-                  <label className='block text-xs sm:text-sm text-white/50 mb-2'>
+                  <label
+                    className='block text-xs sm:text-sm text-white/60 mb-2 not-italic font-normal leading-6'
+                    style={{
+                      fontFamily: 'Roboto, sans-serif',
+                    }}
+                  >
                     Email*
                   </label>
                   <div className='relative'>
@@ -1111,7 +1210,7 @@ export const LandingPage: React.FC = () => {
                       onChange={e =>
                         setFormData({ ...formData, email: e.target.value })
                       }
-                      className='w-full pl-10 pr-4 py-3 sm:py-3.5 bg-[#1E2023] border border-white/[0.06] rounded-xl text-sm sm:text-base text-white placeholder-white/30 focus:outline-none focus:border-mh-yellow/30 transition-colors'
+                      className='w-full pl-10 pr-4 py-2 sm:py-2 bg-[#232628] border border-white/[0.06] rounded-2xl text-sm sm:text-base text-white placeholder-[rgba(255,255,255,0.18)] focus:outline-none focus:border-mh-yellow/30 transition-colors not-italic leading-5'
                       required
                     />
                   </div>
@@ -1119,7 +1218,12 @@ export const LandingPage: React.FC = () => {
               </div>
 
               <div>
-                <label className='block text-xs sm:text-sm text-white/50 mb-2'>
+                <label
+                  className='block text-xs sm:text-sm text-white/60 mb-2 not-italic font-normal leading-6'
+                  style={{
+                    fontFamily: 'Roboto, sans-serif',
+                  }}
+                >
                   Company
                 </label>
                 <div className='relative'>
@@ -1145,14 +1249,19 @@ export const LandingPage: React.FC = () => {
                     onChange={e =>
                       setFormData({ ...formData, company: e.target.value })
                     }
-                    className='w-full pl-10 pr-4 py-3 sm:py-3.5 bg-[#1E2023] border border-white/[0.06] rounded-xl text-sm sm:text-base text-white placeholder-white/30 focus:outline-none focus:border-mh-yellow/30 transition-colors'
+                    className='w-full pl-10 pr-4 py-2 sm:py-2 bg-[#232628] border border-white/[0.06] rounded-2xl text-sm sm:text-base text-white placeholder-[rgba(255,255,255,0.18)] focus:outline-none focus:border-mh-yellow/30 transition-colors not-italic leading-5'
                   />
                 </div>
               </div>
 
               <div className='grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6'>
                 <div>
-                  <label className='block text-xs sm:text-sm text-white/50 mb-2'>
+                  <label
+                    className='block text-xs sm:text-sm text-white/60 mb-2 not-italic font-normal leading-6'
+                    style={{
+                      fontFamily: 'Roboto, sans-serif',
+                    }}
+                  >
                     X Handle*
                   </label>
                   <div className='relative'>
@@ -1173,28 +1282,41 @@ export const LandingPage: React.FC = () => {
                       onChange={e =>
                         setFormData({ ...formData, xHandle: e.target.value })
                       }
-                      className='w-full pl-10 pr-4 py-3 sm:py-3.5 bg-[#1E2023] border border-white/[0.06] rounded-xl text-sm sm:text-base text-white placeholder-white/30 focus:outline-none focus:border-mh-yellow/30 transition-colors'
+                      className='w-full pl-10 pr-4 py-2 sm:py-2 bg-[#232628] border border-white/[0.06] rounded-2xl text-sm sm:text-base text-white placeholder-[rgba(255,255,255,0.18)] focus:outline-none focus:border-mh-yellow/30 transition-colors not-italic leading-5'
                       required
                     />
                   </div>
                 </div>
                 <div>
-                  <label className='block text-xs sm:text-sm text-white/50 mb-2'>
+                  <label
+                    className='block text-xs sm:text-sm text-white/60 mb-2 not-italic font-normal leading-6'
+                    style={{
+                      fontFamily: 'Roboto, sans-serif',
+                    }}
+                  >
                     TG Handle*
                   </label>
                   <div className='relative'>
                     <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
                       <svg
-                        className='w-5 h-5 text-white/30'
+                        className='w-[14px] h-[12px] text-white/30'
+                        width='14'
+                        height='12'
+                        viewBox='0 0 14 12'
                         fill='none'
-                        stroke='currentColor'
-                        viewBox='0 0 24 24'
+                        xmlns='http://www.w3.org/2000/svg'
                       >
                         <path
-                          strokeLinecap='round'
-                          strokeLinejoin='round'
-                          strokeWidth={2}
-                          d='M12 19l9 2-9-18-9 18 9-2zm0 0v-8'
+                          d='M3.39062 6.53186L4.91656 10.7554C4.91656 10.7554 5.10734 11.1506 5.31163 11.1506C5.51592 11.1506 8.55439 7.98963 8.55439 7.98963L11.9333 1.46338L3.44507 5.44161L3.39062 6.53186Z'
+                          fill='#4A4A4A'
+                        />
+                        <path
+                          d='M5.41524 7.61523L5.12232 10.7284C5.12232 10.7284 4.9997 11.6823 5.9534 10.7284C6.90709 9.7745 7.81996 9.03892 7.81996 9.03892'
+                          fill='#2A2A2A'
+                        />
+                        <path
+                          d='M3.41721 6.68282L0.278305 5.6601C0.278305 5.6601 -0.0968282 5.5079 0.0239647 5.16278C0.0488307 5.09161 0.0989913 5.03105 0.249045 4.92698C0.944542 4.4422 13.1221 0.0652481 13.1221 0.0652481C13.1221 0.0652481 13.466 -0.0506145 13.6687 0.0264487C13.7189 0.0419778 13.7641 0.0705542 13.7996 0.109254C13.8351 0.147954 13.8596 0.195388 13.8708 0.246706C13.8927 0.337345 13.9019 0.430598 13.898 0.523768C13.897 0.604368 13.8873 0.679074 13.8799 0.796222C13.8057 1.9929 11.5862 10.9241 11.5862 10.9241C11.5862 10.9241 11.4534 11.4467 10.9776 11.4646C10.8607 11.4684 10.7442 11.4486 10.6351 11.4064C10.526 11.3642 10.4265 11.3004 10.3426 11.2189C9.40895 10.4158 6.18194 8.24712 5.46887 7.77017C5.45278 7.75921 5.43924 7.74493 5.42914 7.72829C5.41904 7.71164 5.41264 7.69303 5.41034 7.67371C5.40038 7.62344 5.45504 7.56116 5.45504 7.56116C5.45504 7.56116 11.0741 2.56653 11.2236 2.0422C11.2352 2.00158 11.1915 1.98154 11.1327 1.99933C10.7595 2.13663 4.28988 6.22226 3.57584 6.67317C3.52444 6.68872 3.47011 6.69202 3.41721 6.68282Z'
+                          fill='#7F8081'
                         />
                       </svg>
                     </div>
@@ -1205,7 +1327,7 @@ export const LandingPage: React.FC = () => {
                       onChange={e =>
                         setFormData({ ...formData, tgHandle: e.target.value })
                       }
-                      className='w-full pl-10 pr-4 py-3 sm:py-3.5 bg-[#1E2023] border border-white/[0.06] rounded-xl text-sm sm:text-base text-white placeholder-white/30 focus:outline-none focus:border-mh-yellow/30 transition-colors'
+                      className='w-full pl-10 pr-4 py-2 sm:py-2 bg-[#232628] border border-white/[0.06] rounded-2xl text-sm sm:text-base text-white placeholder-[rgba(255,255,255,0.18)] focus:outline-none focus:border-mh-yellow/30 transition-colors not-italic leading-5'
                       required
                     />
                   </div>
@@ -1213,7 +1335,12 @@ export const LandingPage: React.FC = () => {
               </div>
 
               <div>
-                <label className='block text-xs sm:text-sm text-white/50 mb-2'>
+                <label
+                  className='block text-xs sm:text-sm text-white/60 mb-2 not-italic font-normal leading-6'
+                  style={{
+                    fontFamily: 'Roboto, sans-serif',
+                  }}
+                >
                   Reasons for contacting?
                 </label>
                 <textarea
@@ -1223,7 +1350,7 @@ export const LandingPage: React.FC = () => {
                     setFormData({ ...formData, reason: e.target.value })
                   }
                   rows={4}
-                  className='w-full px-4 py-3 sm:py-3.5 bg-[#1E2023] border border-white/[0.06] rounded-xl text-sm sm:text-base text-white placeholder-white/30 focus:outline-none focus:border-mh-yellow/30 transition-colors resize-none'
+                  className='w-full px-4 py-3 sm:py-3.5 bg-[#232628] border border-white/[0.06] rounded-2xl text-sm sm:text-base text-white placeholder-[rgba(255,255,255,0.18)] focus:outline-none focus:border-mh-yellow/30 transition-colors resize-none not-italic leading-5'
                 />
               </div>
 
@@ -1233,7 +1360,7 @@ export const LandingPage: React.FC = () => {
                 </div>
                 <button
                   type='submit'
-                  className='min-w-[132px] px-8 py-3 border border-mh-yellow  bg-[#25282b] text-white font-medium rounded-xl hover:bg-mh-yellow hover:text-black transition-all duration-300 text-sm font-grotesk'
+                  className='min-w-[132px] px-8 py-3 text-white font-medium rounded-xl bg-[url("/sbmt-bg-btn.png")] bg-no-repeat bg-center bg-contain hover:bg-none hover:bg-mh-yellow hover:text-black transition-all duration-300 text-sm font-grotesk'
                 >
                   Submit
                 </button>
