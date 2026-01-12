@@ -7,6 +7,10 @@ import { trpc } from "../../trpc";
 import { useState, useMemo } from "react";
 import { Button } from "../Button";
 import { useMobileDevice } from "../../hooks/useMobileDevice";
+import { useWallet, useConnection } from "@solana/wallet-adapter-react";
+import { Transaction } from "@solana/web3.js";
+import { Buffer } from "buffer";
+import { toast } from "react-hot-toast";
 
 // Format date for display
 function formatScheduledTime(isoString: string | undefined): string {
@@ -42,6 +46,10 @@ export const RouteItem = ({ route }: RouteItemProps) => {
   const { replay, isPending } = useReplayRoute();
   const { deploy } = useDeploy();
   const utils = trpc.useUtils();
+  const updateHopTimestamps = trpc.routes.updateHopTimestamps.useMutation();
+  const addHopsBatched = trpc.contract.addHopsBatched.useMutation();
+  const { sendTransaction } = useWallet();
+  const { connection } = useConnection();
   const isCompleted = route.status === "completed";
   const isDeployed = route.deploymentStatus === "deployed";
   const isDraft = !isDeployed;
@@ -59,6 +67,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
     }
   );
   const currentHopIndex = routeStateQuery.data?.data?.currentHopIndex || 0;
+  const hopsCountOnChain = routeStateQuery.data?.data?.hopsCount || 0;
 
   // Check if route has hops on-chain
   const routeHasHopsQuery = trpc.contract.routeHasHops.useQuery(
@@ -70,10 +79,20 @@ export const RouteItem = ({ route }: RouteItemProps) => {
     }
   );
   const hasHopsOnChain = routeHasHopsQuery.data?.data?.hasHops || false;
+
+  // Two types of incomplete deployments:
+  // 1. No hops at all on-chain (complete failure)
   const isIncomplete =
     route.deploymentStatus === "deployed" &&
     !hasHopsOnChain &&
     hopsCount > 0;
+
+  // 2. Some hops on-chain, but missing others (partial failure)
+  const hasMissingHops =
+    route.deploymentStatus === "deployed" &&
+    hasHopsOnChain &&
+    hopsCountOnChain > 0 &&
+    hopsCountOnChain < hopsCount;
   const formattedAmount =
     route.hopAmountTokens != null
       ? new Intl.NumberFormat(undefined, { maximumFractionDigits: 6 }).format(
@@ -177,9 +196,127 @@ export const RouteItem = ({ route }: RouteItemProps) => {
         },
         route.tokenType as "SPL" | "SOL"
       );
+
+      // CRITICAL: Update database hop timestamps to match what was sent on-chain
+      await updateHopTimestamps.mutateAsync({
+        routeId: route.id,
+        creator: route.creator,
+        hops: formattedHops.map((hop) => ({
+          recipient: hop.recipient,
+          scheduledAt: hop.scheduledAt,
+        })),
+      });
+
       // Refresh queries after successful completion
       await utils.routes.getByCreator.invalidate({ creator: route.creator });
       await routeHasHopsQuery.refetch();
+    } finally {
+      setIsDeploying(false);
+    }
+  };
+
+  const handleAddMissingHops = async () => {
+    if (isDeploying || !sendTransaction) return;
+    setIsDeploying(true);
+    try {
+      const hopsArray = Array.isArray(route.hops) ? route.hops : [];
+
+      // Get only the missing hops (from hopsCountOnChain to end)
+      const missingHops = hopsArray.slice(hopsCountOnChain);
+
+      // Calculate fresh timestamps for missing hops (10 minutes apart from now)
+      const now = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
+      const formattedMissingHops = missingHops.map((hop, index) => ({
+        recipient: hop.recipient,
+        scheduledAt: now + (index + 1) * 10 * 60, // 10 minutes apart in seconds
+      }));
+
+      toast.loading(`Adding ${missingHops.length} missing hop(s)...`, { id: "add-hops" });
+
+      // Get the batch transactions for adding missing hops
+      const result = await addHopsBatched.mutateAsync({
+        routeId: route.routeId,
+        creator: route.creator,
+        hops: formattedMissingHops,
+      });
+
+      const { transactions, totalBatches } = result.data;
+
+      // Process each batch transaction sequentially
+      for (let i = 0; i < transactions.length; i++) {
+        const batchNum = i + 1;
+        const batchData = transactions[i];
+
+        toast.loading(
+          `Signing batch ${batchNum}/${totalBatches}...`,
+          { id: "add-hops" }
+        );
+
+        const transaction = Transaction.from(
+          Buffer.from(batchData.transaction, "base64")
+        );
+
+        // Send the transaction
+        const signature = await sendTransaction(transaction, connection, {
+          skipPreflight: true,
+          preflightCommitment: "confirmed",
+        });
+
+        toast.loading(
+          `Confirming batch ${batchNum}/${totalBatches}...`,
+          { id: "add-hops" }
+        );
+
+        // Wait for confirmation
+        await connection.confirmTransaction({
+          signature: signature,
+          blockhash: batchData.recentBlockhash,
+          lastValidBlockHeight: batchData.lastValidBlockHeight,
+        });
+
+        console.log(`Batch ${batchNum}/${totalBatches} confirmed: ${signature}`);
+      }
+
+      // Update database: recalculate ALL hop timestamps (existing + new)
+      const allHops = hopsArray.map((hop, index) => {
+        if (index < hopsCountOnChain) {
+          // Keep existing hop timestamps (already on-chain and possibly executed)
+          const existingScheduledAt =
+            typeof hop.scheduledAt === "string"
+              ? new Date(hop.scheduledAt).getTime()
+              : hop.scheduledAt;
+          return {
+            recipient: hop.recipient,
+            scheduledAt: existingScheduledAt,
+          };
+        } else {
+          // Use fresh timestamps for newly added hops (convert back to ms)
+          const missingHopIndex = index - hopsCountOnChain;
+          return {
+            recipient: formattedMissingHops[missingHopIndex].recipient,
+            scheduledAt: formattedMissingHops[missingHopIndex].scheduledAt * 1000,
+          };
+        }
+      });
+
+      await updateHopTimestamps.mutateAsync({
+        routeId: route.id,
+        creator: route.creator,
+        hops: allHops,
+      });
+
+      // Refresh queries after successful completion
+      await utils.routes.getByCreator.invalidate({ creator: route.creator });
+      await routeStateQuery.refetch();
+      await routeHasHopsQuery.refetch();
+
+      toast.success(`Successfully added ${missingHops.length} missing hop(s)!`, { id: "add-hops" });
+    } catch (error) {
+      console.error("Failed to add missing hops:", error);
+      toast.error(
+        `Failed to add missing hops: ${error instanceof Error ? error.message : "Unknown error"}`,
+        { id: "add-hops" }
+      );
     } finally {
       setIsDeploying(false);
     }
@@ -297,6 +434,8 @@ export const RouteItem = ({ route }: RouteItemProps) => {
             className={`text-sm font-medium ${
               isCompleted
                 ? "text-green-400"
+                : hasMissingHops
+                ? "text-red-400"
                 : isIncomplete
                 ? "text-red-400"
                 : isDraft
@@ -306,6 +445,8 @@ export const RouteItem = ({ route }: RouteItemProps) => {
           >
             {isCompleted
               ? "Completed"
+              : hasMissingHops
+              ? "Partial"
               : isIncomplete
               ? "Incomplete"
               : isDraft
@@ -376,6 +517,41 @@ export const RouteItem = ({ route }: RouteItemProps) => {
               className="!py-2 px-4 rounded-lg bg-yellow-500 text-black hover:bg-yellow-400 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap text-sm"
             >
               {isDeploying ? "Adding Hops..." : "Complete Deployment"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Missing hops warning */}
+      {hasMissingHops && (
+        <div className="mx-4 mt-3 p-4 bg-red-900/20 border border-red-500/30 rounded-lg">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 text-red-400 font-medium text-sm mb-1">
+                <svg
+                  className="w-5 h-5"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Partial Deployment - Funds May Be Stuck
+              </div>
+              <p className="text-xs text-gray-300">
+                Only {hopsCountOnChain} of {hopsCount} hops were added on-chain. Your funds may be stuck at an intermediate wallet as wrapped route tokens. Click below to add the missing {hopsCount - hopsCountOnChain} hop(s) and complete the route.
+              </p>
+            </div>
+            <Button
+              onClick={handleAddMissingHops}
+              disabled={isDeploying}
+              variant="ghost"
+              className="!py-2 px-4 rounded-lg bg-red-500 text-white hover:bg-red-400 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap text-sm"
+            >
+              {isDeploying ? "Adding Hops..." : `Add ${hopsCount - hopsCountOnChain} Missing Hop(s)`}
             </Button>
           </div>
         </div>

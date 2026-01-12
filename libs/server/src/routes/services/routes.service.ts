@@ -401,6 +401,37 @@ const triggerNextHop = async (routeId: number) => {
   // Implementation for triggering next hop
 };
 
+// Update hop timestamps in the database (for fixing incomplete deployments)
+const updateHopTimestamps = async (
+  routeId: number,
+  creator: string,
+  hops: Array<{ recipient: string; scheduledAt: number }>
+) => {
+  return db.transaction(async (tx) => {
+    // Verify the route belongs to this creator
+    const route = await tx.query.routesSchema.findFirst({
+      where: and(eq(routesSchema.id, routeId), eq(routesSchema.creator, creator)),
+    });
+
+    if (!route) {
+      throw new Error("Route not found or unauthorized");
+    }
+
+    // Delete existing hops
+    await tx.delete(hopsSchema).where(eq(hopsSchema.routeId, routeId));
+
+    // Insert new hops with updated timestamps
+    const hopsToCreate: CreateHopInput[] = hops.map((hop, index) => ({
+      routeId: routeId,
+      hopIndex: index,
+      recipient: hop.recipient,
+      scheduledAt: new Date(hop.scheduledAt), // Convert ms timestamp to Date
+    }));
+
+    await tx.insert(hopsSchema).values(hopsToCreate);
+  });
+};
+
 const routesService = {
   createRoute,
   getRoutesByCreatorPaginated,
@@ -409,6 +440,7 @@ const routesService = {
   replayRoute,
   deleteRoute,
   updateRoute,
+  updateHopTimestamps,
   // Legacy functions
   cascadeCreate,
   getRouteById,
