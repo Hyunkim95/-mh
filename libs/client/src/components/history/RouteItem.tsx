@@ -18,6 +18,10 @@ export function trimAddress(address: string, chars = 4) {
   return `${address.slice(0, chars)}...${address.slice(-chars)}`;
 }
 
+export function getSolscanAccountUrl(address: string): string {
+  return `https://solscan.io/account/${address}`;
+}
+
 export const RouteItem = ({ route }: RouteItemProps) => {
   const [open, setOpen] = useState(false);
   const [isDeploying, setIsDeploying] = useState(false);
@@ -63,12 +67,12 @@ export const RouteItem = ({ route }: RouteItemProps) => {
     setIsDeploying(true)
     try {
       const hopsArray = Array.isArray(route.hops) ? route.hops : [];
-      
+
       // Use reduce to calculate timestamps based on delaySeconds
       const formattedHops = hopsArray.reduce<Array<{ recipient: string; scheduledAt: number }>>(
         (acc, hop, index) => {
           let scheduledAt: number;
-          
+
           if (index === 0) {
             // First hop executes immediately
             scheduledAt = Math.floor(Date.now() / 1000);
@@ -78,7 +82,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
             const delaySeconds = hop.delaySeconds || 0;
             scheduledAt = prevScheduledAt + delaySeconds;
           }
-          
+
           return [...acc, {
             recipient: hop.recipient,
             scheduledAt,
@@ -86,7 +90,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
         },
         []
       );
-      
+
       await deploy(
         {
           routeId: route.routeId,
@@ -171,7 +175,15 @@ export const RouteItem = ({ route }: RouteItemProps) => {
 
         {/* Creator/Wallet - Flexible with overflow */}
         <div className="flex flex-col items-start text-left min-w-0 flex-1 max-w-[140px]">
-          <div className="font-medium text-white truncate w-full overflow-x-auto scrollbar-hide">{trimAddress(route.creator)}</div>
+          <a
+            href={getSolscanAccountUrl(route.creator)}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="font-medium text-white truncate w-full overflow-x-auto scrollbar-hide hover:underline hover:text-yellow-400 transition-colors duration-200 cursor-pointer"
+          >
+            {trimAddress(route.creator)}
+          </a>
           <div className="text-xs text-gray-400 truncate w-full">
             {isCompleted ? "Final Destination" : "Current Wallet"}
           </div>
@@ -189,9 +201,15 @@ export const RouteItem = ({ route }: RouteItemProps) => {
           <div className="flex flex-col gap-3 col-start-1 col-end-3">
             <div className="flex items-start justify-between text-left min-w-0 flex-1 gap-3 w-full">
               <div className="text-xs text-gray-400">Current Wallet</div>
-              <div className="text-sm text-white font-medium">
+              <a
+                href={getSolscanAccountUrl(route.creator)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="text-sm text-white font-medium hover:underline hover:text-yellow-400 transition-colors duration-200 cursor-pointer"
+              >
                 {trimAddress(route.creator)}
-              </div>
+              </a>
             </div>
             <div className="flex items-start justify-between text-left min-w-0 flex-1 gap-3 w-full">
               <div className="text-xs text-gray-400 truncate ">Route</div>
@@ -288,7 +306,14 @@ export const RouteItem = ({ route }: RouteItemProps) => {
                             ✓
                           </div>
                         )}
-                        <div className="text-sm text-white">{trimAddress(step.recipient)}</div>
+                        <a
+                          href={getSolscanAccountUrl(step.recipient)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-white hover:underline hover:text-yellow-400 transition-colors duration-200 cursor-pointer"
+                        >
+                          {trimAddress(step.recipient)}
+                        </a>
                       </div>
                       {isCurrentHop && (
                         <span className="bg-blue-900 text-blue-200 px-2 py-1 rounded-full text-xs font-semibold">
