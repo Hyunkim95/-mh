@@ -1372,54 +1372,55 @@ export const LandingPage: React.FC = () => {
 
       {/* Footer */}
       <footer className='relative mt-20'>
-        {/* Helper SVG for filtering/definitions if needed, or just the Shape */}
-
-        {/* Top Wave Cap */}
-        <div className='w-full h-[40px] leading-none overflow-hidden sticky-top'>
-          <svg
-            className='block w-full h-full'
-            viewBox='0 0 1440 40'
-            preserveAspectRatio='none'
-          >
-            {/* 1. Fill Path (Background Color #222426) */}
-            <path
-              d='M0,1 L680,1 C710,1 710,38 720,38 C730,38 730,1 760,1 L1440,1 V42 H0 Z'
-              fill='#222426'
-              stroke='none'
-            />
-
-            {/* 2. Stroke Path (Yellow Line) */}
-            <path
-              d='M0,1 L680,1 C710,1 710,38 720,38 C730,38 730,1 760,1 L1440,1'
-              fill='none'
-              stroke='#FBFF69'
-              strokeWidth='2'
-            />
-
-            {/* Arrow Icon - Scroll to Top Button */}
-            <g
-              transform='translate(712, 12) scale(0.6)'
-              className='cursor-pointer hover:opacity-80 transition-all duration-300'
-              onClick={scrollToTop}
-              style={{ pointerEvents: 'all' }}
+        <div className='relative w-full h-[60px] leading-none overflow-hidden sticky-top'>
+          <div
+            className='absolute top-0 left-0 h-full bg-[#222426] border-t border-[#FBFF69]'
+            style={{ width: 'calc(50% - 110px)' }}
+          />
+          <div
+            className='absolute top-0 right-0 h-full bg-[#222426] border-t border-[#FBFF69]'
+            style={{ width: 'calc(50% - 110px)' }}
+          />
+          <div className='absolute top-0 left-1/2 -translate-x-1/2 w-[220px] h-[60px]'>
+            <svg
+              width='220'
+              height='60'
+              viewBox='0 0 220 60'
+              xmlns='http://www.w3.org/2000/svg'
+              className='block'
             >
-              <circle
-                cx='12'
-                cy='12'
-                r='11'
-                fill='transparent'
-                className='hover:fill-white/10 transition-all duration-300'
+              <path
+                d='M0 0 H69 A20 20 0 0 1 89 20 A24 24 0 0 0 100 31 H120 A24 24 0 0 0 131 20 A20 20 0 0 1 151 0 H220 V60 H0 Z'
+                fill='#222426'
               />
               <path
-                d='M12 19V5M5 12l7-7 7 7'
+                d='M0 0 H69 A20 20 0 0 1 89 20 A24 24 0 0 0 100 31 H120 A24 24 0 0 0 131 20 A20 20 0 0 1 151 0 H220'
+                fill='none'
+                stroke='#FBFF69'
+                strokeWidth='2'
+                strokeLinecap='round'
+                strokeLinejoin='round'
+              />
+            </svg>
+            <svg
+              width='18'
+              height='18'
+              viewBox='0 0 22 22'
+              xmlns='http://www.w3.org/2000/svg'
+              className='absolute left-1/2 -translate-x-1/2 cursor-pointer hover:opacity-80 transition-all duration-300'
+              style={{ top: '-1px', pointerEvents: 'all' }}
+              onClick={scrollToTop}
+            >
+              <path
+                d='M10.7483 19.9209L10.7483 1.57275M10.7483 1.57275L1.57422 10.7468M10.7483 1.57275L19.9224 10.7468'
                 stroke='white'
-                strokeWidth='3'
+                strokeWidth='3.1454'
                 strokeLinecap='round'
                 strokeLinejoin='round'
                 className='hover:stroke-[#FBFF69] transition-colors duration-300'
               />
-            </g>
-          </svg>
+            </svg>
+          </div>
         </div>
 
         {/* Main Footer Body */}
