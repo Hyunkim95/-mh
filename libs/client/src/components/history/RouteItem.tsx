@@ -144,7 +144,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
     <div className='relative flex flex-col bg-[var(--dark-jungle-green-500)] rounded-xl shadow-sm overflow-hidden'>
       {/* Header */}
       <button onClick={onToggle}
-        className="flex items-center justify-between w-full p-4 gap-3">
+        className="flex flex-col sm:flex-row items-center justify-between w-full p-4 gap-3">
         {/* Route Name & ID - Flexible with overflow */}
         {
           !isMobile &&         <div className="flex flex-col items-start text-left min-w-0 flex-1 max-w-[140px]">

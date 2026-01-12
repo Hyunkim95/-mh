@@ -8,6 +8,57 @@ import { trpc } from "../trpc";
 // Maximum hops that can fit in a single transaction (matches backend)
 const HOPS_PER_BATCH = 4;
 
+/**
+ * Recalculate hop times based on delay configuration
+ * For delay-based hops: calculate fresh timestamp from now
+ * For custom absolute times: keep original timestamp
+ */
+const recalculateHopTimes = (
+  hops: Array<{
+    recipient: string
+    scheduledAt: number | string
+    delayMinutes?: number
+    isCustomTime?: boolean
+  }>
+): Array<{ recipient: string; scheduledAt: number }> => {
+  const now = Date.now()
+  let cumulativeTime = now
+  let lastWasCustom = false
+
+  return hops.map((hop) => {
+    if (hop.isCustomTime) {
+      // Custom time: keep original (convert to timestamp if needed)
+      const scheduledAt = typeof hop.scheduledAt === 'number'
+        ? hop.scheduledAt
+        : new Date(hop.scheduledAt).getTime()
+      lastWasCustom = true
+      cumulativeTime = scheduledAt  // Update cumulative for next hop
+      return {
+        recipient: hop.recipient,
+        scheduledAt
+      }
+    } else if (hop.delayMinutes !== undefined && !lastWasCustom) {
+      // Delay-based after delay-based: recalculate from cumulative time
+      cumulativeTime += hop.delayMinutes * 60 * 1000
+      return {
+        recipient: hop.recipient,
+        scheduledAt: cumulativeTime
+      }
+    } else {
+      // Delay-based after custom OR no delay info: use stored timestamp (backward compatibility)
+      const scheduledAt = typeof hop.scheduledAt === 'number'
+        ? hop.scheduledAt
+        : new Date(hop.scheduledAt).getTime()
+      lastWasCustom = false
+      cumulativeTime = scheduledAt
+      return {
+        recipient: hop.recipient,
+        scheduledAt
+      }
+    }
+  })
+}
+
 export const useDeploy = () => {
   const { publicKey, sendTransaction } = useWallet();
   const { connection } = useConnection();
@@ -204,7 +255,9 @@ export const useDeploy = () => {
       databaseId: number; // Database primary key ID
       hops: {
         recipient: string;
-        scheduledAt: number;
+        scheduledAt: number | string;
+        delayMinutes?: number;        // Optional delay metadata
+        isCustomTime?: boolean;       // Flag for custom times
       }[];
       hopAmount: string;
       splMint?: string;
@@ -218,6 +271,9 @@ export const useDeploy = () => {
     }
 
     try {
+      // Recalculate fresh timestamps based on delay configuration
+      const freshHops = recalculateHopTimes(data.hops);
+
       // Check if route is already deployed
       const routeStatus = await checkRouteStatus.mutateAsync({
         routeId: data.routeId
@@ -225,7 +281,7 @@ export const useDeploy = () => {
       const { hasHops, isDeployed } = routeStatus.data || { hasHops: false, isDeployed: false };
 
       // Calculate number of hop batches needed
-      const hopBatches = Math.ceil(data.hops.length / HOPS_PER_BATCH);
+      const hopBatches = Math.ceil(freshHops.length / HOPS_PER_BATCH);
 
       // Show initial progress
       toast.loading("Deploying route: Checking status...", { id: "deploy" });
@@ -234,15 +290,15 @@ export const useDeploy = () => {
         // Step 1: Initialize route
         toast.loading("Deploying route: Initializing...", { id: "deploy" });
 
-        const initSignature = await initializeRouteMutation(data, type);
+        const initSignature = await initializeRouteMutation({ ...data, hops: freshHops }, type);
 
         // Step 2: Add hops (may require multiple batches)
         toast.loading(
-          `Deploying route: Adding ${data.hops.length} hops${hopBatches > 1 ? ` in ${hopBatches} batches` : ""}...`,
+          `Deploying route: Adding ${freshHops.length} hops${hopBatches > 1 ? ` in ${hopBatches} batches` : ""}...`,
           { id: "deploy" }
         );
 
-        await addHopsMutation(data.routeId, publicKey.toBase58(), data.hops);
+        await addHopsMutation(data.routeId, publicKey.toBase58(), freshHops);
 
         // Mark as deployed in database
         await markDeployed.mutateAsync({
@@ -252,21 +308,21 @@ export const useDeploy = () => {
         });
 
         toast.success(
-          `Route deployed successfully with ${data.hops.length} hops!`,
+          `Route deployed successfully with ${freshHops.length} hops!`,
           { id: "deploy" }
         );
         return initSignature;
       } else if (!hasHops) {
         // Route initialized but no hops - just add hops
         toast.loading(
-          `Adding ${data.hops.length} hops${hopBatches > 1 ? ` in ${hopBatches} batches` : ""}...`,
+          `Adding ${freshHops.length} hops${hopBatches > 1 ? ` in ${hopBatches} batches` : ""}...`,
           { id: "deploy" }
         );
 
-        await addHopsMutation(data.routeId, publicKey.toBase58(), data.hops);
+        await addHopsMutation(data.routeId, publicKey.toBase58(), freshHops);
 
         toast.success(
-          `${data.hops.length} hops added successfully!`,
+          `${freshHops.length} hops added successfully!`,
           { id: "deploy" }
         );
         return "hops-added";
