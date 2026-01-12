@@ -268,8 +268,14 @@ export const RouteItem = ({ route }: RouteItemProps) => {
         <div className='relative bg-[var(--dark-jungle-green-500)] pl-10 pr-4 pb-4 space-y-4'>
           {(route.hops ?? []).map((step, index, steps) => {
             const isLast = index === steps.length - 1
-            const isCurrentHop = currentHopIndex === index + 1
-            const isUpcoming = step.status === 'upcoming'
+            // Use currentHopIndex to determine progress (1-indexed from blockchain)
+            // index 0 = hop 1, so completed if index < currentHopIndex
+            const isCompleted = index < currentHopIndex
+            const isCurrentHop = index === currentHopIndex
+            const isUpcoming = index > currentHopIndex
+
+            // Colors based on progress
+            const dotColor = isUpcoming ? 'bg-gray-600 border-gray-600' : 'bg-yellow-400 border-yellow-400'
             const lineColor = isUpcoming ? 'bg-gray-600' : 'bg-yellow-400'
 
             return (
@@ -282,7 +288,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
                 {/* Dot + connecting line */}
                 <div className='absolute -left-[1rem] flex flex-col items-center'>
                   <div className={`w-[2px] h-[100px] ${lineColor}`} />
-                  <div className='w-3 h-3 absolute -top-[-15px] left-[-5px] rounded-full border-2 bg-yellow-400 border-yellow-400' />
+                  <div className={`w-3 h-3 absolute -top-[-15px] left-[-5px] rounded-full border-2 ${dotColor}`} />
                 </div>
 
                 {/* Step content */}
@@ -301,7 +307,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
                   <div className='flex flex-col flex-1'>
                     <div className='flex flex-row items-center gap-2 justify-between'>
                       <div className='flex flex-row items-center gap-2'>
-                        {step.status === 'completed' && (
+                        {isCompleted && (
                           <div className='text-[10px] text-[var(--black-900)] bg-yellow-400 w-3 h-3 rounded-[3px] flex items-center justify-center'>
                             ✓
                           </div>

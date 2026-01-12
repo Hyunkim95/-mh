@@ -6,7 +6,7 @@ import { db } from '../db';
 // Validation schema for Easy Route input
 const easyRouteSchema = z.object({
   arrivalTime: z.string().transform((str) => new Date(str)),
-  hopCount: z.number().min(1).max(10),
+  hopCount: z.number().min(1),
   destinationWallet: z.string().min(32).max(64), // Solana address length
   tokenType: z.enum(['SPL', 'SOL']),
   tokenMint: z.string().optional(),
@@ -24,7 +24,7 @@ export const easyRoutesRouter = router({
     .mutation(async ({ input }) => {
       try {
         const easyRouteService = createEasyRouteService(db);
-        
+
         // Validate the input first
         const validation = await easyRouteService.validateEasyRouteInput(input);
         if (!validation.isValid) {
@@ -33,7 +33,7 @@ export const easyRoutesRouter = router({
 
         // Create the Easy Route
         const route = await easyRouteService.createEasyRoute(input);
-        
+
         return {
           success: true,
           data: route,
@@ -54,7 +54,7 @@ export const easyRoutesRouter = router({
       try {
         const easyRouteService = createEasyRouteService(db);
         const validation = await easyRouteService.validateEasyRouteInput(input);
-        
+
         return {
           success: true,
           data: {

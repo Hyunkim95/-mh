@@ -64,10 +64,10 @@ export class EasyRouteService {
     // 1. Get N-1 random busy wallets for intermediate hops
     const intermediateWalletCount = hopCount - 1;
     let intermediateWallets: any[] = [];
-    
+
     if (intermediateWalletCount > 0) {
       intermediateWallets = await this.busyWalletsService.getRandomWallets(intermediateWalletCount);
-      
+
       if (intermediateWallets.length < intermediateWalletCount) {
         throw new Error(`Not enough active wallets available. Need ${intermediateWalletCount}, found ${intermediateWallets.length}`);
       }
@@ -76,40 +76,27 @@ export class EasyRouteService {
     // 2. Calculate randomized hop timestamps
     const now = new Date();
     const totalDurationMs = arrivalTime.getTime() - now.getTime();
-    
+
     if (totalDurationMs <= 0) {
       throw new Error('Arrival time must be in the future');
     }
 
-    // Safety constraints
-    const minHopDurationMs = 2 * 60 * 1000; // Minimum 2 minutes per hop
-    const transactionBufferMs = 30 * 1000; // 30 seconds buffer per hop for transaction confirmation
-    const totalBufferMs = hopCount * transactionBufferMs;
-    const usableDurationMs = totalDurationMs - totalBufferMs;
-
-    // Ensure we have enough time for minimum durations
-    const minTotalRequired = hopCount * minHopDurationMs;
-    if (usableDurationMs < minTotalRequired) {
-      throw new Error(`Route requires at least ${Math.ceil(minTotalRequired / (60 * 1000))} minutes for ${hopCount} hops`);
-    }
-
     // Generate random weights for time distribution
     const weights = this.generateRandomWeights(hopCount);
-    
-    // Calculate randomized intervals with constraints
+
+    // Calculate randomized intervals - distribute total time across hops using weights
     let cumulativeTime = now.getTime();
     const hops: RouteHopData[] = [];
-    
+
     for (let i = 0; i < hopCount; i++) {
       let hopDurationMs: number;
-      
+
       if (i === hopCount - 1) {
         // Last hop: use remaining time to hit exact arrival time
         hopDurationMs = arrivalTime.getTime() - cumulativeTime;
       } else {
-        // Intermediate hops: use weighted random duration with minimum constraint
-        const weightedDuration = usableDurationMs * weights[i];
-        hopDurationMs = Math.max(minHopDurationMs, weightedDuration) + transactionBufferMs;
+        // Intermediate hops: use weighted random duration
+        hopDurationMs = totalDurationMs * weights[i];
       }
 
       cumulativeTime += hopDurationMs;
@@ -117,8 +104,8 @@ export class EasyRouteService {
         ? destinationWallet
         : intermediateWallets[i].address;
 
-      // Calculate delay for metadata storage
-      const delayMinutes = Math.round(hopDurationMs / (60 * 1000));
+      // Calculate delay for metadata storage (can be fractional minutes for short durations)
+      const delayMinutes = Math.max(0, Math.round(hopDurationMs / (60 * 1000)));
 
       hops.push({
         recipient,
@@ -170,7 +157,7 @@ export class EasyRouteService {
     errors: string[];
   }> {
     const errors: string[] = [];
-    
+
     // Check if we have enough wallets
     const intermediateWalletCount = input.hopCount - 1;
     if (intermediateWalletCount > 0) {
@@ -186,16 +173,6 @@ export class EasyRouteService {
       errors.push('Arrival time must be in the future');
     }
 
-    // Check minimum time for route execution based on hop count
-    const minHopDurationMs = 2 * 60 * 1000; // 2 minutes per hop
-    const transactionBufferMs = 30 * 1000; // 30 seconds buffer per hop
-    const minTotalRequired = input.hopCount * (minHopDurationMs + transactionBufferMs);
-    const totalDurationMs = input.arrivalTime.getTime() - now.getTime();
-    
-    if (totalDurationMs < minTotalRequired) {
-      const minMinutes = Math.ceil(minTotalRequired / (60 * 1000));
-      errors.push(`Route requires at least ${minMinutes} minutes for ${input.hopCount} hops (2 min per hop + 30s buffer)`);
-    }
 
     return {
       isValid: errors.length === 0,

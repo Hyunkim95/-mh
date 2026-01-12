@@ -236,17 +236,17 @@ describe("EasyRouteForm", () => {
       expect(mockOnHopCountChange).not.toHaveBeenCalled();
     });
 
-    it("should not allow hop count above 10 (maximum)", () => {
+    it("should allow hop count above 10 (no maximum limit)", () => {
       renderComponent({ hopCount: 10 });
 
       const plusButton = screen.getByRole("button", { name: "+" });
 
-      // Button is disabled at boundary, so clicking it should not call the handler
-      expect(plusButton).toBeDisabled();
+      // Plus button should not be disabled - no maximum limit
+      expect(plusButton).not.toBeDisabled();
       fireEvent.click(plusButton);
 
-      // Handler should not be called since button is disabled
-      expect(mockOnHopCountChange).not.toHaveBeenCalled();
+      // Handler should be called with incremented value
+      expect(mockOnHopCountChange).toHaveBeenCalledWith(11);
     });
 
     it("should disable minus button when hop count is 1", () => {
@@ -256,11 +256,11 @@ describe("EasyRouteForm", () => {
       expect(minusButton).toBeDisabled();
     });
 
-    it("should disable plus button when hop count is 10", () => {
-      renderComponent({ hopCount: 10 });
+    it("should not disable plus button at any hop count", () => {
+      renderComponent({ hopCount: 100 });
 
       const plusButton = screen.getByRole("button", { name: "+" });
-      expect(plusButton).toBeDisabled();
+      expect(plusButton).not.toBeDisabled();
     });
 
     it("should show correct indicator bars for hop count", () => {

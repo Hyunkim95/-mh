@@ -251,29 +251,6 @@ describe("EasyRouteService", () => {
         );
       });
 
-      it("should throw error when not enough time for hop count (minimum 2 min per hop)", async () => {
-        // 3 hops need at least 3 * 2.5 min = 7.5 minutes (2 min + 30 sec buffer per hop)
-        const tooSoon = new Date(Date.now() + 5 * 60 * 1000); // Only 5 minutes
-        const input = createTestInput({ hopCount: 3, arrivalTime: tooSoon });
-
-        await expect(service.createEasyRoute(input)).rejects.toThrow(
-          /Route requires at least \d+ minutes for 3 hops/
-        );
-      });
-
-      it("should calculate correct minimum time requirement with buffer", async () => {
-        // 10 hops need: 10 * (2 min + 30 sec) = 25 minutes minimum
-        const mockWallets = createMockWallets(9);
-        mockBusyWalletsService.getRandomWallets.mockResolvedValue(mockWallets);
-
-        const insufficientTime = new Date(Date.now() + 20 * 60 * 1000); // 20 minutes
-        const input = createTestInput({ hopCount: 10, arrivalTime: insufficientTime });
-
-        await expect(service.createEasyRoute(input)).rejects.toThrow(
-          /Route requires at least \d+ minutes for 10 hops/
-        );
-      });
-
       it("should ensure last hop arrives at exactly the target arrival time", async () => {
         const mockWallets = createMockWallets(2);
         mockBusyWalletsService.getRandomWallets.mockResolvedValue(mockWallets);
@@ -705,82 +682,6 @@ describe("EasyRouteService", () => {
         const result = await service.validateEasyRouteInput(input);
 
         expect(result.errors).not.toContain("Arrival time must be in the future");
-      });
-    });
-
-    describe("Minimum Time Validation", () => {
-      it("should return error when not enough time for hop count", async () => {
-        mockBusyWalletsService.getActiveCount.mockResolvedValue(10);
-
-        // 5 hops need: 5 * (2 min + 30 sec) = 12.5 minutes
-        const tooSoon = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-        const input = {
-          arrivalTime: tooSoon,
-          hopCount: 5,
-          destinationWallet: "TestWallet123",
-          tokenType: "SPL" as const,
-          tokenDecimals: 6,
-          hopAmountTokens: "100",
-          hopAmountRaw: "100000000",
-        };
-
-        const result = await service.validateEasyRouteInput(input);
-
-        expect(result.isValid).toBe(false);
-        expect(result.errors.some((e) => e.includes("requires at least"))).toBe(true);
-        expect(result.errors.some((e) => e.includes("5 hops"))).toBe(true);
-        expect(result.errors.some((e) => e.includes("2 min per hop + 30s buffer"))).toBe(
-          true
-        );
-      });
-
-      it("should calculate minimum time correctly for various hop counts", async () => {
-        mockBusyWalletsService.getActiveCount.mockResolvedValue(20);
-
-        const testCases = [
-          { hopCount: 1, minMinutes: 3 }, // 1 * 2.5 = 2.5, rounded up to 3
-          { hopCount: 2, minMinutes: 5 }, // 2 * 2.5 = 5
-          { hopCount: 5, minMinutes: 13 }, // 5 * 2.5 = 12.5, rounded up to 13
-          { hopCount: 10, minMinutes: 25 }, // 10 * 2.5 = 25
-        ];
-
-        for (const { hopCount, minMinutes } of testCases) {
-          // Just below minimum - should fail
-          const insufficientTime = new Date(Date.now() + (minMinutes - 1) * 60 * 1000);
-          const input = {
-            arrivalTime: insufficientTime,
-            hopCount,
-            destinationWallet: "TestWallet123",
-            tokenType: "SPL" as const,
-            tokenDecimals: 6,
-            hopAmountTokens: "100",
-            hopAmountRaw: "100000000",
-          };
-
-          const result = await service.validateEasyRouteInput(input);
-
-          expect(result.errors.some((e) => e.includes("requires at least"))).toBe(true);
-        }
-      });
-
-      it("should pass when exactly enough time is provided", async () => {
-        mockBusyWalletsService.getActiveCount.mockResolvedValue(10);
-
-        // 3 hops need: 3 * (2 min + 30 sec) = 7.5 minutes, so 8 minutes should pass
-        const justEnough = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-        const input = {
-          arrivalTime: justEnough,
-          hopCount: 3,
-          destinationWallet: "TestWallet123",
-          tokenType: "SPL" as const,
-          tokenDecimals: 6,
-          hopAmountTokens: "100",
-          hopAmountRaw: "100000000",
-        };
-
-        const result = await service.validateEasyRouteInput(input);
-
-        expect(result.errors.some((e) => e.includes("requires at least"))).toBe(false);
       });
     });
 
