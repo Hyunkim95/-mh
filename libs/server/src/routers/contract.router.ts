@@ -459,7 +459,7 @@ export const contractRouter = router({
 
   routeHasHops: publicProcedure
     .input(z.object({ routeId: z.number() }))
-    .mutation(async ({ input }) => {
+    .query(async ({ input }) => {
       try {
         const result = await routeHasHops(input.routeId);
         return {
