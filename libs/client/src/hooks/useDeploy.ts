@@ -63,6 +63,7 @@ const recalculateHopTimes = (
 export const useDeploy = () => {
   const { publicKey, sendTransaction } = useWallet();
   const { connection } = useConnection();
+  const utils = trpc.useUtils();
   const initializeRoute = trpc.contract.initializeRoute.useMutation();
   const addHopsBatched = trpc.contract.addHopsBatched.useMutation();
   const initializeRouteSOL = trpc.contract.initializeRouteSOL.useMutation();
@@ -298,7 +299,7 @@ export const useDeploy = () => {
         // CRITICAL: Verify all hops were actually added on-chain before marking as deployed
         // Add retry logic with delays to handle RPC propagation delay
         let verifyAttempts = 0;
-        const maxAttempts = 5;
+        const maxAttempts = 8;
         let hasHops = false;
 
         while (verifyAttempts < maxAttempts && !hasHops) {
@@ -310,8 +311,8 @@ export const useDeploy = () => {
           );
 
           if (verifyAttempts > 1) {
-            // Wait 2 seconds between attempts (except first attempt)
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            // Wait 3 seconds between attempts (except first attempt)
+            await new Promise(resolve => setTimeout(resolve, 3000));
             console.log(`Verification attempt ${verifyAttempts}/${maxAttempts}...`);
           }
 
@@ -343,6 +344,11 @@ export const useDeploy = () => {
           deploymentTxHash: initSignature,
         });
 
+        // Invalidate queries to refresh UI with latest on-chain state
+        await utils.routes.getByCreator.invalidate();
+        await utils.contract.routeHasHops.invalidate({ routeId: data.routeId });
+        await utils.contract.getRouteState.invalidate({ routeId: data.routeId });
+
         toast.success(
           `Route deployed successfully with ${freshHops.length} hops!`,
           { id: "deploy" }
@@ -359,7 +365,7 @@ export const useDeploy = () => {
 
         // Verify hops were actually added on-chain with retry logic
         let verifyAttempts = 0;
-        const maxAttempts = 5;
+        const maxAttempts = 8;
         let hasHopsVerified = false;
 
         while (verifyAttempts < maxAttempts && !hasHopsVerified) {
@@ -371,7 +377,7 @@ export const useDeploy = () => {
           );
 
           if (verifyAttempts > 1) {
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            await new Promise(resolve => setTimeout(resolve, 3000));
             console.log(`Verification attempt ${verifyAttempts}/${maxAttempts}...`);
           }
 
@@ -394,6 +400,11 @@ export const useDeploy = () => {
           );
           // Don't throw - transactions were confirmed successfully
         }
+
+        // Invalidate queries to refresh UI with latest on-chain state
+        await utils.routes.getByCreator.invalidate();
+        await utils.contract.routeHasHops.invalidate({ routeId: data.routeId });
+        await utils.contract.getRouteState.invalidate({ routeId: data.routeId });
 
         toast.success(
           `${freshHops.length} hops added successfully!`,
