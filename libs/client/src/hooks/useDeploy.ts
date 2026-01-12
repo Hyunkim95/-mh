@@ -68,7 +68,6 @@ export const useDeploy = () => {
   const addHopsBatched = trpc.contract.addHopsBatched.useMutation();
   const initializeRouteSOL = trpc.contract.initializeRouteSOL.useMutation();
   const markDeployed = trpc.routes.markDeployed.useMutation();
-  const checkRouteStatus = trpc.contract.routeHasHops.useMutation();
 
   const initializeRouteMutation = async (
     data: {
@@ -271,7 +270,7 @@ export const useDeploy = () => {
       const freshHops = recalculateHopTimes(data.hops);
 
       // Check if route is already deployed
-      const routeStatus = await checkRouteStatus.mutateAsync({
+      const routeStatus = await utils.client.contract.routeHasHops.query({
         routeId: data.routeId
       });
       const { hasHops, isDeployed } = routeStatus.data || { hasHops: false, isDeployed: false };
@@ -316,7 +315,7 @@ export const useDeploy = () => {
             console.log(`Verification attempt ${verifyAttempts}/${maxAttempts}...`);
           }
 
-          const verifyStatus = await checkRouteStatus.mutateAsync({
+          const verifyStatus = await utils.client.contract.routeHasHops.query({
             routeId: data.routeId
           });
 
@@ -346,7 +345,6 @@ export const useDeploy = () => {
 
         // Invalidate queries to refresh UI with latest on-chain state
         await utils.routes.getByCreator.invalidate();
-        await utils.contract.routeHasHops.invalidate({ routeId: data.routeId });
         await utils.contract.getRouteState.invalidate({ routeId: data.routeId });
 
         toast.success(
@@ -381,7 +379,7 @@ export const useDeploy = () => {
             console.log(`Verification attempt ${verifyAttempts}/${maxAttempts}...`);
           }
 
-          const verifyStatus = await checkRouteStatus.mutateAsync({
+          const verifyStatus = await utils.client.contract.routeHasHops.query({
             routeId: data.routeId
           });
 
@@ -403,7 +401,6 @@ export const useDeploy = () => {
 
         // Invalidate queries to refresh UI with latest on-chain state
         await utils.routes.getByCreator.invalidate();
-        await utils.contract.routeHasHops.invalidate({ routeId: data.routeId });
         await utils.contract.getRouteState.invalidate({ routeId: data.routeId });
 
         toast.success(

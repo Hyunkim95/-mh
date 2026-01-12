@@ -5,7 +5,20 @@
       "Bash(npm run:*)",
       "Bash(grep:*)",
       "Bash(yarn build)",
-      "Bash(gh pr view:*)"
+      "Bash(gh pr view:*)",
+      "Bash(heroku logs:*)",
+      "Bash(heroku pg:psql:*)",
+      "Bash(heroku releases:*)",
+      "Bash(heroku releases:info:*)",
+      "Bash(curl:*)",
+      "WebFetch(domain:solscan.io)",
+      "WebFetch(domain:explorer.solana.com)",
+      "Bash(npx tsx:*)",
+      "Bash(heroku config:get:*)",
+      "Bash(python3:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push)"
     ],
     "deny": []
   }
