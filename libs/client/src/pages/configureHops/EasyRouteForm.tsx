@@ -19,6 +19,7 @@ interface EasyRouteFormProps {
   onDestinationWalletChange: (wallet: string) => void
   walletError: string | null
   onWalletValidate: (wallet: string) => void
+  feePercentage?: number // Fee as decimal (e.g., 0.01 for 1%)
 }
 
 export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
@@ -33,16 +34,24 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
   onDestinationWalletChange,
   walletError,
   onWalletValidate,
+  feePercentage = 0.01, // Default 1% fee
 }) => {
   const [imageError, setImageError] = useState(false)
   const [isEditingAmount, setIsEditingAmount] = useState(false)
   const [amountInputValue, setAmountInputValue] = useState('')
   const amountInputRef = useRef<HTMLInputElement>(null)
 
-  const maxAmount = useMemo(
-    () => parseNumber(selectedAsset?.amount),
-    [selectedAsset]
-  )
+  // Calculate max amount accounting for fee
+  // If user has balance B and fee is F%, then max routable = B / (1 + F)
+  // This ensures: routeAmount + fee = balance
+  const maxAmount = useMemo(() => {
+    const balance = parseNumber(selectedAsset?.amount)
+    if (balance <= 0 || feePercentage <= 0) return balance
+    // Max amount that can be routed = balance / (1 + fee)
+    const maxRoutable = balance / (1 + feePercentage)
+    // Round down to avoid precision issues that could cause insufficient funds
+    return Math.floor(maxRoutable * 1e6) / 1e6
+  }, [selectedAsset, feePercentage])
 
   const usdPerToken = useMemo(() => {
     const assetAmount = parseNumber(selectedAsset?.amount)

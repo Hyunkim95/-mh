@@ -39,6 +39,9 @@ import { DeployModal, type DeployModalRoute } from '../components/DeployModal'
 import { trpc } from '../trpc'
 import { TABS } from '../constants/tab'
 
+// Default fee percentage (1% = 0.01) - used as fallback if config fetch fails
+const DEFAULT_FEE_PERCENTAGE = 0.01
+
 export const ConfigureHops: React.FC = () => {
   // Tab state - now includes 'mode' step: choose → mode → configure → summary
   const [activeKey, setActiveKey] = useState<string>('choose')
@@ -53,6 +56,28 @@ export const ConfigureHops: React.FC = () => {
   const { handleRouteSubmit } = useSubmitRoute({ publicKey })
   const createEasyRoute = trpc.easyRoutes.create.useMutation()
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Fetch token config to get fee percentage
+  const { data: tokenConfigSPL } = trpc.contract.getTokenConfigSPL.useQuery(undefined, {
+    enabled: selectedAsset?.tokenType === 'SPL',
+  })
+  const { data: tokenConfigSOL } = trpc.contract.getTokenConfigSOL.useQuery(
+    { creator: publicKey?.toBase58() ?? '' },
+    { enabled: selectedAsset?.tokenType === 'SOL' && !!publicKey }
+  )
+
+  // Get fee percentage based on token type (convert from string to decimal)
+  const feePercentage = useMemo(() => {
+    if (selectedAsset?.tokenType === 'SPL' && tokenConfigSPL?.data?.feeBps) {
+      // feeBps is already divided by 10_000 in the backend for SPL
+      return parseFloat(tokenConfigSPL.data.feeBps)
+    }
+    if (selectedAsset?.tokenType === 'SOL' && tokenConfigSOL?.data?.feeBps) {
+      // feeBps is raw basis points for SOL, need to divide by 10_000
+      return parseFloat(tokenConfigSOL.data.feeBps) / 10_000
+    }
+    return DEFAULT_FEE_PERCENTAGE
+  }, [selectedAsset?.tokenType, tokenConfigSPL, tokenConfigSOL])
   const [formErrors, setFormErrors] = useState<{
     hopRowErrors: Record<number, string | null>
     generalError?: string | null
@@ -319,6 +344,7 @@ walletC,15`
         asset={selectedAsset}
         amount={selectedAmount}
         onAmountChange={setSelectedAmount}
+        feePercentage={feePercentage}
       />
     </>
   )
@@ -370,6 +396,7 @@ walletC,15`
       onDestinationWalletChange={handleEasyRouteDestinationChange}
       walletError={easyRouteWalletError}
       onWalletValidate={validateEasyRouteWallet}
+      feePercentage={feePercentage}
     />
   )
 

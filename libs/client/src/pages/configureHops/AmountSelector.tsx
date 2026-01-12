@@ -9,12 +9,14 @@ interface AmountSelectorProps {
   asset: TokenAsset | null
   amount: number
   onAmountChange: (amount: number) => void
+  feePercentage?: number // Fee as decimal (e.g., 0.01 for 1%)
 }
 
 export const AmountSelector: React.FC<AmountSelectorProps> = ({
   asset,
   amount,
   onAmountChange,
+  feePercentage = 0.01, // Default 1% fee
 }) => {
   const [hoveredAmount, setHoveredAmount] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -22,10 +24,18 @@ export const AmountSelector: React.FC<AmountSelectorProps> = ({
   const amountDisplayRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const [imageError, setImageError] = useState(false);
-  const maxAmount = React.useMemo(
-    () => parseNumber(asset?.amount),
-    [asset]
-  )
+
+  // Calculate max amount accounting for fee
+  // If user has balance B and fee is F%, then max routable = B / (1 + F)
+  // This ensures: routeAmount + fee = balance
+  const maxAmount = React.useMemo(() => {
+    const balance = parseNumber(asset?.amount)
+    if (balance <= 0 || feePercentage <= 0) return balance
+    // Max amount that can be routed = balance / (1 + fee)
+    const maxRoutable = balance / (1 + feePercentage)
+    // Round down to avoid precision issues that could cause insufficient funds
+    return Math.floor(maxRoutable * 1e6) / 1e6
+  }, [asset, feePercentage])
 
   const usdPerToken = React.useMemo(() => {
     const assetAmount = parseNumber(asset?.amount)
