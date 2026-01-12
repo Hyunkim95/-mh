@@ -10,7 +10,12 @@ export interface DeployModalRoute {
   tokenSymbol?: string | null
   hopAmountTokens: string
   hopAmountRaw: string
-  hops: { recipient: string; scheduledAt: string }[]
+  hops: {
+    recipient: string
+    scheduledAt: string
+    delayMinutes?: number      // Optional delay metadata
+    isCustomTime?: boolean     // Flag for custom times
+  }[]
 }
 
 interface DeployModalProps {
@@ -67,6 +72,8 @@ export const DeployModal: React.FC<DeployModalProps> = ({
         hops: route.hops.map((hop) => ({
           recipient: hop.recipient,
           scheduledAt: new Date(hop.scheduledAt).getTime(),
+          delayMinutes: hop.delayMinutes,     // Pass delay metadata
+          isCustomTime: hop.isCustomTime      // Pass custom time flag
         })),
         hopAmount: route.hopAmountRaw,
         splMint: route.tokenMint || undefined,

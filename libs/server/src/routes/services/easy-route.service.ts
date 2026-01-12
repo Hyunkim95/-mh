@@ -113,13 +113,18 @@ export class EasyRouteService {
       }
 
       cumulativeTime += hopDurationMs;
-      const recipient = i === hopCount - 1 
-        ? destinationWallet 
+      const recipient = i === hopCount - 1
+        ? destinationWallet
         : intermediateWallets[i].address;
+
+      // Calculate delay for metadata storage
+      const delayMinutes = Math.round(hopDurationMs / (60 * 1000));
 
       hops.push({
         recipient,
         scheduledAt: new Date(cumulativeTime).toISOString(),
+        delayMinutes: delayMinutes,  // Store delay metadata for recalculation
+        isCustomTime: false          // Mark as delay-based, not custom time
       });
     }
 
