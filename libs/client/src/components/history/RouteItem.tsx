@@ -68,29 +68,22 @@ export const RouteItem = ({ route }: RouteItemProps) => {
   const currentHopIndex = routeStateQuery.data?.data?.currentHopIndex || 0;
   const hopsCountOnChain = routeStateQuery.data?.data?.hopsCount || 0;
 
-  // Check if route has hops on-chain
-  const routeHasHopsQuery = trpc.contract.routeHasHops.useQuery(
-    {
-      routeId: route.routeId || 0,
-    },
-    {
-      enabled: route.deploymentStatus === "deployed",
-    }
-  );
-  const hasHopsOnChain = routeHasHopsQuery.data?.data?.hasHops || false;
+  // Check if we have route state data (more reliable than routeHasHops)
+  const hasRouteState = !!routeStateQuery.data?.data;
 
   // Two types of incomplete deployments:
-  // 1. No hops at all on-chain (complete failure)
+  // 1. No route state at all (complete failure - route not initialized)
   const isIncomplete =
     route.deploymentStatus === "deployed" &&
-    !hasHopsOnChain &&
+    !routeStateQuery.isLoading &&
+    !hasRouteState &&
     hopsCount > 0;
 
   // 2. Some hops on-chain, but missing others (partial failure)
   // Check even if route is marked "completed" because scheduler may have auto-completed prematurely
   const hasMissingHops =
     (route.deploymentStatus === "deployed" || route.status === "completed") &&
-    hasHopsOnChain &&
+    hasRouteState &&
     hopsCountOnChain > 0 &&
     hopsCountOnChain < hopsCount;
   const formattedAmount =
@@ -209,7 +202,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
 
       // Refresh queries after successful completion
       await utils.routes.getByCreator.invalidate({ creator: route.creator });
-      await routeHasHopsQuery.refetch();
+      await routeStateQuery.refetch();
     } finally {
       setIsDeploying(false);
     }
@@ -308,7 +301,6 @@ export const RouteItem = ({ route }: RouteItemProps) => {
       // Refresh queries after successful completion
       await utils.routes.getByCreator.invalidate({ creator: route.creator });
       await routeStateQuery.refetch();
-      await routeHasHopsQuery.refetch();
 
       toast.success(`Successfully added ${missingHops.length} missing hop(s)!`, { id: "add-hops" });
     } catch (error) {
