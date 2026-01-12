@@ -564,6 +564,11 @@ export const getVault = async (
   return vault;
 };
 
+// Maximum hops per transaction to stay within Solana's 1,232-byte limit
+// Each hop = 40 bytes (32-byte pubkey + 8-byte i64 timestamp)
+// With overhead, 4 hops per batch is safe
+export const HOPS_PER_BATCH = 4;
+
 export const addHops = async (
   creator: PublicKey,
   routeId: BN,
@@ -598,8 +603,37 @@ export const addHops = async (
   priorityInstructions.forEach((ix) => transaction.add(ix));
   
   transaction.add(instruction);
-  
+
   return transaction;
+}
+
+/**
+ * Creates multiple transactions to add hops in batches.
+ * This avoids Solana's 1,232-byte transaction size limit.
+ *
+ * @param creator - The route creator's public key
+ * @param routeId - The route ID
+ * @param hops - All hops to add
+ * @returns Array of transactions, one per batch
+ */
+export const addHopsBatched = async (
+  creator: PublicKey,
+  routeId: BN,
+  hops: IHop[]
+): Promise<Transaction[]> => {
+  const transactions: Transaction[] = [];
+
+  // Split hops into batches
+  for (let i = 0; i < hops.length; i += HOPS_PER_BATCH) {
+    const batch = hops.slice(i, i + HOPS_PER_BATCH);
+    console.log(`Creating batch ${Math.floor(i / HOPS_PER_BATCH) + 1}: ${batch.length} hops`);
+
+    const transaction = await addHops(creator, routeId, batch);
+    transactions.push(transaction);
+  }
+
+  console.log(`Created ${transactions.length} batch transaction(s) for ${hops.length} hops`);
+  return transactions;
 }
 
 const initializeRoute = async (
@@ -1255,6 +1289,7 @@ const contractService = {
   initializeRouteWithWrap,
   serialize,
   addHops,
+  addHopsBatched,
   executeHop,
   getTokenConfigSPL,
   getTokenConfigSOL,
@@ -1262,6 +1297,7 @@ const contractService = {
   updateTokenConfigWithTransaction,
   calculateExecutorFunding,
   createExecutorFundingInstruction,
+  HOPS_PER_BATCH,
 };
 
 export const routeHasHops = async (routeId: number): Promise<{
