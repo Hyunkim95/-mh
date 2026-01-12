@@ -4,6 +4,7 @@ import { Transaction } from "@solana/web3.js";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { trpc } from "../trpc";
+import { extractErrorMessage } from "../utils/extractErrorMessage";
 
 // Maximum hops that can fit in a single transaction (matches backend)
 const HOPS_PER_BATCH = 4;
@@ -155,9 +156,7 @@ export const useDeploy = () => {
     } catch (error) {
       console.error(`${type} Route deployment failed:`, error);
       toast.error(
-        `${type} Route deployment failed: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
+        `${type} Route deployment failed: ${extractErrorMessage(error)}`,
         { id: "deploy" }
       );
       throw error;
@@ -240,11 +239,7 @@ export const useDeploy = () => {
       console.log(`All ${totalBatches} batch(es) completed successfully`);
     } catch (error) {
       console.error("Adding hops failed:", error);
-      toast.error(
-        `Adding hops failed: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
+      toast.error(`Adding hops failed: ${extractErrorMessage(error)}`);
       throw error;
     }
   };
@@ -333,12 +328,9 @@ export const useDeploy = () => {
       }
     } catch (error) {
       console.error("Deployment failed:", error);
-      toast.error(
-        `Deployment failed: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
-        { id: "deploy" }
-      );
+      toast.error(`Deployment failed: ${extractErrorMessage(error)}`, {
+        id: "deploy",
+      });
       throw error;
     }
   };

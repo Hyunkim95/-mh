@@ -38,6 +38,7 @@ import {
 import { DeployModal, type DeployModalRoute } from '../components/DeployModal'
 import { trpc } from '../trpc'
 import { TABS } from '../constants/tab'
+import { extractErrorMessage } from '../utils/extractErrorMessage'
 
 // Default fee percentage (1% = 0.01) - used as fallback if config fetch fails
 const DEFAULT_FEE_PERCENTAGE = 0.01
@@ -130,7 +131,7 @@ export const ConfigureHops: React.FC = () => {
       const hasValidCustomRoute = hops.length > 0 && hops.every(
         h => h.wallet.trim().length > 0 && (h.delayMinutes !== null || !!h.scheduledAtUtc)
       )
-      
+
       const hasValidEasyRoute = easyRouteConfig.arrivalTime !== null &&
         easyRouteConfig.destinationWallet.trim().length > 0 &&
         isValidSolanaAddress(easyRouteConfig.destinationWallet) &&
@@ -144,7 +145,7 @@ export const ConfigureHops: React.FC = () => {
 
       // Then check route-specific validation
       const isRouteValid = routeMode === 'easy' ? hasValidEasyRoute : hasValidCustomRoute
-      
+
       if (!isRouteValid) {
         setActiveKey('configure')
       }
@@ -431,15 +432,15 @@ walletC,10`
   // Convert easy route config to hops format for summary display
   const easyRouteHops: HopConfigItem[] = useMemo(() => {
     if (routeMode !== 'easy') return []
-    
+
     const { hopCount, arrivalTime, destinationWallet } = easyRouteConfig
     if (!arrivalTime || !destinationWallet) return []
-    
+
     // Calculate delay between hops based on arrival time
     const now = new Date()
     const totalDelayMinutes = Math.max(0, Math.floor((arrivalTime.getTime() - now.getTime()) / (1000 * 60)))
     const delayPerHop = Math.floor(totalDelayMinutes / hopCount)
-    
+
     // Create hops array - all intermediate hops go to random wallets, last hop goes to destination
     return Array.from({ length: hopCount }, (_, index) => ({
       wallet: index === hopCount - 1 ? destinationWallet : `Hop ${index + 1} (Auto-generated)`,
@@ -663,10 +664,10 @@ walletC,10`
       setIsSubmitting(true)
 
       // Calculate token decimals
-      const decimals = typeof selectedAsset.decimals === 'number' 
-        ? selectedAsset.decimals 
-        : selectedAsset.tokenType === 'SOL' 
-        ? 9 
+      const decimals = typeof selectedAsset.decimals === 'number'
+        ? selectedAsset.decimals
+        : selectedAsset.tokenType === 'SOL'
+        ? 9
         : 6
 
       // Calculate raw amount (amount * 10^decimals)
@@ -692,7 +693,7 @@ walletC,10`
 
       if (result.success && result.data) {
         toast.success('Easy route created successfully!')
-        
+
         // Convert backend Route response to DeployModalRoute format
         const route = result.data
         const deployModalRoute: DeployModalRoute = {
@@ -713,11 +714,7 @@ walletC,10`
       }
     } catch (error) {
       console.error('Easy Route creation failed:', error)
-      toast.error(
-        `Easy Route creation failed: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }`
-      )
+      toast.error(`Easy Route creation failed: ${extractErrorMessage(error)}`)
     } finally {
       setIsSubmitting(false)
     }

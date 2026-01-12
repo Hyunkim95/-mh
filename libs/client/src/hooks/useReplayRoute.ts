@@ -1,5 +1,6 @@
 import { toast } from "react-hot-toast";
 import { trpc } from "../trpc";
+import { extractErrorMessage } from "../utils/extractErrorMessage";
 
 export const useReplayRoute = () => {
   const replayMutation = trpc.routes.replay.useMutation();
@@ -14,10 +15,9 @@ export const useReplayRoute = () => {
       await utils.routes.getByCreator.invalidate({ creator: params.creator });
       return result.data;
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to replay route",
-        { id: "replay-route" }
-      );
+      toast.error(extractErrorMessage(error, "Failed to replay route"), {
+        id: "replay-route",
+      });
       throw error;
     }
   };

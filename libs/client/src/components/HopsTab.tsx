@@ -7,6 +7,7 @@ import { TimestampHopInput } from "../types/route";
 import { useWalletChangeEffect } from "../hooks/useWalletChangeEffect";
 import { Transaction } from "@solana/web3.js";
 import { useSolanaAuth } from "../hooks/useSolanaAuth";
+import { extractErrorMessage } from "../utils/extractErrorMessage";
 
 interface Route {
   id: number;
@@ -94,7 +95,7 @@ export const HopsTab: React.FC = () => {
       const hopsArray = Array.isArray(route.hops) ? route.hops : [];
       const formattedHops = hopsArray.map((hop: any, index: number) => {
         let scheduledAt: number;
-        
+
         if (index === 0) {
           // First hop executes immediately
           scheduledAt = new Date().getTime();
@@ -105,7 +106,7 @@ export const HopsTab: React.FC = () => {
           const delayMillis = (hop.delaySeconds || 0) * 1000;
           scheduledAt = new Date(prevTime + delayMillis).getTime();
         }
-        
+
         return {
           recipient: hop.recipient,
           scheduledAt,
@@ -185,9 +186,7 @@ export const HopsTab: React.FC = () => {
     } catch (error) {
       console.error(`${route.tokenType} Route deployment failed:`, error);
       toast.error(
-        `${route.tokenType} Route deployment failed: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
+        `${route.tokenType} Route deployment failed: ${extractErrorMessage(error)}`,
         { id: "deploy" }
       );
     }
@@ -362,7 +361,7 @@ export const HopsTab: React.FC = () => {
                             className="bg-[var(--laser-lemon-500)] hover:brightness-95 text-[var(--black-900)] px-3 py-1 rounded transition-colors"
                           >
                             Deploy
-                          </button> 
+                          </button>
                         )}
                       </div>
                     </td>
