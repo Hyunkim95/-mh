@@ -3,9 +3,9 @@ import { formatDuration, getRowBaseTime } from './utils'
 import type { HopConfigItem } from '../../store/atoms'
 
 const DELAY_OPTIONS = [
+  { label: '2m', minutes: 2 },
+  { label: '5m', minutes: 5 },
   { label: '10m', minutes: 10 },
-  { label: '30m', minutes: 30 },
-  { label: '1h', minutes: 60 },
 ] as const
 
 interface HopRowProps {

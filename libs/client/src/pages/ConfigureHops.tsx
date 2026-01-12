@@ -192,9 +192,9 @@ export const ConfigureHops: React.FC = () => {
 
   const handleDownloadTemplate = () => {
     const csvContent = `wallet,timeInMinutes
-walletA,5
-walletB,10
-walletC,15`
+walletA,2
+walletB,5
+walletC,10`
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -559,27 +559,46 @@ walletC,15`
       const recipients = rows.map(h => h.wallet.trim())
 
       const times: string[] = []
+      const scheduledHops: Array<{
+        recipient: string
+        scheduledAt: string
+        delayMinutes?: number
+        isCustomTime?: boolean
+      }> = []
+
       rows.forEach((row, i) => {
+        const recipient = row.wallet.trim()
+
         if (row.scheduledAtUtc) {
-          times.push(new Date(row.scheduledAtUtc).toISOString())
+          // Custom absolute time from date picker
+          const time = new Date(row.scheduledAtUtc).toISOString()
+          times.push(time)
+          scheduledHops.push({
+            recipient,
+            scheduledAt: time,
+            isCustomTime: true
+          })
         } else {
-          const add =
+          // Delay-based time
+          const delayMinutes =
             typeof row.delayMinutes === 'number' ? row.delayMinutes : 0
+          let time: string
+
           if (i === 0) {
-            times.push(new Date(now.getTime() + add * 60 * 1000).toISOString())
+            time = new Date(now.getTime() + delayMinutes * 60 * 1000).toISOString()
           } else {
             const prevTime = new Date(times[i - 1])
-            times.push(
-              new Date(prevTime.getTime() + add * 60 * 1000).toISOString()
-            )
+            time = new Date(prevTime.getTime() + delayMinutes * 60 * 1000).toISOString()
           }
+
+          times.push(time)
+          scheduledHops.push({
+            recipient,
+            scheduledAt: time,
+            delayMinutes // Store delay metadata for recalculation
+          })
         }
       })
-
-      const scheduledHops = recipients.map((recipient, idx) => ({
-        recipient,
-        scheduledAt: times[Math.min(idx, times.length - 1)],
-      }))
 
       const decimals =
         typeof selectedAsset.decimals === 'number'
