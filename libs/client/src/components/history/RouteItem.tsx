@@ -50,20 +50,19 @@ export const RouteItem = ({ route }: RouteItemProps) => {
   const addHopsBatched = trpc.contract.addHopsBatched.useMutation();
   const { sendTransaction } = useWallet();
   const { connection } = useConnection();
-  const isCompleted = route.status === "completed";
   const isDeployed = route.deploymentStatus === "deployed";
   const isDraft = !isDeployed;
   const hopsCount = route.hops?.length ?? 0;
   const { isMobile } = useMobileDevice();
 
-  // Fetch route state to get current hop index
+  // Fetch route state to get current hop index and on-chain hops count
+  // Enable even for "completed" routes to detect partial deployments
   const routeStateQuery = trpc.contract.getRouteState.useQuery(
     {
       routeId: route.routeId || 0,
     },
     {
-      enabled:
-        route.deploymentStatus === "deployed" && route.status !== "completed",
+      enabled: route.deploymentStatus === "deployed",
     }
   );
   const currentHopIndex = routeStateQuery.data?.data?.currentHopIndex || 0;
@@ -88,8 +87,9 @@ export const RouteItem = ({ route }: RouteItemProps) => {
     hopsCount > 0;
 
   // 2. Some hops on-chain, but missing others (partial failure)
+  // Check even if route is marked "completed" because scheduler may have auto-completed prematurely
   const hasMissingHops =
-    route.deploymentStatus === "deployed" &&
+    (route.deploymentStatus === "deployed" || route.status === "completed") &&
     hasHopsOnChain &&
     hopsCountOnChain > 0 &&
     hopsCountOnChain < hopsCount;
@@ -387,7 +387,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
         )}
 
         {/* Expected Arrival - Desktop */}
-        {!isMobile && expectedArrival && !isCompleted && (
+        {!isMobile && expectedArrival && (route.status !== "completed" || hasMissingHops) && (
           <div className="flex flex-col items-start text-left min-w-0 flex-1 max-w-[120px]">
             <div className="text-sm text-white font-medium">Arrival</div>
             <div className="text-xs text-[var(--laser-lemon-500)]">
@@ -416,7 +416,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
                 #{route.id}
               </div>
             </div>
-            {expectedArrival && !isCompleted && (
+            {expectedArrival && (route.status !== "completed" || hasMissingHops) && (
               <div className="flex items-start justify-between text-left min-w-0 flex-1 gap-3 w-full">
                 <div className="text-xs text-gray-400">Expected Arrival</div>
                 <div className="text-sm text-[var(--laser-lemon-500)] font-medium">
@@ -432,23 +432,23 @@ export const RouteItem = ({ route }: RouteItemProps) => {
           <div className="text-xs text-gray-400">Status</div>
           <div
             className={`text-sm font-medium ${
-              isCompleted
-                ? "text-green-400"
-                : hasMissingHops
+              hasMissingHops
                 ? "text-red-400"
                 : isIncomplete
                 ? "text-red-400"
+                : route.status === "completed" && !hasMissingHops
+                ? "text-green-400"
                 : isDraft
                 ? "text-gray-400"
                 : "text-yellow-400"
             }`}
           >
-            {isCompleted
-              ? "Completed"
-              : hasMissingHops
+            {hasMissingHops
               ? "Partial"
               : isIncomplete
               ? "Incomplete"
+              : route.status === "completed" && !hasMissingHops
+              ? "Completed"
               : isDraft
               ? "Draft"
               : "Pending"}
