@@ -59,6 +59,21 @@ export const RouteItem = ({ route }: RouteItemProps) => {
     }
   );
   const currentHopIndex = routeStateQuery.data?.data?.currentHopIndex || 0;
+
+  // Check if route has hops on-chain
+  const routeHasHopsQuery = trpc.contract.routeHasHops.useQuery(
+    {
+      routeId: route.routeId || 0,
+    },
+    {
+      enabled: route.deploymentStatus === "deployed",
+    }
+  );
+  const hasHopsOnChain = routeHasHopsQuery.data?.data?.hasHops || false;
+  const isIncomplete =
+    route.deploymentStatus === "deployed" &&
+    !hasHopsOnChain &&
+    hopsCount > 0;
   const formattedAmount =
     route.hopAmountTokens != null
       ? new Intl.NumberFormat(undefined, { maximumFractionDigits: 6 }).format(
@@ -134,6 +149,42 @@ export const RouteItem = ({ route }: RouteItemProps) => {
     }
   };
 
+  const handleCompleteDeployment = async () => {
+    if (isDeploying) return;
+    setIsDeploying(true);
+    try {
+      const hopsArray = Array.isArray(route.hops) ? route.hops : [];
+
+      // Recalculate fresh timestamps (10 minutes apart)
+      const now = Date.now();
+      const formattedHops = hopsArray.map((hop, index) => ({
+        recipient: hop.recipient,
+        scheduledAt: now + (index + 1) * 10 * 60 * 1000, // 10 minutes apart
+        delayMinutes: 10,
+        isCustomTime: false,
+      }));
+
+      await deploy(
+        {
+          routeId: route.routeId,
+          databaseId: route.id,
+          hops: formattedHops,
+          hopAmount: route.hopAmountRaw,
+          splMint:
+            route.tokenType === "SPL"
+              ? route.tokenMint ?? undefined
+              : undefined,
+        },
+        route.tokenType as "SPL" | "SOL"
+      );
+      // Refresh queries after successful completion
+      await utils.routes.getByCreator.invalidate({ creator: route.creator });
+      await routeHasHopsQuery.refetch();
+    } finally {
+      setIsDeploying(false);
+    }
+  };
+
   const onToggle = () => {
     setOpen(!open);
   };
@@ -187,9 +238,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
           >
             {trimAddress(route.creator)}
           </a>
-          <div className="text-xs text-gray-400 truncate w-full">
-            {isCompleted ? "Final Destination" : "Current Wallet"}
-          </div>
+          <div className="text-xs text-gray-400 truncate w-full">Creator</div>
         </div>
 
         {/* Hops - Flexible */}
@@ -213,7 +262,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
         {isMobile && (
           <div className="flex flex-col gap-3 col-start-1 col-end-3">
             <div className="flex items-start justify-between text-left min-w-0 flex-1 gap-3 w-full">
-              <div className="text-xs text-gray-400">Current Wallet</div>
+              <div className="text-xs text-gray-400">Creator</div>
               <a
                 href={getSolscanAccountUrl(route.creator)}
                 target="_blank"
@@ -245,11 +294,36 @@ export const RouteItem = ({ route }: RouteItemProps) => {
         <div className="flex flex-col items-start text-left -order-1 md:order-0 min-w-0 flex-1 max-w-[100px]">
           <div className="text-xs text-gray-400">Status</div>
           <div
-            className={`text-sm font-medium ${
-              isCompleted ? "text-green-400" : "text-yellow-400"
+            className={`text-sm font-medium flex items-center gap-1 ${
+              isCompleted
+                ? "text-green-400"
+                : isIncomplete
+                ? "text-red-400"
+                : isDraft
+                ? "text-gray-400"
+                : "text-yellow-400"
             }`}
           >
-            {isCompleted ? "Completed" : isDraft ? "Draft" : "Pending"}
+            {isIncomplete && (
+              <svg
+                className="w-4 h-4"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            )}
+            {isCompleted
+              ? "Completed"
+              : isIncomplete
+              ? "Incomplete"
+              : isDraft
+              ? "Draft"
+              : "Pending"}
           </div>
         </div>
 
@@ -283,6 +357,42 @@ export const RouteItem = ({ route }: RouteItemProps) => {
           )}
         </div>
       </button>
+
+      {/* Incomplete deployment warning */}
+      {isIncomplete && (
+        <div className="mx-4 mt-3 p-4 bg-yellow-900/20 border border-yellow-500/30 rounded-lg">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 text-yellow-400 font-medium text-sm mb-1">
+                <svg
+                  className="w-5 h-5"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Incomplete Deployment
+              </div>
+              <p className="text-xs text-gray-300">
+                This route was initialized but the hops were never added
+                on-chain. Your {route.hopAmountTokens} {route.tokenSymbol || route.tokenType} is safe as route tokens. Click Complete Deployment to add the hops with fresh timestamps.
+              </p>
+            </div>
+            <Button
+              onClick={handleCompleteDeployment}
+              disabled={isDeploying}
+              variant="ghost"
+              className="!py-2 px-4 rounded-lg bg-yellow-500 text-black hover:bg-yellow-400 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              {isDeploying ? "Adding Hops..." : "Complete Deployment"}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Expanded section */}
       {open && (
