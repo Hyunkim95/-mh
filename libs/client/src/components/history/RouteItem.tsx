@@ -554,11 +554,15 @@ export const RouteItem = ({ route }: RouteItemProps) => {
         <div className="relative bg-[var(--dark-jungle-green-500)] pl-10 pr-4 pb-4 space-y-4">
           {(route.hops ?? []).map((step, index, steps) => {
             const isLast = index === steps.length - 1;
+
+            // If route is marked as completed, all hops are completed
+            const routeIsCompleted = route.status === "completed" && !hasMissingHops;
+
             // Use currentHopIndex to determine progress (1-indexed from blockchain)
             // index 0 = hop 1, so completed if index < currentHopIndex
-            const isCompleted = index < currentHopIndex;
-            const isCurrentHop = index === currentHopIndex;
-            const isUpcoming = index > currentHopIndex;
+            const isCompleted = routeIsCompleted || index < currentHopIndex;
+            const isCurrentHop = !routeIsCompleted && index === currentHopIndex;
+            const isUpcoming = !routeIsCompleted && index > currentHopIndex;
 
             // Colors based on progress
             const dotColor = isUpcoming
