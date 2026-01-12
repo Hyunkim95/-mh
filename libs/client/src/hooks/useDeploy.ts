@@ -295,7 +295,20 @@ export const useDeploy = () => {
 
         await addHopsMutation(data.routeId, publicKey.toBase58(), freshHops);
 
-        // Mark as deployed in database
+        // CRITICAL: Verify all hops were actually added on-chain before marking as deployed
+        toast.loading("Verifying deployment...", { id: "deploy" });
+        const verifyStatus = await checkRouteStatus.mutateAsync({
+          routeId: data.routeId
+        });
+
+        if (!verifyStatus.data?.hasHops) {
+          throw new Error(
+            `Deployment verification failed: Route initialized but no hops found on-chain. ` +
+            `Expected ${freshHops.length} hops. Please try adding hops again from the route details page.`
+          );
+        }
+
+        // Mark as deployed in database only after verification
         await markDeployed.mutateAsync({
           id: data.databaseId,
           creator: publicKey.toBase58(),
@@ -315,6 +328,19 @@ export const useDeploy = () => {
         );
 
         await addHopsMutation(data.routeId, publicKey.toBase58(), freshHops);
+
+        // Verify hops were actually added on-chain
+        toast.loading("Verifying hops were added...", { id: "deploy" });
+        const verifyStatus = await checkRouteStatus.mutateAsync({
+          routeId: data.routeId
+        });
+
+        if (!verifyStatus.data?.hasHops) {
+          throw new Error(
+            `Hop verification failed: Expected ${freshHops.length} hops but none found on-chain. ` +
+            `Please try again or contact support.`
+          );
+        }
 
         toast.success(
           `${freshHops.length} hops added successfully!`,
