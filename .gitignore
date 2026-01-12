@@ -85,9 +85,4 @@ jspm_packages/
 
 # Temporary folders
 tmp/
-temp/ 
-node_modules/
-node_modules/
-node_modules/
-node_modules/
-node_modules/
+temp/
