@@ -92,7 +92,7 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
     line-height: 2.3rem !important;
     margin: 0.1rem !important;
   }
-  .mh-easy-datepicker .react-datepicker__day { 
+  .mh-easy-datepicker .react-datepicker__day {
     color: var(--white-100) !important;
     width: 2.3rem !important;
     line-height: 2.3rem !important;
@@ -100,11 +100,11 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
     border-radius: 0.5rem !important;
     font-weight: 500 !important;
   }
-  .mh-easy-datepicker .react-datepicker__day:hover { 
-    background: var(--white-100-transparency-10) !important; 
+  .mh-easy-datepicker .react-datepicker__day:hover {
+    background: var(--white-100-transparency-10) !important;
   }
-  .mh-easy-datepicker .react-datepicker__day--disabled { 
-    color: var(--white-100-transparency-30) !important; 
+  .mh-easy-datepicker .react-datepicker__day--disabled {
+    color: var(--white-100-transparency-30) !important;
   }
   .mh-easy-datepicker .react-datepicker__day--selected,
   .mh-easy-datepicker .react-datepicker__day--keyboard-selected {
@@ -118,7 +118,7 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
   .mh-easy-datepicker .react-datepicker__navigation {
     top: 1rem !important;
   }
-  .mh-easy-datepicker .react-datepicker__navigation-icon::before { 
+  .mh-easy-datepicker .react-datepicker__navigation-icon::before {
     border-color: var(--white-100) !important;
     border-width: 2px 2px 0 0 !important;
     height: 6px !important;
@@ -140,6 +140,13 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
   .mh-easy-datepicker .react-datepicker__time-list-item--selected {
     background: var(--laser-lemon-500) !important;
     color: var(--chinese-black-800) !important;
+  }
+  .mh-easy-datepicker .react-datepicker__time-list-item--disabled {
+    color: var(--white-100-transparency-30) !important;
+    cursor: not-allowed !important;
+  }
+  .mh-easy-datepicker .react-datepicker__time-list-item--disabled:hover {
+    background: transparent !important;
   }
   .mh-easy-datepicker .react-datepicker-time__header,
   .mh-easy-datepicker .react-datepicker__time-container .react-datepicker-time__header {
@@ -188,6 +195,35 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
   }
 
   const minDate = new Date()
+
+  // Filter out past times when selecting today's date
+  const filterPastTime = (time: Date) => {
+    const now = new Date()
+    // If the selected date is today, only allow times in the future
+    if (arrivalTime) {
+      const selectedDate = new Date(arrivalTime)
+      const isToday =
+        selectedDate.getFullYear() === now.getFullYear() &&
+        selectedDate.getMonth() === now.getMonth() &&
+        selectedDate.getDate() === now.getDate()
+
+      if (isToday) {
+        return time.getTime() > now.getTime()
+      }
+    }
+    // For future dates, allow all times
+    // But if no date selected yet and we're on today's calendar, filter past times
+    const timeDate = new Date(time)
+    const isTimeToday =
+      timeDate.getFullYear() === now.getFullYear() &&
+      timeDate.getMonth() === now.getMonth() &&
+      timeDate.getDate() === now.getDate()
+
+    if (isTimeToday) {
+      return time.getTime() > now.getTime()
+    }
+    return true
+  }
 
   // Custom Input for DatePicker to match Figma design
   const DateCustomInput = forwardRef<HTMLButtonElement, any>(({ value, onClick }, ref) => (
@@ -246,6 +282,7 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
                 showTimeSelect
                 dateFormat="EEEE d MMMM HH:mm"
                 minDate={minDate}
+                filterTime={filterPastTime}
                 timeIntervals={2}
                 timeCaption="Time"
                 customInput={<DateCustomInput />}

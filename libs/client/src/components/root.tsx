@@ -13,6 +13,7 @@ import {
   TorusWalletAdapter,
 } from '@solana/wallet-adapter-wallets'
 import { useMemo } from 'react'
+import { Toaster } from 'react-hot-toast'
 const endpoint =
   import.meta.env.VITE_RPC_URL || clusterApiUrl(WalletAdapterNetwork.Devnet)
 interface RootProps {
@@ -34,7 +35,10 @@ export const Root = ({ children }: RootProps) => {
       <QueryClientProvider client={queryClient}>
         <ConnectionProvider endpoint={endpoint}>
           <WalletProvider wallets={wallets} autoConnect>
-            <WalletModalProvider>{children}</WalletModalProvider>
+            <WalletModalProvider>
+              {children}
+              <Toaster position="top-right" />
+            </WalletModalProvider>
           </WalletProvider>
         </ConnectionProvider>
       </QueryClientProvider>

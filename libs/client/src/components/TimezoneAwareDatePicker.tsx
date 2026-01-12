@@ -140,6 +140,10 @@ export function TimezoneAwareDatePicker({
   }
   .mh-datepicker .react-datepicker__time-list-item--disabled {
     color: var(--white-100-transparency-30) !important;
+    cursor: not-allowed !important;
+  }
+  .mh-datepicker .react-datepicker__time-list-item--disabled:hover {
+    background: transparent !important;
   }
   `;
 
