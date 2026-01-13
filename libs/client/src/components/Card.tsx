@@ -26,6 +26,8 @@ interface CardProps {
   cardHeight?: string
   // Optional style overrides per element/state
   cardClasses?: CardClassNames
+  // Optional additional inline styles for the main card container
+  cardStyle?: React.CSSProperties
 }
 
 export const Card: React.FC<CardProps> = ({
@@ -34,6 +36,7 @@ export const Card: React.FC<CardProps> = ({
   cardFooter,
   cardHeight = '790px',
   cardClasses,
+  cardStyle,
 }) => {
   return (
     <>
@@ -54,6 +57,7 @@ export const Card: React.FC<CardProps> = ({
         )}
         style={{
           height: cardHeight,
+          ...cardStyle,
         }}
       >
       {cardHeader && (
