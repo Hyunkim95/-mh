@@ -54,14 +54,14 @@ export async function validateRouteAgainstTokenConfig(
       tokenConfig = result;
     }
 
-    // Validate maximum hops
-    const hopCount = routeInput.hops.length;
-    const maxHops = parseInt(tokenConfig.maxHops);
-    if (hopCount > maxHops) {
-      errors.push(
-        `Route has ${hopCount} hops but token config allows maximum ${maxHops} hops`
-      );
-    }
+    // Validate maximum hops - DISABLED to match Easy Mode behavior
+    // const hopCount = routeInput.hops.length;
+    // const maxHops = parseInt(tokenConfig.maxHops);
+    // if (hopCount > maxHops) {
+    //   errors.push(
+    //     `Route has ${hopCount} hops but token config allows maximum ${maxHops} hops`
+    //   );
+    // }
 
     // Validate minimum transfer amount
     const hopAmountRaw = BigInt(routeInput.hopAmountRaw);
