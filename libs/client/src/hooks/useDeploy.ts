@@ -61,7 +61,7 @@ const recalculateHopTimes = (
 }
 
 export const useDeploy = () => {
-  const { publicKey, sendTransaction } = useWallet();
+  const { publicKey, sendTransaction, signAllTransactions } = useWallet();
   const { connection } = useConnection();
   const utils = trpc.useUtils();
   const initializeRoute = trpc.contract.initializeRoute.useMutation();
@@ -183,35 +183,49 @@ export const useDeploy = () => {
       const { transactions, totalBatches, totalHops } = result.data;
       console.log(`Adding ${totalHops} hops in ${totalBatches} batch(es)`);
 
-      // Process each batch transaction sequentially
-      for (let i = 0; i < transactions.length; i++) {
+      // Check if wallet supports batch signing
+      if (!signAllTransactions) {
+        throw new Error("Wallet does not support batch signing");
+      }
+
+      // Deserialize all transactions upfront
+      const deserializedTxs = transactions.map(batchData =>
+        Transaction.from(Buffer.from(batchData.transaction, "base64"))
+      );
+
+      // Show loading message
+      toast.loading(
+        `Please sign ${totalBatches} ${totalBatches === 1 ? 'transaction' : 'transactions'} in your wallet...`,
+        { id: "deploy" }
+      );
+
+      // USER SIGNS ALL TRANSACTIONS AT ONCE - SINGLE WALLET POPUP
+      const signedTransactions = await signAllTransactions(deserializedTxs);
+
+      toast.loading(
+        `Submitting ${totalBatches} ${totalBatches === 1 ? 'batch' : 'batches'}...`,
+        { id: "deploy" }
+      );
+
+      // Send each signed transaction sequentially
+      for (let i = 0; i < signedTransactions.length; i++) {
         const batchNum = i + 1;
         const batchData = transactions[i];
+        const signedTx = signedTransactions[i];
 
         toast.loading(
-          `Adding hops (batch ${batchNum}/${totalBatches})...`,
+          `Sending batch ${batchNum}/${totalBatches}...`,
           { id: "deploy" }
         );
 
-        const transaction = Transaction.from(
-          Buffer.from(batchData.transaction, "base64")
+        // Send the pre-signed transaction
+        const signature = await connection.sendRawTransaction(
+          signedTx.serialize(),
+          {
+            skipPreflight: true,
+            preflightCommitment: "confirmed",
+          }
         );
-
-        // Simulate before sending
-        const simulation = await connection.simulateTransaction(transaction);
-        console.log(`Batch ${batchNum} simulation:`, simulation);
-
-        if (simulation.value.err) {
-          throw new Error(
-            `Batch ${batchNum} simulation failed: ${JSON.stringify(simulation.value.err)}`
-          );
-        }
-
-        // Send the transaction
-        const signature = await sendTransaction(transaction, connection, {
-          skipPreflight: true,
-          preflightCommitment: "confirmed",
-        });
 
         toast.loading(
           `Confirming batch ${batchNum}/${totalBatches}...`,
