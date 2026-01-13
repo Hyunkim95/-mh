@@ -9,6 +9,7 @@ import PrivacyIcon from '../assets/landing/privacy-icon.svg'
 import MotionIcon from '../assets/landing/motion-icon.svg'
 import CollaborateIcon from '../assets/landing/collaborate-icon.svg'
 import LtsBunnyIcon from '../assets/landing/lts-bunny-icon.svg'
+import FooterEmailArrow from '../assets/landing/footer-email-arrow.svg'
 import CheckmarkIcon from '../assets/landing/checkmark-icon.svg'
 import SocialIcons from '../assets/landing/social-icons.svg'
 import TumbellingIcon from '../../assets/icons/tumbelling.svg'
@@ -1426,170 +1427,225 @@ export const LandingPage: React.FC = () => {
         {/* Main Footer Body */}
         <div className='w-full bg-[#222426] px-4 sm:px-6 lg:px-8 pb-10 sm:pb-12 lg:pb-16 pt-6'>
           <div className='max-w-6xl mx-auto'>
-            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 sm:gap-10 lg:gap-12 mb-10 sm:mb-12'>
-              {/* Logo and Description (Left - Spans 5 cols) */}
-              <div className='lg:col-span-5'>
-                <button
-                  onClick={() => router.navigate({ to: '/' })}
-                  className='flex items-center gap-2.5 mb-4 hover:opacity-80 transition-opacity cursor-pointer'
-                >
-                  <img src={LogoIcon} alt='MultiHopper' className='w-7 h-9' />
-                  <span className='text-xl sm:text-2xl font-rowdies'>
-                    MultiHopper
-                  </span>
-                </button>
-                <p className='text-sm text-white/50 mb-8 max-w-sm leading-relaxed'>
-                  Smart Privacy for Onchain Transfers. Full control, total
-                  privacy, 100% onchain.
-                </p>
-
-                {/* Newsletter */}
-                <div>
-                  <p className='text-sm font-semibold text-white mb-3'>
-                    Stay up to date & Join our newsletter
-                  </p>
-                  <form
-                    onSubmit={handleNewsletter}
-                    className='flex gap-2 max-w-md'
+            <div className='flex flex-col gap-11 mb-11 sm:mb-14'>
+              <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 sm:gap-10 lg:gap-12'>
+                {/* Logo and Description (Left - Spans 5 cols) */}
+                <div className='lg:col-span-5'>
+                  <button
+                    onClick={() => router.navigate({ to: '/' })}
+                    className='flex items-center gap-2.5 mb-4 hover:opacity-80 transition-opacity cursor-pointer'
                   >
-                    <div className='relative flex-1'>
-                      <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
-                        <svg
-                          className='w-5 h-5 text-white/30'
-                          fill='none'
-                          stroke='currentColor'
-                          viewBox='0 0 24 24'
-                        >
-                          <path
-                            strokeLinecap='round'
-                            strokeLinejoin='round'
-                            strokeWidth={2}
-                            d='M12 19l9 2-9-18-9 18 9-2zm0 0v-8'
-                          />
-                        </svg>
-                      </div>
-                      <input
-                        type='email'
-                        placeholder='Enter Email'
-                        value={formData.newsletterEmail}
-                        onChange={e =>
-                          setFormData({
-                            ...formData,
-                            newsletterEmail: e.target.value,
-                          })
-                        }
-                        className='w-full pl-10 pr-4 py-3 bg-[#16181A] border border-white/[0.08] rounded-full text-sm text-white placeholder-white/30 focus:outline-none focus:border-mh-yellow/30 transition-colors'
-                      />
-                    </div>
-                    <button
-                      type='submit'
-                      className='px-6 py-3 border border-white text-white text-sm font-medium rounded-full hover:bg-white hover:text-black transition-colors flex-shrink-0'
+                    <img src={LogoIcon} alt='MultiHopper' className='w-7 h-9' />
+                    <span
+                      className='text-xl sm:text-2xl not-italic font-normal leading-9'
+                      style={{
+                        fontFamily: 'Rowdies',
+                      }}
                     >
-                      Subscribe
-                    </button>
-                  </form>
+                      MultiHopper
+                    </span>
+                  </button>
+                  <div
+                    className='text-sm mb-8 max-w-sm not-italic leading-[18px]'
+                    style={{
+                      fontFamily: 'Roboto, sans-serif',
+                    }}
+                  >
+                    <span className='text-white font-medium'>
+                      Smart Privacy for Onchain Transfers
+                    </span>
+                    <p className='text-white/80 font-light'>
+                      Full control, total privacy, 100% onchain.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Spacers */}
+                <div className='lg:col-span-1'></div>
+
+                {/* Links Sections (Right - Spans 6 cols split into 3) */}
+                <div className='lg:col-span-2'>
+                  <h4
+                    className='mb-5 not-italic font-medium text-base leading-5'
+                    style={{
+                      fontFamily: 'Grotesk, sans-serif',
+                    }}
+                  >
+                    Info
+                  </h4>
+                  <ul
+                    className='space-y-4 text-sm not-italic font-light leading-[18px] text-white/50'
+                    style={{
+                      fontFamily: 'Roboto, sans-serif',
+                    }}
+                  >
+                    <li>
+                      <a
+                        href='#how-it-works'
+                        className='hover:text-white transition-colors'
+                      >
+                        How it Works
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        href='#collaborate'
+                        className='hover:text-white transition-colors'
+                      >
+                        Collaborate
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        href='#faq'
+                        className='hover:text-white transition-colors'
+                      >
+                        FAQ
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className='lg:col-span-2'>
+                  <h4
+                    className='mb-5 not-italic font-medium text-base leading-5'
+                    style={{
+                      fontFamily: 'Grotesk, sans-serif',
+                    }}
+                  >
+                    Resources
+                  </h4>
+                  <ul
+                    className='space-y-4 text-sm not-italic font-light leading-[18px] text-white/50'
+                    style={{
+                      fontFamily: 'Roboto, sans-serif',
+                    }}
+                  >
+                    <li>
+                      <a
+                        href='#collaborate'
+                        className='hover:text-white transition-colors'
+                      >
+                        Hop with us
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        href='#medium'
+                        className='hover:text-white transition-colors'
+                      >
+                        Medium
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        href='#terms'
+                        className='hover:text-white transition-colors'
+                      >
+                        Terms & Conditions
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className='lg:col-span-2'>
+                  <h4
+                    className='mb-5 not-italic font-medium text-base leading-5'
+                    style={{
+                      fontFamily: 'Grotesk, sans-serif',
+                    }}
+                  >
+                    Social Media
+                  </h4>
+                  <ul
+                    className='space-y-4 text-sm not-italic font-light leading-[18px] text-white/50'
+                    style={{
+                      fontFamily: 'Roboto, sans-serif',
+                    }}
+                  >
+                    <li>
+                      <a
+                        href='#twitter'
+                        className='hover:text-white transition-colors'
+                      >
+                        Twitter/X
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        href='#telegram'
+                        className='hover:text-white transition-colors'
+                      >
+                        Telegram
+                      </a>
+                    </li>
+                  </ul>
                 </div>
               </div>
 
-              {/* Spacers */}
-              <div className='lg:col-span-1'></div>
-
-              {/* Links Sections (Right - Spans 6 cols split into 3) */}
-              <div className='lg:col-span-2'>
-                <h4 className='font-semibold mb-6 text-sm'>Info</h4>
-                <ul className='space-y-4 text-sm text-white/50 '>
-                  <li>
-                    <a
-                      href='#how-it-works'
-                      className='hover:text-white transition-colors'
+              {/* Newsletter */}
+              <div>
+                <p
+                  className='text-white mb-2 not-italic font-medium text-sm leading-6'
+                  style={{
+                    fontFamily: 'Roboto, sans-serif',
+                  }}
+                >
+                  Stay up to date & Join our newsletter
+                </p>
+                <form
+                  onSubmit={handleNewsletter}
+                  className='flex flex-col sm:flex-row items-center gap-[18px] w-[96%]'
+                >
+                  <div className='relative flex-1 w-full sm:w-auto'>
+                    <div className='absolute inset-y-0 left-1 pl-3 flex items-center pointer-events-none'>
+                      <img
+                        src={FooterEmailArrow}
+                        alt=''
+                        className='w-[14px] h-[14px]'
+                      />
+                    </div>
+                    <input
+                      type='email'
+                      placeholder='Enter Email'
+                      value={formData.newsletterEmail}
+                      onChange={e =>
+                        setFormData({
+                          ...formData,
+                          newsletterEmail: e.target.value,
+                        })
+                      }
+                      className='rounded-xl w-full pl-10 pr-4 py-2 bg-white/[0.04] border border-white/[0.06] text-sm text-white placeholder-white/44 focus:outline-none focus:border-mh-yellow/30 transition-colors'
+                    />
+                  </div>
+                  <div className='flex flex-col sm:flex-row items-center gap-5 w-full sm:w-auto'>
+                    <button
+                      type='submit'
+                      className='rounded-xl px-6 py-2 text-sm font-medium not-italic text-center text-white bg-[url("/sbscb-bg-btn.png")] bg-no-repeat bg-center bg-cover hover:bg-none hover:bg-mh-yellow hover:text-black transition-all duration-300 w-[165px]'
                     >
-                      How it Works
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href='#collaborate'
-                      className='hover:text-white transition-colors'
+                      Subscribe
+                    </button>
+                    <button
+                      onClick={handleConnectWallet}
+                      className='rounded-xl px-6 py-2 text-sm bg-mh-yellow text-black font-semibold hover:brightness-110 transition-all w-[165px] sm:w-[118px]'
                     >
-                      Collaborate
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href='#faq'
-                      className='hover:text-white transition-colors'
-                    >
-                      FAQ
-                    </a>
-                  </li>
-                </ul>
-              </div>
-
-              <div className='lg:col-span-2'>
-                <h4 className='font-semibold mb-6 text-sm'>Resources</h4>
-                <ul className='space-y-4 text-sm text-white/50'>
-                  <li>
-                    <a
-                      href='#collaborate'
-                      className='hover:text-white transition-colors'
-                    >
-                      Hop with us
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href='#medium'
-                      className='hover:text-white transition-colors'
-                    >
-                      Medium
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href='#terms'
-                      className='hover:text-white transition-colors'
-                    >
-                      Terms & Conditions
-                    </a>
-                  </li>
-                </ul>
-              </div>
-
-              <div className='lg:col-span-2'>
-                <h4 className='font-semibold mb-6 text-sm'>Social Media</h4>
-                <ul className='space-y-4 text-sm text-white/50'>
-                  <li>
-                    <a
-                      href='#twitter'
-                      className='hover:text-white transition-colors'
-                    >
-                      Twitter/X
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href='#telegram'
-                      className='hover:text-white transition-colors'
-                    >
-                      Telegram
-                    </a>
-                  </li>
-                </ul>
+                      Connect
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
 
             {/* Bottom Bar */}
-            <div className='pt-8 border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-4'>
-              <p className='text-xs sm:text-sm text-white/40'>
+            <div className='pt-3 border-t border-white/[0.06] flex items-center w-full'>
+              <p
+                className='not-italic font-normal text-xs leading-[17px] text-white/[0.22] text-center w-full'
+                style={{
+                  fontFamily: 'Grotesk, sans-serif',
+                }}
+              >
                 © 2025 Multihopper, All rights reserved.
               </p>
-
-              <button
-                onClick={handleConnectWallet}
-                className='px-6 py-2.5 bg-mh-yellow text-black font-semibold rounded-full hover:brightness-110 transition-all text-sm'
-              >
-                Connect
-              </button>
             </div>
           </div>
         </div>
