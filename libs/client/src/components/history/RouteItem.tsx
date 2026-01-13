@@ -456,7 +456,8 @@ export const RouteItem = ({ route }: RouteItemProps) => {
 
         {/* Right side status + toggle icon - Fixed width */}
         <div className="flex flex-col sm:flex-row items-center gap-3 flex-shrink-0">
-          {isDraft ? (
+          {/* Deploy and Replay buttons temporarily hidden */}
+          {/* {isDraft ? (
             <Button
               onClick={handleDeploy}
               disabled={isDeploying}
@@ -476,7 +477,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
             >
               Replay
             </Button>
-          )}
+          )} */}
           {open ? (
             <img src={OpenIcon} alt="open" className="w-7 h-7" />
           ) : (
