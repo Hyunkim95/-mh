@@ -71,6 +71,11 @@ export const RouteItem = ({ route }: RouteItemProps) => {
   // Check if we have route state data (more reliable than routeHasHops)
   const hasRouteState = !!routeStateQuery.data?.data;
 
+  // Calculate time since deployment (for grace period to avoid false alarms during multi-batch deployment)
+  const deployedAtMs = route.deployedAt ? new Date(route.deployedAt).getTime() : null;
+  const timeSinceDeploymentMs = deployedAtMs ? Date.now() - deployedAtMs : Infinity;
+  const isRecentlyDeployed = timeSinceDeploymentMs < 90000; // 90 seconds grace period
+
   // Two types of incomplete deployments:
   // 1. No route state at all (complete failure - route not initialized)
   const isIncomplete =
@@ -81,11 +86,13 @@ export const RouteItem = ({ route }: RouteItemProps) => {
 
   // 2. Some hops on-chain, but missing others (partial failure)
   // Check even if route is marked "completed" because scheduler may have auto-completed prematurely
+  // Exclude recently deployed routes (< 90s) to avoid false alarms during multi-batch deployments
   const hasMissingHops =
     (route.deploymentStatus === "deployed" || route.status === "completed") &&
     hasRouteState &&
     hopsCountOnChain > 0 &&
-    hopsCountOnChain < hopsCount;
+    hopsCountOnChain < hopsCount &&
+    !isRecentlyDeployed; // Don't show warning for recently deployed routes
   const formattedAmount =
     route.hopAmountTokens != null
       ? new Intl.NumberFormat(undefined, { maximumFractionDigits: 6 }).format(
