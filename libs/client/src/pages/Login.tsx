@@ -151,16 +151,16 @@ export const Login: React.FC = () => {
           href="https://www.google.com"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-[var(--corn-yellow-500)] hover:underline"
+          className="text-[var(--laser-lemon-500)] hover:underline"
         >
           Terms
         </a>{" "}
-        <span className="text-[var(--corn-yellow-500)]">& </span>
+        <span className="text-[var(--laser-lemon-500)]">& </span>
         <a
           href="https://www.google.com"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-[var(--corn-yellow-500)] hover:underline"
+          className="text-[var(--laser-lemon-500)] hover:underline"
         >
           Privacy Policy
         </a>
@@ -229,6 +229,11 @@ export const Login: React.FC = () => {
         cardBody={isLoading || isPending ? loadingBody : loginCardBody}
         cardFooter={loginCardFooter}
         cardHeight={"617px"}
+        cardStyle={{
+          background:
+            'linear-gradient(#1F2224, #1F2224) padding-box, linear-gradient(0deg, rgba(255,255,255,0) 23%, rgba(255,255,255,0.5) 49%, rgba(255,255,255,0) 75%) border-box',
+          border: '1px solid transparent',
+        }}
       />
     </div>
   );
