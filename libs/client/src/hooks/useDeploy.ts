@@ -7,7 +7,7 @@ import { trpc } from "../trpc";
 import { extractErrorMessage } from "../utils/extractErrorMessage";
 
 // Maximum hops that can fit in a single transaction (matches backend)
-const HOPS_PER_BATCH = 4;
+const HOPS_PER_BATCH = 5;
 
 /**
  * Recalculate hop times based on delay configuration

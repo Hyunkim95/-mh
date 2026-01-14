@@ -566,8 +566,8 @@ export const getVault = async (
 
 // Maximum hops per transaction to stay within Solana's 1,232-byte limit
 // Each hop = 40 bytes (32-byte pubkey + 8-byte i64 timestamp)
-// With overhead, 4 hops per batch is safe
-export const HOPS_PER_BATCH = 4;
+// With overhead + priority fees, 5 hops per batch is safe (~520 bytes)
+export const HOPS_PER_BATCH = 5;
 
 export const addHops = async (
   creator: PublicKey,
