@@ -58,12 +58,16 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
 
   // Date picker dark theme CSS
   const darkThemeCss = `
+  .mh-datepicker-popper {
+    z-index: 9999 !important;
+  }
   .mh-easy-datepicker.react-datepicker, .mh-easy-datepicker .react-datepicker {
     background: var(--chinese-black-800) !important;
     color: var(--white-100) !important;
     border: none !important;
     font-family: inherit;
     box-shadow: 0 10px 40px rgba(0,0,0,0.5) !important;
+    z-index: 9999 !important;
   }
   .mh-easy-datepicker .react-datepicker__header {
     background: var(--chinese-black-800) !important;
@@ -241,7 +245,7 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
                 timeCaption="Time"
                 customInput={<DateCustomInput />}
                 calendarClassName="mh-easy-datepicker"
-                popperClassName="z-[100]"
+                popperClassName="mh-datepicker-popper"
                 portalId="root"
                 renderCustomHeader={({
                   date,
@@ -283,11 +287,12 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
             </div>
             <div
               className="h-[140px] sm:flex-1 bg-[#131416] rounded-[20px] sm:rounded-[24px] border border-[#25282c] flex flex-col items-center justify-center relative group hover:border-[var(--laser-lemon-500)]/40 transition-all duration-300"
+              style={{ zIndex: 1 }}
             >
               {/* Central Glow Background */}
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(251,255,105,0.06)_0%,transparent_55%)] rounded-[24px]" />
 
-              <div className="flex flex-col items-center justify-center h-full z-10">
+              <div className="flex flex-col items-center justify-center h-full relative">
                 {/* Top indicator lines - show up to 5 */}
                 <div className="flex gap-1 sm:gap-1.5 mb-1 sm:mb-2">
                   {[1, 2, 3, 4, 5].map(i => (
@@ -321,7 +326,7 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
                   </button>
 
                   {/* Configured Number */}
-                  <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-[var(--laser-lemon-500)] flex items-center justify-center shadow-[0_0_35px_rgba(251,255,105,0.4)] z-10">
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-[var(--laser-lemon-500)] flex items-center justify-center shadow-[0_0_35px_rgba(251,255,105,0.4)] relative">
                     <span className="text-2xl sm:text-3xl font-bold text-[var(--chinese-black-800)]">{hopCount}</span>
                   </div>
 

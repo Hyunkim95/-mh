@@ -860,6 +860,8 @@ walletC,15`
             : summaryTabBody
         }
         cardFooter={footer}
+        cardHeight='auto'
+        cardMaxHeight='850px'
       />
 
       {/* Deploy Modal */}

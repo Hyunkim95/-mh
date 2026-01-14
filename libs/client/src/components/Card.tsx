@@ -24,6 +24,7 @@ interface CardProps {
   cardFooter?: React.ReactNode
   // Optional fixed height for the card body section in pixels
   cardHeight?: string
+  cardMaxHeight?: string
   // Optional style overrides per element/state
   cardClasses?: CardClassNames
   // Optional additional inline styles for the main card container
@@ -35,6 +36,7 @@ export const Card: React.FC<CardProps> = ({
   cardBody,
   cardFooter,
   cardHeight = '790px',
+  cardMaxHeight = '790px',
   cardClasses,
   cardStyle,
 }) => {
@@ -53,10 +55,11 @@ export const Card: React.FC<CardProps> = ({
         className={clsx(
           'max-w-[709px] w-full box-border px-4 sm:px-12 py-6 sm:py-8 rounded-3xl flex flex-col mb-10 relative',
           'card-desktop-styles',
-          cardClasses?.mainCardContainer || ''
+          cardClasses?.mainCardContainer || '',
+          cardHeight === 'auto' && `h-auto max-h-[${cardMaxHeight}] sm:h-[${cardHeight}] sm:max-h-none`
         )}
         style={{
-          height: cardHeight,
+          ...(cardHeight !== 'auto' && { height: cardHeight }),
           ...cardStyle,
         }}
       >
