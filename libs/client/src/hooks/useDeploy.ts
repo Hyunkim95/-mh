@@ -359,13 +359,37 @@ export const useDeploy = () => {
 
         // CRITICAL: Verify route was actually created on-chain before adding hops
         // This prevents the case where init tx fails but we still try to add hops
-        toast.loading("Verifying route was created...", { id: "deploy" });
+        // Add retry logic to handle RPC propagation delay
+        let initVerifyAttempts = 0;
+        const maxInitAttempts = 5;
+        let isRouteCreated = false;
 
-        const postInitStatus = await utils.client.contract.routeHasHops.query({
-          routeId: data.routeId
-        });
+        while (initVerifyAttempts < maxInitAttempts && !isRouteCreated) {
+          initVerifyAttempts++;
 
-        if (!postInitStatus.data?.isDeployed) {
+          toast.loading(
+            `Verifying route creation${initVerifyAttempts > 1 ? ` (attempt ${initVerifyAttempts}/${maxInitAttempts})` : ''}...`,
+            { id: "deploy" }
+          );
+
+          if (initVerifyAttempts > 1) {
+            // Wait 2 seconds between attempts (except first attempt)
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+
+          const postInitStatus = await utils.client.contract.routeHasHops.query({
+            routeId: data.routeId
+          });
+
+          isRouteCreated = postInitStatus.data?.isDeployed || false;
+
+          if (isRouteCreated) {
+            console.log(`Route creation verified on attempt ${initVerifyAttempts}`);
+            break;
+          }
+        }
+
+        if (!isRouteCreated) {
           throw new Error(
             "Route initialization failed - route does not exist on-chain. " +
             "Please check your wallet balance and try again."
