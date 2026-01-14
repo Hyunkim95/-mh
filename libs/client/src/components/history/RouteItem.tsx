@@ -78,11 +78,12 @@ export const RouteItem = ({ route }: RouteItemProps) => {
 
   // Two types of incomplete deployments:
   // 1. No route state at all (complete failure - route not initialized)
+  // OR route was initialized but has 0 hops on-chain (add_hops failed after initialize)
   const isIncomplete =
     route.deploymentStatus === "deployed" &&
     !routeStateQuery.isLoading &&
-    !hasRouteState &&
-    hopsCount > 0;
+    hopsCount > 0 &&
+    (!hasRouteState || (hasRouteState && hopsCountOnChain === 0));
 
   // 2. Some hops on-chain, but missing others (partial failure)
   // Check even if route is marked "completed" because scheduler may have auto-completed prematurely
@@ -506,8 +507,10 @@ export const RouteItem = ({ route }: RouteItemProps) => {
                 Incomplete Deployment
               </div>
               <p className="text-xs text-gray-300">
-                This route was initialized but the hops were never added
-                on-chain. Your {route.hopAmountTokens} {route.tokenSymbol || route.tokenType} is safe as route tokens. Click Complete Deployment to add the hops with fresh timestamps.
+                {hasRouteState && hopsCountOnChain === 0
+                  ? `This route was initialized but the hops were never added on-chain. Your ${route.hopAmountTokens} ${route.tokenSymbol || route.tokenType} is wrapped and safe in the route account.`
+                  : `This route's initialization failed. Your ${route.hopAmountTokens} ${route.tokenSymbol || route.tokenType} may still be in your wallet.`
+                } Click Complete Deployment to add the hops with fresh timestamps.
               </p>
             </div>
             <Button

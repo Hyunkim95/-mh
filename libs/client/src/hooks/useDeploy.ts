@@ -437,15 +437,14 @@ export const useDeploy = () => {
         }
 
         if (!hasHops) {
-          console.warn(
-            `Verification failed after ${maxAttempts} attempts. ` +
-            `Route may still be propagating on-chain. Check route status in a few moments.`
+          throw new Error(
+            "Hops were not added to the route on-chain. " +
+            "The route was initialized but deployment is incomplete. " +
+            "Please try deploying again."
           );
-          // Don't throw - mark as deployed anyway since transactions confirmed
-          // The route will likely work, just RPC is slow to update
         }
 
-        // Mark as deployed in database only after verification
+        // Mark as deployed in database ONLY after hops are verified on-chain
         await markDeployed.mutateAsync({
           id: data.databaseId,
           creator: publicKey.toBase58(),
@@ -501,11 +500,10 @@ export const useDeploy = () => {
         }
 
         if (!hasHopsVerified) {
-          console.warn(
-            `Verification failed after ${maxAttempts} attempts. ` +
-            `Transactions were confirmed but RPC state is delayed.`
+          throw new Error(
+            "Hops were not added to the route on-chain. " +
+            "Please try adding hops again."
           );
-          // Don't throw - transactions were confirmed successfully
         }
 
         // Invalidate queries to refresh UI with latest on-chain state
