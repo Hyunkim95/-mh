@@ -412,12 +412,7 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
                     <span className="text-xl sm:text-2xl font-bold leading-none">−</span>
                   </button>
 
-                  {/* Configured Number */}
-                  <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-[var(--laser-lemon-500)] flex items-center justify-center shadow-[0_0_35px_rgba(251,255,105,0.4)] relative">
-                    <span className="text-2xl sm:text-3xl font-bold text-[var(--chinese-black-800)]">{hopCount}</span>
-                  </div>
-
-                  {/* Plus button */}
+                  {/* Configured Number - clickeable */}
                   <button
                     type="button"
                     onClick={handleHopCountClick}
