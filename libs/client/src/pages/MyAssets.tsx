@@ -402,7 +402,7 @@ export const MyAssets: React.FC = () => {
                   iconUrl={token.icon}
                   symbol={token.symbol}
                   name={token.name}
-                  amount={token.amount}
+                  amount={token.amount.toLocaleString('en-US', { maximumFractionDigits: 6 })}
                   usdValue={token.usdValue}
                   onClick={() => setSelectedAsset(token)}
                   selected={isSelected}

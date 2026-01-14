@@ -94,7 +94,7 @@ export const Login: React.FC = () => {
                 boxShadow: "inset 0px 1px 0px var(--white-100-transparency-08)",
               }}
             >
-              <div className="h-14 w-14 rounded-full md:h-12 md:w-12 flex items-center justify-center md:rounded-lg overflow-hidden">
+              <div className="h-14 w-14 rounded-full md:h-12 md:w-12 flex items-center justify-center overflow-hidden">
                 <img
                   src={icon}
                   alt={`${label}-icon`}
