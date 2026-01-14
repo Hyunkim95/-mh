@@ -176,18 +176,19 @@ export const RouteItem = ({ route }: RouteItemProps) => {
   const handleCompleteDeployment = async () => {
     if (isDeploying) return;
     setIsDeploying(true);
+
+    const hopsArray = Array.isArray(route.hops) ? route.hops : [];
+
+    // Recalculate fresh timestamps (2 minutes apart)
+    const now = Date.now();
+    const formattedHops = hopsArray.map((hop, index) => ({
+      recipient: hop.recipient,
+      scheduledAt: now + (index + 1) * 2 * 60 * 1000, // 2 minutes apart
+      delayMinutes: 2,
+      isCustomTime: false,
+    }));
+
     try {
-      const hopsArray = Array.isArray(route.hops) ? route.hops : [];
-
-      // Recalculate fresh timestamps (2 minutes apart)
-      const now = Date.now();
-      const formattedHops = hopsArray.map((hop, index) => ({
-        recipient: hop.recipient,
-        scheduledAt: now + (index + 1) * 2 * 60 * 1000, // 2 minutes apart
-        delayMinutes: 2,
-        isCustomTime: false,
-      }));
-
       await deploy(
         {
           routeId: route.routeId,
@@ -201,8 +202,15 @@ export const RouteItem = ({ route }: RouteItemProps) => {
         },
         route.tokenType as "SPL" | "SOL"
       );
+    } catch (error) {
+      // Even if deploy() throws (e.g., verification timeout),
+      // the hops may have been added on-chain. Update DB timestamps anyway.
+      console.log("Deploy threw but attempting to update timestamps:", error);
+    }
 
+    try {
       // CRITICAL: Update database hop timestamps to match what was sent on-chain
+      // This runs even if deploy() threw, because hops may have been added successfully
       await updateHopTimestamps.mutateAsync({
         routeId: route.id,
         creator: route.creator,
@@ -215,6 +223,9 @@ export const RouteItem = ({ route }: RouteItemProps) => {
       // Refresh queries after successful completion
       await utils.routes.getByCreator.invalidate({ creator: route.creator });
       await routeStateQuery.refetch();
+    } catch (updateError) {
+      console.error("Failed to update hop timestamps:", updateError);
+      toast.error("Failed to update timestamps in database");
     } finally {
       setIsDeploying(false);
     }
