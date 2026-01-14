@@ -1,6 +1,5 @@
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useState } from "react";
-import { Toaster } from "react-hot-toast";
 import { useNavigate } from "@tanstack/react-router";
 import { useInitializeTokenConfig } from "../hooks/useInitializeTokenConfig";
 import { trpc } from "../trpc";
@@ -31,7 +30,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<
     "token-config" | "routes" | "hops"
   >("token-config");
-  
+
   const handleViewTokenConfig = (config: any) => {
     navigate({ to: "/token-config/$tokenConfigId", params: { tokenConfigId: config.id.toString() } });
   };
@@ -40,7 +39,6 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 w-full">
-      <Toaster position="top-right" />
       <header className="bg-white shadow-sm border-b">
         <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">

@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { Transaction } from "@solana/web3.js";
+import { extractErrorMessage } from "../utils/extractErrorMessage";
 
 export const useUpdateTokenConfig = ({
   publicKey,
@@ -54,11 +55,7 @@ export const useUpdateTokenConfig = ({
       );
     } catch (error) {
       console.error("SPL Token config update failed:", error);
-      toast.error(
-        `SPL Token config update failed: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
+      toast.error(`SPL Token config update failed: ${extractErrorMessage(error)}`);
       throw error;
     }
   };
@@ -99,11 +96,7 @@ export const useUpdateTokenConfig = ({
       );
     } catch (error) {
       console.error("SOL Token config update failed:", error);
-      toast.error(
-        `SOL Token config update failed: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
+      toast.error(`SOL Token config update failed: ${extractErrorMessage(error)}`);
       throw error;
     }
   };

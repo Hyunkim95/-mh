@@ -2,6 +2,7 @@ import { trpc } from "../trpc";
 import { PublicKey } from "@solana/web3.js";
 import toast from "react-hot-toast";
 import type { DeployModalRoute } from "../components/DeployModal";
+import { extractErrorMessage } from "../utils/extractErrorMessage";
 
 export const useSubmitRoute = ({
   publicKey,
@@ -58,11 +59,7 @@ export const useSubmitRoute = ({
       };
     } catch (error) {
       console.error(`${type} Route creation failed:`, error);
-      toast.error(
-        `${type} Route creation failed: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
+      toast.error(`${type} Route creation failed: ${extractErrorMessage(error)}`);
       return null;
     }
   };

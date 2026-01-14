@@ -7,6 +7,7 @@ import { TimestampHopInput } from '../../types/route'
 import { useWalletChangeEffect } from '../../hooks/useWalletChangeEffect'
 import { Transaction } from '@solana/web3.js'
 import { useSolanaAuth } from '../../hooks/useSolanaAuth'
+import { extractErrorMessage } from '../../utils/extractErrorMessage'
 
 interface Route {
   id: number
@@ -22,7 +23,7 @@ interface Route {
     scheduledAt: string
     delayMinutes?: number
     delaySeconds?: number
-    status?: 'completed' | 'active' | 'upcoming'    
+    status?: 'completed' | 'active' | 'upcoming'
   }>
   creator: string
   status: string
@@ -142,9 +143,7 @@ export const AdminHopsTab: React.FC = () => {
       refetch()
     } catch (error) {
       toast.error(
-        `${route.tokenType} Route deployment failed: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }`,
+        `${route.tokenType} Route deployment failed: ${extractErrorMessage(error)}`,
         { id: 'deploy' }
       )
     }

@@ -18,8 +18,11 @@ export function parseNumber(val: string | number | undefined): number {
 
 export function formatTokenAmount(n: number): string {
   if (!isFinite(n)) return '0'
-  const fixed = n.toFixed(6)
-  return fixed.replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1')
+  // Format with up to 6 decimal places and thousand separators (US format)
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 6,
+  }).format(n)
 }
 
 export function isValidSolanaAddress(addr: string): boolean {

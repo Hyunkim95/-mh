@@ -38,6 +38,10 @@ import {
 import { DeployModal, type DeployModalRoute } from '../components/DeployModal'
 import { trpc } from '../trpc'
 import { TABS } from '../constants/tab'
+import { extractErrorMessage } from '../utils/extractErrorMessage'
+
+// Default fee percentage (1% = 0.01) - used as fallback if config fetch fails
+const DEFAULT_FEE_PERCENTAGE = 0.01
 
 export const ConfigureHops: React.FC = () => {
   // Tab state - now includes 'mode' step: choose → mode → configure → summary
@@ -53,6 +57,28 @@ export const ConfigureHops: React.FC = () => {
   const { handleRouteSubmit } = useSubmitRoute({ publicKey })
   const createEasyRoute = trpc.easyRoutes.create.useMutation()
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Fetch token config to get fee percentage
+  const { data: tokenConfigSPL } = trpc.contract.getTokenConfigSPL.useQuery(undefined, {
+    enabled: selectedAsset?.tokenType === 'SPL',
+  })
+  const { data: tokenConfigSOL } = trpc.contract.getTokenConfigSOL.useQuery(
+    { creator: publicKey?.toBase58() ?? '' },
+    { enabled: selectedAsset?.tokenType === 'SOL' && !!publicKey }
+  )
+
+  // Get fee percentage based on token type (convert from string to decimal)
+  const feePercentage = useMemo(() => {
+    if (selectedAsset?.tokenType === 'SPL' && tokenConfigSPL?.data?.feeBps) {
+      // feeBps is already divided by 10_000 in the backend for SPL
+      return parseFloat(tokenConfigSPL.data.feeBps)
+    }
+    if (selectedAsset?.tokenType === 'SOL' && tokenConfigSOL?.data?.feeBps) {
+      // feeBps is raw basis points for SOL, need to divide by 10_000
+      return parseFloat(tokenConfigSOL.data.feeBps) / 10_000
+    }
+    return DEFAULT_FEE_PERCENTAGE
+  }, [selectedAsset?.tokenType, tokenConfigSPL, tokenConfigSOL])
   const [formErrors, setFormErrors] = useState<{
     hopRowErrors: Record<number, string | null>
     generalError?: string | null
@@ -105,7 +131,7 @@ export const ConfigureHops: React.FC = () => {
       const hasValidCustomRoute = hops.length > 0 && hops.every(
         h => h.wallet.trim().length > 0 && (h.delayMinutes !== null || !!h.scheduledAtUtc)
       )
-      
+
       const hasValidEasyRoute = easyRouteConfig.arrivalTime !== null &&
         easyRouteConfig.destinationWallet.trim().length > 0 &&
         isValidSolanaAddress(easyRouteConfig.destinationWallet) &&
@@ -119,7 +145,7 @@ export const ConfigureHops: React.FC = () => {
 
       // Then check route-specific validation
       const isRouteValid = routeMode === 'easy' ? hasValidEasyRoute : hasValidCustomRoute
-      
+
       if (!isRouteValid) {
         setActiveKey('configure')
       }
@@ -167,9 +193,9 @@ export const ConfigureHops: React.FC = () => {
 
   const handleDownloadTemplate = () => {
     const csvContent = `wallet,timeInMinutes
-walletA,5
-walletB,10
-walletC,15`
+walletA,2
+walletB,5
+walletC,10`
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -319,6 +345,7 @@ walletC,15`
         asset={selectedAsset}
         amount={selectedAmount}
         onAmountChange={setSelectedAmount}
+        feePercentage={feePercentage}
       />
     </>
   )
@@ -370,6 +397,7 @@ walletC,15`
       onDestinationWalletChange={handleEasyRouteDestinationChange}
       walletError={easyRouteWalletError}
       onWalletValidate={validateEasyRouteWallet}
+      feePercentage={feePercentage}
     />
   )
 
@@ -404,15 +432,15 @@ walletC,15`
   // Convert easy route config to hops format for summary display
   const easyRouteHops: HopConfigItem[] = useMemo(() => {
     if (routeMode !== 'easy') return []
-    
+
     const { hopCount, arrivalTime, destinationWallet } = easyRouteConfig
     if (!arrivalTime || !destinationWallet) return []
-    
+
     // Calculate delay between hops based on arrival time
     const now = new Date()
     const totalDelayMinutes = Math.max(0, Math.floor((arrivalTime.getTime() - now.getTime()) / (1000 * 60)))
     const delayPerHop = Math.floor(totalDelayMinutes / hopCount)
-    
+
     // Create hops array - all intermediate hops go to random wallets, last hop goes to destination
     return Array.from({ length: hopCount }, (_, index) => ({
       wallet: index === hopCount - 1 ? destinationWallet : `Hop ${index + 1} (Auto-generated)`,
@@ -532,27 +560,46 @@ walletC,15`
       const recipients = rows.map(h => h.wallet.trim())
 
       const times: string[] = []
+      const scheduledHops: Array<{
+        recipient: string
+        scheduledAt: string
+        delayMinutes?: number
+        isCustomTime?: boolean
+      }> = []
+
       rows.forEach((row, i) => {
+        const recipient = row.wallet.trim()
+
         if (row.scheduledAtUtc) {
-          times.push(new Date(row.scheduledAtUtc).toISOString())
+          // Custom absolute time from date picker
+          const time = new Date(row.scheduledAtUtc).toISOString()
+          times.push(time)
+          scheduledHops.push({
+            recipient,
+            scheduledAt: time,
+            isCustomTime: true
+          })
         } else {
-          const add =
+          // Delay-based time
+          const delayMinutes =
             typeof row.delayMinutes === 'number' ? row.delayMinutes : 0
+          let time: string
+
           if (i === 0) {
-            times.push(new Date(now.getTime() + add * 60 * 1000).toISOString())
+            time = new Date(now.getTime() + delayMinutes * 60 * 1000).toISOString()
           } else {
             const prevTime = new Date(times[i - 1])
-            times.push(
-              new Date(prevTime.getTime() + add * 60 * 1000).toISOString()
-            )
+            time = new Date(prevTime.getTime() + delayMinutes * 60 * 1000).toISOString()
           }
+
+          times.push(time)
+          scheduledHops.push({
+            recipient,
+            scheduledAt: time,
+            delayMinutes // Store delay metadata for recalculation
+          })
         }
       })
-
-      const scheduledHops = recipients.map((recipient, idx) => ({
-        recipient,
-        scheduledAt: times[Math.min(idx, times.length - 1)],
-      }))
 
       const decimals =
         typeof selectedAsset.decimals === 'number'
@@ -617,10 +664,10 @@ walletC,15`
       setIsSubmitting(true)
 
       // Calculate token decimals
-      const decimals = typeof selectedAsset.decimals === 'number' 
-        ? selectedAsset.decimals 
-        : selectedAsset.tokenType === 'SOL' 
-        ? 9 
+      const decimals = typeof selectedAsset.decimals === 'number'
+        ? selectedAsset.decimals
+        : selectedAsset.tokenType === 'SOL'
+        ? 9
         : 6
 
       // Calculate raw amount (amount * 10^decimals)
@@ -646,7 +693,7 @@ walletC,15`
 
       if (result.success && result.data) {
         toast.success('Easy route created successfully!')
-        
+
         // Convert backend Route response to DeployModalRoute format
         const route = result.data
         const deployModalRoute: DeployModalRoute = {
@@ -667,11 +714,7 @@ walletC,15`
       }
     } catch (error) {
       console.error('Easy Route creation failed:', error)
-      toast.error(
-        `Easy Route creation failed: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }`
-      )
+      toast.error(`Easy Route creation failed: ${extractErrorMessage(error)}`)
     } finally {
       setIsSubmitting(false)
     }

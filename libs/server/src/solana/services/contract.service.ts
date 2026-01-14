@@ -564,6 +564,11 @@ export const getVault = async (
   return vault;
 };
 
+// Maximum hops per transaction to stay within Solana's 1,232-byte limit
+// Each hop = 40 bytes (32-byte pubkey + 8-byte i64 timestamp)
+// With overhead + priority fees, 5 hops per batch is safe (~520 bytes)
+export const HOPS_PER_BATCH = 5;
+
 export const addHops = async (
   creator: PublicKey,
   routeId: BN,
@@ -598,8 +603,37 @@ export const addHops = async (
   priorityInstructions.forEach((ix) => transaction.add(ix));
   
   transaction.add(instruction);
-  
+
   return transaction;
+}
+
+/**
+ * Creates multiple transactions to add hops in batches.
+ * This avoids Solana's 1,232-byte transaction size limit.
+ *
+ * @param creator - The route creator's public key
+ * @param routeId - The route ID
+ * @param hops - All hops to add
+ * @returns Array of transactions, one per batch
+ */
+export const addHopsBatched = async (
+  creator: PublicKey,
+  routeId: BN,
+  hops: IHop[]
+): Promise<Transaction[]> => {
+  const transactions: Transaction[] = [];
+
+  // Split hops into batches
+  for (let i = 0; i < hops.length; i += HOPS_PER_BATCH) {
+    const batch = hops.slice(i, i + HOPS_PER_BATCH);
+    console.log(`Creating batch ${Math.floor(i / HOPS_PER_BATCH) + 1}: ${batch.length} hops`);
+
+    const transaction = await addHops(creator, routeId, batch);
+    transactions.push(transaction);
+  }
+
+  console.log(`Created ${transactions.length} batch transaction(s) for ${hops.length} hops`);
+  return transactions;
 }
 
 const initializeRoute = async (
@@ -743,6 +777,69 @@ const calculateExecutorFunding = (hopCount: number): BN => {
   const baseFunding = 0.02; // Base SOL amount
   const totalFunding = hopCount * perHopFunding + baseFunding;
   return new BN(solToLamports(totalFunding));
+};
+
+/**
+ * Estimate total deployment costs for a route.
+ * Returns breakdown of all fees in lamports and SOL.
+ *
+ * @param hopCount - Number of hops in the route
+ * @param amountLamports - Amount being transferred in lamports
+ * @param feeBps - Fee in basis points (e.g., 100 = 1%)
+ * @param flatFeeLamports - Flat fee in lamports
+ * @returns Cost breakdown object
+ */
+export const estimateDeploymentCost = (
+  hopCount: number,
+  amountLamports: number,
+  feeBps: number = 100,
+  flatFeeLamports: number = 10000
+): {
+  executorFunding: number;
+  transactionFees: number;
+  flatFee: number;
+  percentageFee: number;
+  totalCost: number;
+  breakdown: {
+    executorFundingSOL: string;
+    transactionFeesSOL: string;
+    flatFeeSOL: string;
+    percentageFeeSOL: string;
+    totalCostSOL: string;
+  };
+} => {
+  // Executor funding: 0.02 SOL base + 0.002 SOL per hop
+  const perHopFunding = 0.002;
+  const baseFunding = 0.02;
+  const executorFunding = Math.floor((hopCount * perHopFunding + baseFunding) * LAMPORTS_PER_SOL);
+
+  // Transaction fees: ~5000 lamports per tx
+  // 1 init tx + ceil(hopCount / HOPS_PER_BATCH) add_hops txs
+  const initTxCount = 1;
+  const addHopsTxCount = Math.ceil(hopCount / HOPS_PER_BATCH);
+  const totalTxCount = initTxCount + addHopsTxCount;
+  const transactionFees = totalTxCount * 5000;
+
+  // Percentage fee: amount × feeBps / 10000
+  const percentageFee = Math.floor((amountLamports * feeBps) / 10000);
+
+  // Total cost
+  const totalCost = executorFunding + transactionFees + flatFeeLamports + percentageFee;
+
+  return {
+    executorFunding,
+    transactionFees,
+    flatFee: flatFeeLamports,
+    percentageFee,
+    totalCost,
+    breakdown: {
+      executorFundingSOL: (executorFunding / LAMPORTS_PER_SOL).toFixed(6),
+      transactionFeesSOL: (transactionFees / LAMPORTS_PER_SOL).toFixed(6),
+      flatFeeSOL: (flatFeeLamports / LAMPORTS_PER_SOL).toFixed(6),
+      percentageFeeSOL: (percentageFee / LAMPORTS_PER_SOL).toFixed(6),
+      totalCostSOL: (totalCost / LAMPORTS_PER_SOL).toFixed(6),
+    },
+  };
 };
 
 /**
@@ -1255,6 +1352,7 @@ const contractService = {
   initializeRouteWithWrap,
   serialize,
   addHops,
+  addHopsBatched,
   executeHop,
   getTokenConfigSPL,
   getTokenConfigSOL,
@@ -1262,6 +1360,7 @@ const contractService = {
   updateTokenConfigWithTransaction,
   calculateExecutorFunding,
   createExecutorFundingInstruction,
+  HOPS_PER_BATCH,
 };
 
 export const routeHasHops = async (routeId: number): Promise<{

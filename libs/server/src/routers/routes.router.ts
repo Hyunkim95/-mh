@@ -228,6 +228,34 @@ export const routesRouter = router({
 
 
 
+  // Update hop timestamps in database (for fixing incomplete deployments)
+  updateHopTimestamps: publicProcedure
+    .input(z.object({
+      routeId: z.number(),
+      creator: z.string(),
+      hops: z.array(z.object({
+        recipient: z.string(),
+        scheduledAt: z.number(), // Unix timestamp in milliseconds
+      })),
+    }))
+    .mutation(async ({ input }) => {
+      try {
+        await routesService.updateHopTimestamps(
+          input.routeId,
+          input.creator,
+          input.hops
+        );
+
+        return {
+          success: true,
+          message: 'Hop timestamps updated successfully'
+        };
+      } catch (error) {
+        console.error('Error updating hop timestamps:', error);
+        throw new Error('Failed to update hop timestamps');
+      }
+    }),
+
   // Mark route as successfully deployed (called after transaction confirmation)
   markDeployed: publicProcedure
     .input(z.object({

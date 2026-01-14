@@ -19,6 +19,7 @@ interface EasyRouteFormProps {
   onDestinationWalletChange: (wallet: string) => void
   walletError: string | null
   onWalletValidate: (wallet: string) => void
+  feePercentage?: number // Fee as decimal (e.g., 0.01 for 1%)
 }
 
 export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
@@ -33,16 +34,29 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
   onDestinationWalletChange,
   walletError,
   onWalletValidate,
+  feePercentage = 0.01, // Default 1% fee
 }) => {
   const [imageError, setImageError] = useState(false)
   const [isEditingAmount, setIsEditingAmount] = useState(false)
   const [amountInputValue, setAmountInputValue] = useState('')
   const amountInputRef = useRef<HTMLInputElement>(null)
 
-  const maxAmount = useMemo(
-    () => parseNumber(selectedAsset?.amount),
-    [selectedAsset]
-  )
+  // Hop count dialog state
+  const [showHopCountDialog, setShowHopCountDialog] = useState(false)
+  const [hopCountInputValue, setHopCountInputValue] = useState('')
+  const hopCountInputRef = useRef<HTMLInputElement>(null)
+
+  // Calculate max amount accounting for fee
+  // If user has balance B and fee is F%, then max routable = B / (1 + F)
+  // This ensures: routeAmount + fee = balance
+  const maxAmount = useMemo(() => {
+    const balance = parseNumber(selectedAsset?.amount)
+    if (balance <= 0 || feePercentage <= 0) return balance
+    // Max amount that can be routed = balance / (1 + fee)
+    const maxRoutable = balance / (1 + feePercentage)
+    // Round down to avoid precision issues that could cause insufficient funds
+    return Math.floor(maxRoutable * 1e6) / 1e6
+  }, [selectedAsset, feePercentage])
 
   const usdPerToken = useMemo(() => {
     const assetAmount = parseNumber(selectedAsset?.amount)
@@ -87,7 +101,7 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
     line-height: 2.3rem !important;
     margin: 0.1rem !important;
   }
-  .mh-easy-datepicker .react-datepicker__day { 
+  .mh-easy-datepicker .react-datepicker__day {
     color: var(--white-100) !important;
     width: 2.3rem !important;
     line-height: 2.3rem !important;
@@ -95,11 +109,11 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
     border-radius: 0.5rem !important;
     font-weight: 500 !important;
   }
-  .mh-easy-datepicker .react-datepicker__day:hover { 
-    background: var(--white-100-transparency-10) !important; 
+  .mh-easy-datepicker .react-datepicker__day:hover {
+    background: var(--white-100-transparency-10) !important;
   }
-  .mh-easy-datepicker .react-datepicker__day--disabled { 
-    color: var(--white-100-transparency-30) !important; 
+  .mh-easy-datepicker .react-datepicker__day--disabled {
+    color: var(--white-100-transparency-30) !important;
   }
   .mh-easy-datepicker .react-datepicker__day--selected,
   .mh-easy-datepicker .react-datepicker__day--keyboard-selected {
@@ -113,7 +127,7 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
   .mh-easy-datepicker .react-datepicker__navigation {
     top: 1rem !important;
   }
-  .mh-easy-datepicker .react-datepicker__navigation-icon::before { 
+  .mh-easy-datepicker .react-datepicker__navigation-icon::before {
     border-color: var(--white-100) !important;
     border-width: 2px 2px 0 0 !important;
     height: 6px !important;
@@ -135,6 +149,13 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
   .mh-easy-datepicker .react-datepicker__time-list-item--selected {
     background: var(--laser-lemon-500) !important;
     color: var(--chinese-black-800) !important;
+  }
+  .mh-easy-datepicker .react-datepicker__time-list-item--disabled {
+    color: var(--white-100-transparency-30) !important;
+    cursor: not-allowed !important;
+  }
+  .mh-easy-datepicker .react-datepicker__time-list-item--disabled:hover {
+    background: transparent !important;
   }
   .mh-easy-datepicker .react-datepicker-time__header,
   .mh-easy-datepicker .react-datepicker__time-container .react-datepicker-time__header {
@@ -182,7 +203,70 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
     onWalletValidate(destinationWallet)
   }
 
+  // Hop count dialog handlers
+  const handleHopCountClick = () => {
+    setHopCountInputValue(hopCount.toString())
+    setShowHopCountDialog(true)
+    setTimeout(() => hopCountInputRef.current?.select(), 50)
+  }
+
+  const handleHopCountInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    if (value === '' || /^\d+$/.test(value)) {
+      setHopCountInputValue(value)
+    }
+  }
+
+  const handleHopCountConfirm = () => {
+    const numValue = parseInt(hopCountInputValue, 10)
+    if (!isNaN(numValue) && numValue >= 1) {
+      onHopCountChange(numValue)
+    }
+    setShowHopCountDialog(false)
+  }
+
+  const handleHopCountCancel = () => {
+    setShowHopCountDialog(false)
+  }
+
+  const handleHopCountKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleHopCountConfirm()
+    } else if (e.key === 'Escape') {
+      handleHopCountCancel()
+    }
+  }
+
   const minDate = new Date()
+
+  // Filter out past times when selecting today's date
+  const filterPastTime = (time: Date) => {
+    const now = new Date()
+    // If the selected date is today, only allow times in the future
+    if (arrivalTime) {
+      const selectedDate = new Date(arrivalTime)
+      const isToday =
+        selectedDate.getFullYear() === now.getFullYear() &&
+        selectedDate.getMonth() === now.getMonth() &&
+        selectedDate.getDate() === now.getDate()
+
+      if (isToday) {
+        return time.getTime() > now.getTime()
+      }
+    }
+    // For future dates, allow all times
+    // But if no date selected yet and we're on today's calendar, filter past times
+    const timeDate = new Date(time)
+    const isTimeToday =
+      timeDate.getFullYear() === now.getFullYear() &&
+      timeDate.getMonth() === now.getMonth() &&
+      timeDate.getDate() === now.getDate()
+
+    if (isTimeToday) {
+      return time.getTime() > now.getTime()
+    }
+    return true
+  }
 
   // Custom Input for DatePicker to match Figma design
   const DateCustomInput = forwardRef<HTMLButtonElement, any>(({ value, onClick }, ref) => (
@@ -241,6 +325,7 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
                 showTimeSelect
                 dateFormat="EEEE d MMMM HH:mm"
                 minDate={minDate}
+                filterTime={filterPastTime}
                 timeIntervals={2}
                 timeCaption="Time"
                 customInput={<DateCustomInput />}
@@ -300,8 +385,10 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
                       key={`top-${i}`}
                       className={clsx(
                         'w-[2px] sm:w-[3px] h-4 sm:h-6 rounded-full transition-all duration-500',
-                        i <= hopCount
-                          ? 'bg-[var(--laser-lemon-500)] shadow-[0_0_15px_rgba(251,255,105,0.5)]'
+                        i <= hopCount || hopCount > 10
+                          ? hopCount > 10
+                            ? 'bg-[var(--laser-lemon-500)] shadow-[0_0_20px_rgba(251,255,105,0.7)]'
+                            : 'bg-[var(--laser-lemon-500)] shadow-[0_0_15px_rgba(251,255,105,0.5)]'
                           : 'bg-[#25282c] shadow-none opacity-30'
                       )}
                     />
@@ -333,28 +420,40 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
                   {/* Plus button */}
                   <button
                     type="button"
-                    onClick={() => onHopCountChange(Math.min(10, hopCount + 1))}
-                    disabled={hopCount >= 10}
+                    onClick={handleHopCountClick}
                     className={clsx(
-                      'w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-200',
-                      hopCount >= 10
-                        ? 'bg-[#25282c] text-[#555] cursor-not-allowed'
-                        : 'bg-[#25282c] text-[var(--white-100)] hover:bg-[#35383c] active:scale-95'
+                      'w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center z-10 transition-all duration-200',
+                      'bg-[var(--laser-lemon-500)] cursor-pointer hover:scale-105 active:scale-95',
+                      hopCount > 10
+                        ? 'shadow-[0_0_45px_rgba(251,255,105,0.6)]'
+                        : 'shadow-[0_0_35px_rgba(251,255,105,0.4)]'
                     )}
+                    title="Click to enter custom hop count"
+                  >
+                    <span className="text-2xl sm:text-3xl font-bold text-[var(--chinese-black-800)]">{hopCount}</span>
+                  </button>
+
+                  {/* Plus button - always enabled */}
+                  <button
+                    type="button"
+                    onClick={() => onHopCountChange(hopCount + 1)}
+                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-200 bg-[#25282c] text-[var(--white-100)] hover:bg-[#35383c] active:scale-95"
                   >
                     <span className="text-xl sm:text-2xl font-bold leading-none">+</span>
                   </button>
                 </div>
 
-                {/* Bottom indicator lines - show 6-10 */}
+                {/* Bottom indicator lines - show 6-10 (all glow when >10) */}
                 <div className="flex gap-1 sm:gap-1.5 mt-1 sm:mt-2">
                   {[6, 7, 8, 9, 10].map(i => (
                     <div
                       key={`bottom-${i}`}
                       className={clsx(
                         'w-[2px] sm:w-[3px] h-4 sm:h-6 rounded-full transition-all duration-500',
-                        i <= hopCount
-                          ? 'bg-[var(--laser-lemon-500)] shadow-[0_0_15px_rgba(251,255,105,0.5)]'
+                        i <= hopCount || hopCount > 10
+                          ? hopCount > 10
+                            ? 'bg-[var(--laser-lemon-500)] shadow-[0_0_20px_rgba(251,255,105,0.7)]'
+                            : 'bg-[var(--laser-lemon-500)] shadow-[0_0_15px_rgba(251,255,105,0.5)]'
                           : 'bg-[#25282c] shadow-none opacity-30'
                       )}
                     />
@@ -439,6 +538,75 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
           </p>
         )}
       </div>
+
+      {/* Custom Hop Count Dialog */}
+      {showHopCountDialog && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={handleHopCountCancel}
+        >
+          <div
+            className="relative bg-[#1a1c1f] border border-[#2a2d32] rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+            style={{ minWidth: '280px' }}
+          >
+            {/* Glow effect */}
+            <div className="absolute -inset-1 bg-gradient-to-r from-[var(--laser-lemon-500)]/20 to-[var(--laser-lemon-500)]/10 rounded-3xl blur-xl opacity-50" />
+
+            <div className="relative">
+              {/* Header */}
+              <div className="text-center mb-6">
+                <h3 className="text-lg font-bold text-[var(--white-100)] mb-1">Custom Hop Count</h3>
+                <p className="text-sm text-[var(--philippine-gray-400)]">Enter any number of hops</p>
+              </div>
+
+              {/* Input */}
+              <div className="relative mb-6">
+                <input
+                  ref={hopCountInputRef}
+                  type="text"
+                  inputMode="numeric"
+                  value={hopCountInputValue}
+                  onChange={handleHopCountInputChange}
+                  onKeyDown={handleHopCountKeyDown}
+                  placeholder="Enter hops"
+                  className="w-full px-4 py-4 text-center text-3xl font-bold rounded-2xl bg-[#131416] text-[var(--white-100)] border-2 border-[#25282c] focus:border-[var(--laser-lemon-500)] transition-colors outline-none"
+                  autoFocus
+                />
+                {hopCountInputValue && parseInt(hopCountInputValue) >= 1 && (
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--laser-lemon-500)] text-xl">
+                    ✓
+                  </div>
+                )}
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleHopCountCancel}
+                  className="flex-1 px-4 py-3 rounded-xl bg-[#25282c] text-[var(--white-100)] font-semibold hover:bg-[#35383c] transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleHopCountConfirm}
+                  disabled={!hopCountInputValue || parseInt(hopCountInputValue) < 1}
+                  className={clsx(
+                    'flex-1 px-4 py-3 rounded-xl font-semibold transition-all',
+                    hopCountInputValue && parseInt(hopCountInputValue) >= 1
+                      ? 'bg-[var(--laser-lemon-500)] text-[var(--chinese-black-800)] hover:brightness-110 active:scale-98'
+                      : 'bg-[#25282c] text-[#555] cursor-not-allowed'
+                  )}
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

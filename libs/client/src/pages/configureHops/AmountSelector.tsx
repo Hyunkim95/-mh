@@ -9,12 +9,14 @@ interface AmountSelectorProps {
   asset: TokenAsset | null
   amount: number
   onAmountChange: (amount: number) => void
+  feePercentage?: number // Fee as decimal (e.g., 0.01 for 1%)
 }
 
 export const AmountSelector: React.FC<AmountSelectorProps> = ({
   asset,
   amount,
   onAmountChange,
+  feePercentage = 0.01, // Default 1% fee
 }) => {
   const [hoveredAmount, setHoveredAmount] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -22,10 +24,18 @@ export const AmountSelector: React.FC<AmountSelectorProps> = ({
   const amountDisplayRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const [imageError, setImageError] = useState(false);
-  const maxAmount = React.useMemo(
-    () => parseNumber(asset?.amount),
-    [asset]
-  )
+
+  // Calculate max amount accounting for fee
+  // If user has balance B and fee is F%, then max routable = B / (1 + F)
+  // This ensures: routeAmount + fee = balance
+  const maxAmount = React.useMemo(() => {
+    const balance = parseNumber(asset?.amount)
+    if (balance <= 0 || feePercentage <= 0) return balance
+    // Max amount that can be routed = balance / (1 + fee)
+    const maxRoutable = balance / (1 + feePercentage)
+    // Round down to avoid precision issues that could cause insufficient funds
+    return Math.floor(maxRoutable * 1e6) / 1e6
+  }, [asset, feePercentage])
 
   const usdPerToken = React.useMemo(() => {
     const assetAmount = parseNumber(asset?.amount)
@@ -101,7 +111,7 @@ export const AmountSelector: React.FC<AmountSelectorProps> = ({
               onChange={handleInputChange}
               onBlur={handleInputBlur}
               onKeyDown={handleInputKeyDown}
-              className='not-italic font-medium text-4xl sm:text-6xl md:text-[88px] leading-tight sm:leading-[103px] text-center tracking-tight bg-transparent border-none outline-none'
+              className='not-italic font-medium text-3xl sm:text-5xl md:text-6xl leading-tight sm:leading-[72px] text-center tracking-tight bg-transparent border-none outline-none'
               style={{
                 background:
                   'linear-gradient(270deg, var(--white-100-transparency-50) 7%, var(--white-100) 53%, var(--white-100-transparency-50) 99%)',
@@ -115,7 +125,7 @@ export const AmountSelector: React.FC<AmountSelectorProps> = ({
             <div
               ref={amountDisplayRef}
               onClick={handleAmountClick}
-              className='not-italic font-medium text-4xl sm:text-6xl md:text-[88px] leading-tight sm:leading-[103px] text-center text-transparent bg-clip-text tracking-tight drop-shadow-[0_8px_30px_var(--white-100-transparency-15)] overflow-hidden text-ellipsis whitespace-nowrap max-w-full cursor-pointer'
+              className='not-italic font-medium text-3xl sm:text-5xl md:text-6xl leading-tight sm:leading-[72px] text-center text-transparent bg-clip-text tracking-tight drop-shadow-[0_8px_30px_var(--white-100-transparency-15)] overflow-hidden text-ellipsis whitespace-nowrap max-w-full cursor-pointer'
               style={{
                 background:
                   'linear-gradient(270deg, var(--white-100-transparency-50) 7%, var(--white-100) 53%, var(--white-100-transparency-50) 99%)',
@@ -129,7 +139,7 @@ export const AmountSelector: React.FC<AmountSelectorProps> = ({
             </div>
           )}
           <div
-            className='not-italic font-medium text-4xl sm:text-6xl md:text-[88px] leading-tight sm:leading-[103px] text-center text-transparent bg-clip-text tracking-tight drop-shadow-[0_8px_30px_var(--white-100-transparency-15)] flex-shrink-0'
+            className='not-italic font-medium text-3xl sm:text-5xl md:text-6xl leading-tight sm:leading-[72px] text-center text-transparent bg-clip-text tracking-tight drop-shadow-[0_8px_30px_var(--white-100-transparency-15)] flex-shrink-0'
             style={{
               background:
                 'linear-gradient(270deg, var(--white-100-transparency-50) 7%, var(--white-100) 53%, var(--white-100-transparency-50) 99%)',
@@ -168,7 +178,7 @@ export const AmountSelector: React.FC<AmountSelectorProps> = ({
           onMouseLeave={() => setHoveredAmount(false)}
         >
         <div
-          className='not-italic font-medium text-4xl sm:text-6xl md:text-[88px] leading-tight sm:leading-[103px] text-center tracking-tight drop-shadow-[0_8px_30px_var(--white-100-transparency-15)] whitespace-nowrap'
+          className='not-italic font-medium text-3xl sm:text-5xl md:text-6xl leading-tight sm:leading-[72px] text-center tracking-tight drop-shadow-[0_8px_30px_var(--white-100-transparency-15)] whitespace-nowrap'
           style={{
             background:
               'linear-gradient(270deg, var(--white-100-transparency-50) 7%, var(--white-100) 53%, var(--white-100-transparency-50) 99%)',
