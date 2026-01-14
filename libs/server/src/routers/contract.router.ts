@@ -17,6 +17,7 @@ import contractService, {
   executeHop,
   params,
   serialize,
+  estimateDeploymentCost,
 } from "../solana/services/contract.service";
 import { PublicKey } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
@@ -754,6 +755,72 @@ export const contractRouter = router({
           code: "INTERNAL_SERVER_ERROR",
           message:
             error instanceof Error ? error.message : "Failed to trigger hop",
+        });
+      }
+    }),
+
+  /**
+   * Estimate deployment costs for a route
+   * GET /contract/estimate-deployment-cost
+   */
+  estimateDeploymentCost: publicProcedure
+    .input(
+      z.object({
+        hopCount: z.number().min(1).max(50),
+        amountLamports: z.number().min(0),
+        type: z.enum(["SOL", "SPL"]).default("SOL"),
+      })
+    )
+    .query(async ({ input }) => {
+      try {
+        const { hopCount, amountLamports, type } = input;
+
+        // Get token config to get actual fee values
+        let feeBps = 100; // Default 1%
+        let flatFeeLamports = 10000; // Default 0.00001 SOL
+
+        try {
+          const tokenConfig =
+            type === "SOL"
+              ? await getTokenConfigSOL()
+              : await getTokenConfigSPL();
+
+          if (tokenConfig) {
+            feeBps = Number(tokenConfig.feeBps);
+            flatFeeLamports = Number(tokenConfig.flatFeeLamports);
+          }
+        } catch (configError) {
+          console.warn(
+            "Could not fetch token config, using defaults:",
+            configError
+          );
+        }
+
+        const costEstimate = estimateDeploymentCost(
+          hopCount,
+          amountLamports,
+          feeBps,
+          flatFeeLamports
+        );
+
+        return {
+          success: true,
+          data: {
+            ...costEstimate,
+            hopCount,
+            amountLamports,
+            type,
+            feeBps,
+            flatFeeLamports,
+          },
+        };
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to estimate deployment cost",
         });
       }
     }),

@@ -780,6 +780,69 @@ const calculateExecutorFunding = (hopCount: number): BN => {
 };
 
 /**
+ * Estimate total deployment costs for a route.
+ * Returns breakdown of all fees in lamports and SOL.
+ *
+ * @param hopCount - Number of hops in the route
+ * @param amountLamports - Amount being transferred in lamports
+ * @param feeBps - Fee in basis points (e.g., 100 = 1%)
+ * @param flatFeeLamports - Flat fee in lamports
+ * @returns Cost breakdown object
+ */
+export const estimateDeploymentCost = (
+  hopCount: number,
+  amountLamports: number,
+  feeBps: number = 100,
+  flatFeeLamports: number = 10000
+): {
+  executorFunding: number;
+  transactionFees: number;
+  flatFee: number;
+  percentageFee: number;
+  totalCost: number;
+  breakdown: {
+    executorFundingSOL: string;
+    transactionFeesSOL: string;
+    flatFeeSOL: string;
+    percentageFeeSOL: string;
+    totalCostSOL: string;
+  };
+} => {
+  // Executor funding: 0.02 SOL base + 0.002 SOL per hop
+  const perHopFunding = 0.002;
+  const baseFunding = 0.02;
+  const executorFunding = Math.floor((hopCount * perHopFunding + baseFunding) * LAMPORTS_PER_SOL);
+
+  // Transaction fees: ~5000 lamports per tx
+  // 1 init tx + ceil(hopCount / HOPS_PER_BATCH) add_hops txs
+  const initTxCount = 1;
+  const addHopsTxCount = Math.ceil(hopCount / HOPS_PER_BATCH);
+  const totalTxCount = initTxCount + addHopsTxCount;
+  const transactionFees = totalTxCount * 5000;
+
+  // Percentage fee: amount × feeBps / 10000
+  const percentageFee = Math.floor((amountLamports * feeBps) / 10000);
+
+  // Total cost
+  const totalCost = executorFunding + transactionFees + flatFeeLamports + percentageFee;
+
+  return {
+    executorFunding,
+    transactionFees,
+    flatFee: flatFeeLamports,
+    percentageFee,
+    totalCost,
+    breakdown: {
+      executorFundingSOL: (executorFunding / LAMPORTS_PER_SOL).toFixed(6),
+      transactionFeesSOL: (transactionFees / LAMPORTS_PER_SOL).toFixed(6),
+      flatFeeSOL: (flatFeeLamports / LAMPORTS_PER_SOL).toFixed(6),
+      percentageFeeSOL: (percentageFee / LAMPORTS_PER_SOL).toFixed(6),
+      totalCostSOL: (totalCost / LAMPORTS_PER_SOL).toFixed(6),
+    },
+  };
+};
+
+/**
  * Creates a SystemProgram transfer instruction to fund an executor wallet.
  *
  * @param payer - The account paying for the transfer

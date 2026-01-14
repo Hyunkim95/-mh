@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useDeploy } from "../hooks/useDeploy";
 import { extractErrorMessage } from "../utils/extractErrorMessage";
+import { trpc } from "../trpc";
 
 export interface DeployModalRoute {
   id: number;
@@ -68,6 +69,23 @@ export const DeployModal: React.FC<DeployModalProps> = ({
     const hopBatches = Math.ceil(route.hops.length / HOPS_PER_BATCH);
     return 1 + hopBatches; // 1 init + N hop batches
   }, [route]);
+
+  // Fetch deployment cost estimate
+  const amountLamports = useMemo(() => {
+    if (!route?.hopAmountRaw) return 0;
+    return parseInt(route.hopAmountRaw, 10) || 0;
+  }, [route]);
+
+  const costEstimate = trpc.contract.estimateDeploymentCost.useQuery(
+    {
+      hopCount: route?.hops?.length || 1,
+      amountLamports,
+      type: route?.tokenType || "SOL",
+    },
+    {
+      enabled: isOpen && !!route && amountLamports > 0,
+    }
+  );
 
   const handleDeployNow = async () => {
     if (!route) return;
@@ -181,6 +199,45 @@ export const DeployModal: React.FC<DeployModalProps> = ({
                 </span>
               </div>
             </div>
+
+            {/* Cost Breakdown */}
+            {costEstimate.data?.data && (
+              <div className="bg-[var(--eerie-black-700)] rounded-2xl p-4 mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm text-[var(--philippine-gray-500)]">
+                    Executor Funding
+                  </span>
+                  <span className="text-[var(--white-100)] font-medium">
+                    {costEstimate.data.data.breakdown.executorFundingSOL} SOL
+                  </span>
+                </div>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm text-[var(--philippine-gray-500)]">
+                    Platform Fee (1%)
+                  </span>
+                  <span className="text-[var(--white-100)] font-medium">
+                    {costEstimate.data.data.breakdown.percentageFeeSOL} SOL
+                  </span>
+                </div>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm text-[var(--philippine-gray-500)]">
+                    Transaction Fees
+                  </span>
+                  <span className="text-[var(--white-100)] font-medium">
+                    {costEstimate.data.data.breakdown.transactionFeesSOL} SOL
+                  </span>
+                </div>
+                <div className="border-t border-[var(--white-100-transparency-10)] my-3" />
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-[var(--white-100)]">
+                    Total Cost
+                  </span>
+                  <span className="text-[var(--laser-lemon-500)] font-semibold">
+                    {costEstimate.data.data.breakdown.totalCostSOL} SOL
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Transaction count notice for routes with >4 hops */}
             {route.hops.length > 4 && (
