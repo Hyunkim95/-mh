@@ -1,5 +1,5 @@
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
-import { eq, and, isNull, inArray } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { PublicKey } from "@solana/web3.js";
 import { routesSchema, hopsSchema } from "../../db/schema";
 import { contractEvents, ContractEvent } from "../schemas";
@@ -274,18 +274,24 @@ export class ContractEventProcessor {
     }
 
     if (!route || route.length === 0) {
-      // Fallback to finding by creator and no PDA
+      // Fallback: match by deployment transaction hash (much safer than "oldest route")
+      // The client sets deploymentTxHash when marking route as deployed
       route = await this.db
         .select()
         .from(routesSchema)
         .where(
           and(
             eq(routesSchema.creator, eventData.creator.toString()),
-            isNull(routesSchema.routeConfigPda)
+            eq(routesSchema.deploymentTxHash, event.signature)
           )
         )
-        .orderBy(routesSchema.createdAt) // Get the oldest matching route
         .limit(1);
+
+      if (route && route.length > 0) {
+        console.log(
+          `Matched route ${route[0].id} by transaction hash fallback`
+        );
+      }
     }
 
     if (!route || route.length === 0) {
