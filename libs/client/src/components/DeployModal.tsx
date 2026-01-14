@@ -204,9 +204,14 @@ export const DeployModal: React.FC<DeployModalProps> = ({
             {costEstimate.data?.data && (
               <div className="bg-[var(--eerie-black-700)] rounded-2xl p-4 mb-6">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm text-[var(--philippine-gray-500)]">
-                    Executor Funding
-                  </span>
+                  <div className="flex flex-col">
+                    <span className="text-sm text-[var(--philippine-gray-500)]">
+                      Execution Fees
+                    </span>
+                    <span className="text-xs text-[var(--philippine-gray-500)]/70">
+                      0.02 base + {route.hops.length} hops × 0.002
+                    </span>
+                  </div>
                   <span className="text-[var(--white-100)] font-medium">
                     {costEstimate.data.data.breakdown.executorFundingSOL} SOL
                   </span>
