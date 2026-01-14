@@ -361,23 +361,31 @@ export const useDeploy = () => {
         // This prevents the case where init tx fails but we still try to add hops
         // Add retry logic to handle RPC propagation delay
         let initVerifyAttempts = 0;
-        const maxInitAttempts = 5;
+        const maxInitAttempts = 10;
         let isRouteCreated = false;
+
+        // Initial delay to allow RPC nodes to sync after transaction confirmation
+        toast.loading("Waiting for route to propagate...", { id: "deploy" });
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        // Invalidate any cached route status to ensure fresh queries
+        await utils.client.contract.routeHasHops.invalidate({ routeId: data.routeId });
 
         while (initVerifyAttempts < maxInitAttempts && !isRouteCreated) {
           initVerifyAttempts++;
 
           toast.loading(
-            `Verifying route creation${initVerifyAttempts > 1 ? ` (attempt ${initVerifyAttempts}/${maxInitAttempts})` : ''}...`,
+            `Verifying route creation (attempt ${initVerifyAttempts}/${maxInitAttempts})...`,
             { id: "deploy" }
           );
 
           if (initVerifyAttempts > 1) {
-            // Wait 2 seconds between attempts (except first attempt)
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            // Wait 3 seconds between attempts
+            await new Promise(resolve => setTimeout(resolve, 3000));
           }
 
-          const postInitStatus = await utils.client.contract.routeHasHops.query({
+          // Use fetch to bypass any query caching
+          const postInitStatus = await utils.client.contract.routeHasHops.fetch({
             routeId: data.routeId
           });
 
@@ -387,12 +395,15 @@ export const useDeploy = () => {
             console.log(`Route creation verified on attempt ${initVerifyAttempts}`);
             break;
           }
+
+          console.log(`Route not found yet, attempt ${initVerifyAttempts}/${maxInitAttempts}`);
         }
 
         if (!isRouteCreated) {
           throw new Error(
-            "Route initialization failed - route does not exist on-chain. " +
-            "Please check your wallet balance and try again."
+            "Route initialization failed - route does not exist on-chain after " +
+            `${maxInitAttempts} verification attempts. The transaction may have succeeded ` +
+            "but RPC propagation is slow. Please check your wallet and try again."
           );
         }
 
@@ -407,40 +418,48 @@ export const useDeploy = () => {
         // CRITICAL: Verify all hops were actually added on-chain before marking as deployed
         // Add retry logic with delays to handle RPC propagation delay
         let verifyAttempts = 0;
-        const maxAttempts = 8;
+        const maxAttempts = 10;
         let hasHops = false;
+
+        // Initial delay and cache invalidation
+        toast.loading("Waiting for hops to propagate...", { id: "deploy" });
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        await utils.client.contract.routeHasHops.invalidate({ routeId: data.routeId });
 
         while (verifyAttempts < maxAttempts && !hasHops) {
           verifyAttempts++;
 
           toast.loading(
-            `Verifying deployment${verifyAttempts > 1 ? ` (attempt ${verifyAttempts}/${maxAttempts})` : ''}...`,
+            `Verifying deployment (attempt ${verifyAttempts}/${maxAttempts})...`,
             { id: "deploy" }
           );
 
           if (verifyAttempts > 1) {
-            // Wait 3 seconds between attempts (except first attempt)
+            // Wait 3 seconds between attempts
             await new Promise(resolve => setTimeout(resolve, 3000));
-            console.log(`Verification attempt ${verifyAttempts}/${maxAttempts}...`);
           }
 
-          const verifyStatus = await utils.client.contract.routeHasHops.query({
+          // Use fetch to bypass any query caching
+          const verifyStatus = await utils.client.contract.routeHasHops.fetch({
             routeId: data.routeId
           });
 
           hasHops = verifyStatus.data?.hasHops || false;
 
           if (hasHops) {
-            console.log(`Verification successful on attempt ${verifyAttempts}`);
+            console.log(`Hop verification successful on attempt ${verifyAttempts}`);
             break;
           }
+
+          console.log(`Hops not found yet, attempt ${verifyAttempts}/${maxAttempts}`);
         }
 
         if (!hasHops) {
           throw new Error(
-            "Hops were not added to the route on-chain. " +
+            "Hops were not added to the route on-chain after " +
+            `${maxAttempts} verification attempts. ` +
             "The route was initialized but deployment is incomplete. " +
-            "Please try deploying again."
+            "Go to History and use 'Complete Deployment' to retry."
           );
         }
 

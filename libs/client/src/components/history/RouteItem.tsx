@@ -72,8 +72,12 @@ export const RouteItem = ({ route }: RouteItemProps) => {
   const hasRouteState = !!routeStateQuery.data?.data;
 
   // Calculate time since deployment (for grace period to avoid false alarms during multi-batch deployment)
-  const deployedAtMs = route.deployedAt ? new Date(route.deployedAt).getTime() : null;
-  const timeSinceDeploymentMs = deployedAtMs ? Date.now() - deployedAtMs : Infinity;
+  const deployedAtMs = route.deployedAt
+    ? new Date(route.deployedAt).getTime()
+    : null;
+  const timeSinceDeploymentMs = deployedAtMs
+    ? Date.now() - deployedAtMs
+    : Infinity;
   const isRecentlyDeployed = timeSinceDeploymentMs < 90000; // 90 seconds grace period
 
   // Two types of incomplete deployments:
@@ -175,12 +179,12 @@ export const RouteItem = ({ route }: RouteItemProps) => {
     try {
       const hopsArray = Array.isArray(route.hops) ? route.hops : [];
 
-      // Recalculate fresh timestamps (10 minutes apart)
+      // Recalculate fresh timestamps (2 minutes apart)
       const now = Date.now();
       const formattedHops = hopsArray.map((hop, index) => ({
         recipient: hop.recipient,
-        scheduledAt: now + (index + 1) * 10 * 60 * 1000, // 10 minutes apart
-        delayMinutes: 10,
+        scheduledAt: now + (index + 1) * 2 * 60 * 1000, // 2 minutes apart
+        delayMinutes: 2,
         isCustomTime: false,
       }));
 
@@ -225,14 +229,16 @@ export const RouteItem = ({ route }: RouteItemProps) => {
       // Get only the missing hops (from hopsCountOnChain to end)
       const missingHops = hopsArray.slice(hopsCountOnChain);
 
-      // Calculate fresh timestamps for missing hops (10 minutes apart from now)
+      // Calculate fresh timestamps for missing hops (2 minutes apart from now)
       const now = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
       const formattedMissingHops = missingHops.map((hop, index) => ({
         recipient: hop.recipient,
-        scheduledAt: now + (index + 1) * 10 * 60, // 10 minutes apart in seconds
+        scheduledAt: now + (index + 1) * 2 * 60, // 2 minutes apart in seconds
       }));
 
-      toast.loading(`Adding ${missingHops.length} missing hop(s)...`, { id: "add-hops" });
+      toast.loading(`Adding ${missingHops.length} missing hop(s)...`, {
+        id: "add-hops",
+      });
 
       // Get the batch transactions for adding missing hops
       const result = await addHopsBatched.mutateAsync({
@@ -248,10 +254,9 @@ export const RouteItem = ({ route }: RouteItemProps) => {
         const batchNum = i + 1;
         const batchData = transactions[i];
 
-        toast.loading(
-          `Signing batch ${batchNum}/${totalBatches}...`,
-          { id: "add-hops" }
-        );
+        toast.loading(`Signing batch ${batchNum}/${totalBatches}...`, {
+          id: "add-hops",
+        });
 
         const transaction = Transaction.from(
           Buffer.from(batchData.transaction, "base64")
@@ -263,10 +268,9 @@ export const RouteItem = ({ route }: RouteItemProps) => {
           preflightCommitment: "confirmed",
         });
 
-        toast.loading(
-          `Confirming batch ${batchNum}/${totalBatches}...`,
-          { id: "add-hops" }
-        );
+        toast.loading(`Confirming batch ${batchNum}/${totalBatches}...`, {
+          id: "add-hops",
+        });
 
         // Wait for confirmation
         await connection.confirmTransaction({
@@ -275,7 +279,9 @@ export const RouteItem = ({ route }: RouteItemProps) => {
           lastValidBlockHeight: batchData.lastValidBlockHeight,
         });
 
-        console.log(`Batch ${batchNum}/${totalBatches} confirmed: ${signature}`);
+        console.log(
+          `Batch ${batchNum}/${totalBatches} confirmed: ${signature}`
+        );
       }
 
       // Update database: recalculate ALL hop timestamps (existing + new)
@@ -295,7 +301,8 @@ export const RouteItem = ({ route }: RouteItemProps) => {
           const missingHopIndex = index - hopsCountOnChain;
           return {
             recipient: formattedMissingHops[missingHopIndex].recipient,
-            scheduledAt: formattedMissingHops[missingHopIndex].scheduledAt * 1000,
+            scheduledAt:
+              formattedMissingHops[missingHopIndex].scheduledAt * 1000,
           };
         }
       });
@@ -310,11 +317,16 @@ export const RouteItem = ({ route }: RouteItemProps) => {
       await utils.routes.getByCreator.invalidate({ creator: route.creator });
       await routeStateQuery.refetch();
 
-      toast.success(`Successfully added ${missingHops.length} missing hop(s)!`, { id: "add-hops" });
+      toast.success(
+        `Successfully added ${missingHops.length} missing hop(s)!`,
+        { id: "add-hops" }
+      );
     } catch (error) {
       console.error("Failed to add missing hops:", error);
       toast.error(
-        `Failed to add missing hops: ${error instanceof Error ? error.message : "Unknown error"}`,
+        `Failed to add missing hops: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
         { id: "add-hops" }
       );
     } finally {
@@ -387,14 +399,16 @@ export const RouteItem = ({ route }: RouteItemProps) => {
         )}
 
         {/* Expected Arrival - Desktop */}
-        {!isMobile && expectedArrival && (route.status !== "completed" || hasMissingHops) && (
-          <div className="flex flex-col items-start text-left min-w-0 flex-1 max-w-[120px]">
-            <div className="text-sm text-white font-medium">Arrival</div>
-            <div className="text-xs text-[var(--laser-lemon-500)]">
-              {formatScheduledTime(expectedArrival)}
+        {!isMobile &&
+          expectedArrival &&
+          (route.status !== "completed" || hasMissingHops) && (
+            <div className="flex flex-col items-start text-left min-w-0 flex-1 max-w-[120px]">
+              <div className="text-sm text-white font-medium">Arrival</div>
+              <div className="text-xs text-[var(--laser-lemon-500)]">
+                {formatScheduledTime(expectedArrival)}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {isMobile && (
           <div className="flex flex-col gap-3 col-start-1 col-end-3">
@@ -416,14 +430,15 @@ export const RouteItem = ({ route }: RouteItemProps) => {
                 #{route.id}
               </div>
             </div>
-            {expectedArrival && (route.status !== "completed" || hasMissingHops) && (
-              <div className="flex items-start justify-between text-left min-w-0 flex-1 gap-3 w-full">
-                <div className="text-xs text-gray-400">Expected Arrival</div>
-                <div className="text-sm text-[var(--laser-lemon-500)] font-medium">
-                  {formatScheduledTime(expectedArrival)}
+            {expectedArrival &&
+              (route.status !== "completed" || hasMissingHops) && (
+                <div className="flex items-start justify-between text-left min-w-0 flex-1 gap-3 w-full">
+                  <div className="text-xs text-gray-400">Expected Arrival</div>
+                  <div className="text-sm text-[var(--laser-lemon-500)] font-medium">
+                    {formatScheduledTime(expectedArrival)}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
           </div>
         )}
 
@@ -493,7 +508,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex-1">
               <div className="flex items-center gap-2 text-yellow-400 font-medium text-sm mb-1">
-                <svg
+                {/* <svg
                   className="w-5 h-5"
                   fill="currentColor"
                   viewBox="0 0 20 20"
@@ -503,23 +518,33 @@ export const RouteItem = ({ route }: RouteItemProps) => {
                     d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
                     clipRule="evenodd"
                   />
-                </svg>
+                </svg> */}
                 Incomplete Deployment
               </div>
               <p className="text-xs text-gray-300">
                 {hasRouteState && hopsCountOnChain === 0
-                  ? `This route was initialized but the hops were never added on-chain. Your ${route.hopAmountTokens} ${route.tokenSymbol || route.tokenType} is wrapped and safe in the route account.`
-                  : `This route's initialization failed. Your ${route.hopAmountTokens} ${route.tokenSymbol || route.tokenType} may still be in your wallet.`
-                } Click Complete Deployment to add the hops with fresh timestamps.
+                  ? `This route was initialized but the hops were never added on-chain. Your ${
+                      route.hopAmountTokens
+                    } ${
+                      route.tokenSymbol || route.tokenType
+                    } is wrapped and safe in the route account.`
+                  : `This route's initialization failed. Your ${
+                      route.hopAmountTokens
+                    } ${
+                      route.tokenSymbol || route.tokenType
+                    } may still be in your wallet.`}{" "}
+                Click Complete Deployment to add the hops with fresh timestamps.
               </p>
             </div>
             <Button
               onClick={handleCompleteDeployment}
               disabled={isDeploying}
               variant="ghost"
-              className="!py-2 px-4 rounded-lg bg-yellow-500 text-black hover:bg-yellow-400 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap text-sm"
+              className="!py-2 px-4 rounded-lg bg-yellow-500 text-black hover:bg-yellow-400 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap text-sm w-auto"
             >
-              {isDeploying ? "Adding Hops..." : "Complete Deployment"}
+              <span className="text-black">
+                {isDeploying ? "Adding Hops..." : "Complete Deployment"}
+              </span>
             </Button>
           </div>
         </div>
@@ -545,7 +570,10 @@ export const RouteItem = ({ route }: RouteItemProps) => {
                 Partial Deployment - Funds May Be Stuck
               </div>
               <p className="text-xs text-gray-300">
-                Only {hopsCountOnChain} of {hopsCount} hops were added on-chain. Your funds may be stuck at an intermediate wallet as wrapped route tokens. Click below to add the missing {hopsCount - hopsCountOnChain} hop(s) and complete the route.
+                Only {hopsCountOnChain} of {hopsCount} hops were added on-chain.
+                Your funds may be stuck at an intermediate wallet as wrapped
+                route tokens. Click below to add the missing{" "}
+                {hopsCount - hopsCountOnChain} hop(s) and complete the route.
               </p>
             </div>
             <Button
@@ -554,7 +582,9 @@ export const RouteItem = ({ route }: RouteItemProps) => {
               variant="ghost"
               className="!py-2 px-4 rounded-lg bg-red-500 text-white hover:bg-red-400 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap text-sm"
             >
-              {isDeploying ? "Adding Hops..." : `Add ${hopsCount - hopsCountOnChain} Missing Hop(s)`}
+              {isDeploying
+                ? "Adding Hops..."
+                : `Add ${hopsCount - hopsCountOnChain} Missing Hop(s)`}
             </Button>
           </div>
         </div>
@@ -567,7 +597,8 @@ export const RouteItem = ({ route }: RouteItemProps) => {
             const isLast = index === steps.length - 1;
 
             // If route is marked as completed, all hops are completed
-            const routeIsCompleted = route.status === "completed" && !hasMissingHops;
+            const routeIsCompleted =
+              route.status === "completed" && !hasMissingHops;
 
             // Use currentHopIndex to determine progress (1-indexed from blockchain)
             // index 0 = hop 1, so completed if index < currentHopIndex
