@@ -140,17 +140,37 @@ export const useDeploy = () => {
       );
 
       if (confirmation.value.err) {
-        throw new Error(`Transaction failed: ${confirmation.value.err}`);
+        // Extract detailed error message from complex error objects
+        const errDetails = typeof confirmation.value.err === 'object'
+          ? JSON.stringify(confirmation.value.err)
+          : String(confirmation.value.err);
+        throw new Error(`Transaction failed on-chain: ${errDetails}`);
+      }
+
+      // CRITICAL: Verify the route was actually created on-chain
+      // This catches cases where confirmation succeeds but tx actually failed
+      toast.loading("Verifying route creation...", { id: "deploy" });
+
+      const txDetails = await connection.getTransaction(signature, {
+        maxSupportedTransactionVersion: 0,
+      });
+
+      if (!txDetails) {
+        throw new Error("Could not fetch transaction details for verification");
+      }
+
+      if (txDetails.meta?.err) {
+        const errDetails = typeof txDetails.meta.err === 'object'
+          ? JSON.stringify(txDetails.meta.err)
+          : String(txDetails.meta.err);
+        throw new Error(`Transaction failed on-chain: ${errDetails}`);
       }
 
       toast.success(
-        `${type} Route deployed successfully! Signature: ${signature.slice(
-          0,
-          8
-        )}...`,
+        `${type} Route initialized! Signature: ${signature.slice(0, 8)}...`,
         { id: "deploy" }
       );
-      console.log("Route deployed with signature:", signature);
+      console.log("Route initialized with signature:", signature);
 
       return signature;
     } catch (error) {
@@ -207,10 +227,13 @@ export const useDeploy = () => {
         { id: "deploy" }
       );
 
-      // Send each signed transaction sequentially
+      // OPTIMIZATION: Send all transactions quickly to avoid blockhash expiration
+      // With 5+ batches, sequential send+confirm can exceed blockhash validity (~60s)
+      const signatures: string[] = [];
+
+      // Step 1: Send all transactions rapidly (don't wait for confirmation yet)
       for (let i = 0; i < signedTransactions.length; i++) {
         const batchNum = i + 1;
-        const batchData = transactions[i];
         const signedTx = signedTransactions[i];
 
         toast.loading(
@@ -218,7 +241,6 @@ export const useDeploy = () => {
           { id: "deploy" }
         );
 
-        // Send the pre-signed transaction
         const signature = await connection.sendRawTransaction(
           signedTx.serialize(),
           {
@@ -226,6 +248,27 @@ export const useDeploy = () => {
             preflightCommitment: "confirmed",
           }
         );
+
+        signatures.push(signature);
+        console.log(`Batch ${batchNum}/${totalBatches} sent: ${signature}`);
+
+        // Small delay between sends to help ensure transaction ordering
+        // Without this, validators might process batches out of order
+        if (i < signedTransactions.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+
+      // Step 2: Now confirm all transactions
+      toast.loading(
+        `Confirming ${totalBatches} ${totalBatches === 1 ? 'batch' : 'batches'}...`,
+        { id: "deploy" }
+      );
+
+      for (let i = 0; i < signatures.length; i++) {
+        const batchNum = i + 1;
+        const signature = signatures[i];
+        const batchData = transactions[i];
 
         toast.loading(
           `Confirming batch ${batchNum}/${totalBatches}...`,
@@ -242,9 +285,22 @@ export const useDeploy = () => {
         );
 
         if (confirmation.value.err) {
-          throw new Error(
-            `Batch ${batchNum} transaction failed: ${JSON.stringify(confirmation.value.err)}`
-          );
+          const errDetails = typeof confirmation.value.err === 'object'
+            ? JSON.stringify(confirmation.value.err)
+            : String(confirmation.value.err);
+          throw new Error(`Batch ${batchNum} transaction failed: ${errDetails}`);
+        }
+
+        // Double-check transaction actually succeeded by fetching tx details
+        const txDetails = await connection.getTransaction(signature, {
+          maxSupportedTransactionVersion: 0,
+        });
+
+        if (txDetails?.meta?.err) {
+          const errDetails = typeof txDetails.meta.err === 'object'
+            ? JSON.stringify(txDetails.meta.err)
+            : String(txDetails.meta.err);
+          throw new Error(`Batch ${batchNum} failed on-chain: ${errDetails}`);
         }
 
         console.log(`Batch ${batchNum}/${totalBatches} confirmed: ${signature}`);
@@ -300,6 +356,21 @@ export const useDeploy = () => {
         toast.loading("Deploying route: Initializing...", { id: "deploy" });
 
         const initSignature = await initializeRouteMutation({ ...data, hops: freshHops }, type);
+
+        // CRITICAL: Verify route was actually created on-chain before adding hops
+        // This prevents the case where init tx fails but we still try to add hops
+        toast.loading("Verifying route was created...", { id: "deploy" });
+
+        const postInitStatus = await utils.client.contract.routeHasHops.query({
+          routeId: data.routeId
+        });
+
+        if (!postInitStatus.data?.isDeployed) {
+          throw new Error(
+            "Route initialization failed - route does not exist on-chain. " +
+            "Please check your wallet balance and try again."
+          );
+        }
 
         // Step 2: Add hops (may require multiple batches)
         toast.loading(
