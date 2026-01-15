@@ -141,7 +141,7 @@ export const useDeploy = () => {
       );
 
       if (confirmation.value.err) {
-        throw new Error(`Transaction failed: ${confirmation.value.err}`);
+        throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
       }
 
       toast.success(
