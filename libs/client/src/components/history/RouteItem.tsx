@@ -592,7 +592,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
               onClick={handleAddMissingHops}
               disabled={isDeploying}
               variant="ghost"
-              className="!py-2 px-4 rounded-lg bg-red-500 text-white hover:bg-red-400 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap text-sm"
+              className="!py-2 px-4 rounded-lg bg-red-500 text-white hover:bg-red-400 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap text-sm w-auto"
             >
               {isDeploying
                 ? "Adding Hops..."
