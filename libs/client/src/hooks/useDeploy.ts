@@ -196,31 +196,6 @@ export const useDeploy = () => {
         Transaction.from(Buffer.from(batchData.transaction, "base64"))
       );
 
-      // Simulate each batch before signing to catch errors early
-      console.log("Simulating all batches before signing...");
-      for (let i = 0; i < deserializedTxs.length; i++) {
-        const batchNum = i + 1;
-        const tx = deserializedTxs[i];
-        const batchStartHop = i * 5;
-        const batchEndHop = Math.min(batchStartHop + 5, hops.length);
-
-        console.log(`\n=== Batch ${batchNum}/${totalBatches} Simulation ===`);
-        console.log(`Hops ${batchStartHop + 1}-${batchEndHop}:`, hops.slice(batchStartHop, batchEndHop));
-
-        const simulation = await connection.simulateTransaction(tx);
-        console.log(`Batch ${batchNum} simulation result:`, simulation);
-
-        if (simulation.value.err) {
-          console.error(`Batch ${batchNum} simulation FAILED:`, simulation.value.err);
-          console.error(`Logs:`, simulation.value.logs);
-          throw new Error(
-            `Batch ${batchNum} simulation failed: ${JSON.stringify(simulation.value.err)}\nLogs: ${simulation.value.logs?.join('\n')}`
-          );
-        } else {
-          console.log(`Batch ${batchNum} simulation SUCCESS`);
-        }
-      }
-
       // Show loading message
       toast.loading(
         `Please sign ${totalBatches} ${
@@ -240,10 +215,29 @@ export const useDeploy = () => {
       );
 
       // Send each signed transaction sequentially
+      // Simulate AFTER previous batch confirms to see cumulative state
       for (let i = 0; i < signedTransactions.length; i++) {
         const batchNum = i + 1;
         const batchData = transactions[i];
         const signedTx = signedTransactions[i];
+        const batchStartHop = i * 5;
+        const batchEndHop = Math.min(batchStartHop + 5, hops.length);
+
+        // Simulate against CURRENT state (after previous batches confirmed)
+        console.log(`\n=== Batch ${batchNum}/${totalBatches} Pre-Send Simulation ===`);
+        console.log(`Hops ${batchStartHop + 1}-${batchEndHop}:`, hops.slice(batchStartHop, batchEndHop));
+
+        const simulation = await connection.simulateTransaction(signedTx);
+        console.log(`Batch ${batchNum} simulation result:`, simulation);
+
+        if (simulation.value.err) {
+          console.error(`Batch ${batchNum} simulation FAILED:`, simulation.value.err);
+          console.error(`Logs:`, simulation.value.logs);
+          throw new Error(
+            `Batch ${batchNum} simulation failed: ${JSON.stringify(simulation.value.err)}\nLogs: ${simulation.value.logs?.join('\n')}`
+          );
+        }
+        console.log(`Batch ${batchNum} simulation SUCCESS - sending...`);
 
         toast.loading(`Sending batch ${batchNum}/${totalBatches}...`, {
           id: "deploy",
