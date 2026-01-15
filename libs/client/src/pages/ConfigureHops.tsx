@@ -72,7 +72,6 @@ export const ConfigureHops: React.FC = () => {
   const createEasyRoute = trpc.easyRoutes.create.useMutation()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Fetch token config to get fee percentage
   const { data: tokenConfigSPL } = trpc.contract.getTokenConfigSPL.useQuery(
     undefined,
     {
@@ -110,7 +109,6 @@ export const ConfigureHops: React.FC = () => {
   >(null)
   const { isMobile } = useMobileDevice()
 
-  // Deploy modal state
   const [showDeployModal, setShowDeployModal] = useState(false)
   const [createdRoute, setCreatedRoute] = useState<DeployModalRoute | null>(
     null
@@ -118,7 +116,6 @@ export const ConfigureHops: React.FC = () => {
 
   // ============ Initialize from Query String ============
   React.useEffect(() => {
-    // Try to load asset from query string on mount
     const assetParam = (search as any)?.asset
     if (assetParam && !selectedAsset) {
       try {
@@ -133,21 +130,18 @@ export const ConfigureHops: React.FC = () => {
 
   // ============ State Validation - Navigate back if missing required state ============
   React.useEffect(() => {
-    // On mode tab, require selectedAsset and selectedAmount
     if (activeKey === 'mode') {
       if (!selectedAsset || !selectedAmount || selectedAmount <= 0) {
         setActiveKey('choose')
       }
     }
 
-    // On configure tab (hops or easy route), require mode selection
     if (activeKey === 'configure') {
       if (!selectedAsset || !selectedAmount || selectedAmount <= 0) {
         setActiveKey('choose')
       }
     }
 
-    // On summary tab, validate based on route mode
     if (activeKey === 'summary') {
       const hasValidCustomRoute =
         hops.length > 0 &&
@@ -163,13 +157,11 @@ export const ConfigureHops: React.FC = () => {
         isValidSolanaAddress(easyRouteConfig.destinationWallet) &&
         !easyRouteWalletError
 
-      // Check basic requirements first
       if (!selectedAsset || !selectedAmount || selectedAmount <= 0) {
         setActiveKey('choose')
         return
       }
 
-      // Then check route-specific validation
       const isRouteValid =
         routeMode === 'easy' ? hasValidEasyRoute : hasValidCustomRoute
 
@@ -697,14 +689,11 @@ walletC,10`
     !easyRouteWalletError &&
     (selectedAmount || 0) > 0
 
-  // Determine if we should show confirm button vs next step
   const showConfirmButton = activeKey === 'summary'
 
-  // Determine if we should hide header buttons (for mode selector and easy route form)
   const shouldHideHeaderButtons =
     activeKey === 'mode' || (activeKey === 'configure' && routeMode === 'easy')
 
-  // Determine which internal tab button should be active
   const getActiveTabButton = () => {
     if (activeKey === 'choose' || activeKey === 'mode') return 'choose'
     if (activeKey === 'configure') return 'configure'
@@ -714,7 +703,6 @@ walletC,10`
 
   const activeTabButton = getActiveTabButton()
 
-  // Determine if a tab is completed (has valid data)
   const isTabCompleted = (tabKey: string): boolean => {
     if (tabKey === 'choose') {
       return !!canProceedFromChoose
@@ -729,7 +717,6 @@ walletC,10`
     return false
   }
 
-  // Determine button state: 'active' | 'completed' | 'inactive'
   const getButtonState = (tabKey: string): 'active' | 'completed' | 'inactive' => {
     if (tabKey === activeTabButton) {
       return 'active' // Active state has priority
@@ -740,7 +727,6 @@ walletC,10`
     return 'inactive'
   }
 
-  // Tab buttons configuration
   const tabButtons = [
     {
       key: 'choose',
@@ -762,7 +748,6 @@ walletC,10`
     },
   ]
 
-  // Easy route confirm handler
   const handleEasyRouteConfirm = async () => {
     if (!selectedAsset || !canProceedFromEasyRoute || !publicKey) return
 
