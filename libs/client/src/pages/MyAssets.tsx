@@ -358,7 +358,7 @@ export const MyAssets: React.FC = () => {
         </div>
       )}
 
-      <div className='flex flex-col gap-[15px] sm:grid sm:grid-cols-2 sm:gap-4 mt-6 h-[376px] overflow-x-hidden overflow-y-auto pr-2 relative'>
+      <div className='flex flex-col gap-[15px] sm:grid sm:grid-cols-2 sm:gap-4 mt-6 h-auto max-h-[445px] sm:h-[328px] overflow-x-hidden overflow-y-auto pr-2 relative'>
         {isLoadingTokens ? (
           // Show skeleton cards while loading
           <>
@@ -482,6 +482,7 @@ export const MyAssets: React.FC = () => {
         }}
         cardBody={myAssetsCardBody}
         cardFooter={myAssetsCardFooter}
+        cardHeight='auto'
       />
     </div>
   )

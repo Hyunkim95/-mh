@@ -11,7 +11,6 @@ import CollaborateIcon from "../assets/landing/collaborate-icon.svg";
 import LtsBunnyIcon from "../assets/landing/lts-bunny-icon.svg";
 import FooterEmailArrow from "../assets/landing/footer-email-arrow.svg";
 import CheckmarkIcon from "../assets/landing/checkmark-icon.svg";
-import SocialIcons from "../assets/landing/social-icons.svg";
 import TumbellingIcon from "../../assets/icons/tumbelling.svg";
 import ControlIcon from "../../assets/icons/control.svg";
 
@@ -622,30 +621,24 @@ export const LandingPage: React.FC = () => {
                     background: "#16181A",
                   }}
                 >
-                  {/* Border element - separate from content to avoid transform issues */}
                   {isCenterCard ? (
                     <>
-                      {/* Left border - solid yellow */}
                       <div
                         className="absolute left-0 top-[32px] bottom-[32px] w-[1px] bg-[#FBFF69] pointer-events-none"
                         style={{ zIndex: 0 }}
                       />
-                      {/* Top border - gradient yellow to white */}
                       <div
                         className="absolute left-[32px] top-0 right-[32px] h-[1px] bg-gradient-to-r from-[#FBFF69] to-[#FFFFFF] pointer-events-none"
                         style={{ zIndex: 0 }}
                       />
-                      {/* Right border - solid white */}
                       <div
                         className="absolute right-0 top-[32px] bottom-[32px] w-[1px] bg-[#FFFFFF] pointer-events-none"
                         style={{ zIndex: 0 }}
                       />
-                      {/* Bottom border - gradient yellow to white */}
                       <div
                         className="absolute left-[32px] bottom-0 right-[32px] h-[1px] bg-gradient-to-r from-[#FBFF69] to-[#FFFFFF] pointer-events-none"
                         style={{ zIndex: 0 }}
                       />
-                      {/* Top-left corner - yellow with rounded corner */}
                       <div
                         className="absolute top-0 left-0 w-[32px] h-[32px] pointer-events-none overflow-hidden"
                         style={{ zIndex: 0 }}
@@ -655,7 +648,6 @@ export const LandingPage: React.FC = () => {
                           style={{ marginTop: "-1px", marginLeft: "-1px" }}
                         />
                       </div>
-                      {/* Top-right corner - white with rounded corner */}
                       <div
                         className="absolute top-0 right-0 w-[32px] h-[32px] pointer-events-none overflow-hidden"
                         style={{ zIndex: 0 }}
@@ -665,7 +657,6 @@ export const LandingPage: React.FC = () => {
                           style={{ marginTop: "-1px", marginRight: "-1px" }}
                         />
                       </div>
-                      {/* Bottom-left corner - yellow with rounded corner */}
                       <div
                         className="absolute bottom-0 left-0 w-[32px] h-[32px] pointer-events-none overflow-hidden"
                         style={{ zIndex: 0 }}
@@ -675,7 +666,6 @@ export const LandingPage: React.FC = () => {
                           style={{ marginBottom: "-1px", marginLeft: "-1px" }}
                         />
                       </div>
-                      {/* Bottom-right corner - white with rounded corner */}
                       <div
                         className="absolute bottom-0 right-0 w-[32px] h-[32px] pointer-events-none overflow-hidden"
                         style={{ zIndex: 0 }}
@@ -693,7 +683,6 @@ export const LandingPage: React.FC = () => {
                     />
                   )}
 
-                  {/* Content wrapper to ensure proper stacking - isolated from border */}
                   <div
                     className="relative w-full h-full overflow-hidden rounded-[30px] bg-[#16181A] group-hover:scale-[1.02] transition-transform duration-500"
                     style={{
@@ -701,7 +690,6 @@ export const LandingPage: React.FC = () => {
                       transformOrigin: "center center",
                     }}
                   >
-                    {/* Full Width Background Image */}
                     <img
                       src={program.image}
                       alt={program.title}
@@ -709,10 +697,8 @@ export const LandingPage: React.FC = () => {
                       style={{ transformOrigin: "center center" }}
                     />
 
-                    {/* Gradient Overlay for Text Readability */}
                     <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/20 to-transparent" />
 
-                    {/* Text Overlay */}
                     <div className="absolute top-8 left-8 max-w-[80%] text-lg text-white not-italic">
                       <h3 className="drop-shadow-lg font-medium leading-5">
                         {program.title}
@@ -777,8 +763,8 @@ export const LandingPage: React.FC = () => {
           {/* Vertical Flowchart - Responsive */}
           <div className="relative flex flex-col items-center">
             {/* Step 1 */}
-            <div className="relative z-10 w-full max-w-[240px] md:max-w-[226px] p-4 sm:p-6 bg-[#1D2022] backdrop-blur-xl card-border-gradient rounded-[34px]">
-              <div className="flex items-center justify-between mb-3">
+            <div className='relative z-10 w-full min-w-[256px] max-w-[312px] sm:max-w-[240px] md:max-w-[226px] p-4 sm:p-6 bg-[#1D2022] backdrop-blur-xl card-border-gradient rounded-[34px]'>
+              <div className='flex items-center justify-between mb-3'>
                 <span
                   className="not-italic font-medium leading-6 text-center text-lg sm:text-xl text-[#FBFF69] bg-[#232724] w-[45px] h-[45px] flex items-center justify-center rounded-lg"
                   style={{
@@ -789,26 +775,19 @@ export const LandingPage: React.FC = () => {
                 </span>
                 <button
                   onClick={handleConnectWallet}
-                  className='text-xs sm:text-sm not-italic font-medium text-center px-3 sm:px-[24px] py-[6px] rounded-[10px] bg-[url("/cnnt-bg-btn.png")] bg-no-repeat bg-center bg-contain hover:bg-none hover:bg-mh-yellow hover:text-black transition-all duration-300'
-                  // style={{
-                  //   backgroundImage: 'url(/cnnt-bg-btn.png)',
-                  //   backgroundColor: 'transparent',
-                  //   backgroundRepeat: 'no-repeat',
-                  //   backgroundPosition: 'center',
-                  //   backgroundSize: 'contain',
-                  // }}
+                  className='text-sm not-italic font-medium text-center px-[24px] py-[6px] rounded-[10px] bg-[url("/cnnt-bg-btn.png")] bg-no-repeat bg-center bg-contain hover:bg-none hover:bg-mh-yellow hover:text-black transition-all duration-300'
                 >
                   Connect
                 </button>
               </div>
-              <div
-                className="not-italic font-medium leading-6 text-sm sm:text-base"
+              <p
+                className='not-italic font-medium leading-6 text-sm sm:text-base'
                 style={{
                   fontFamily: "Roboto, sans-serif",
                 }}
               >
-                Connect <br /> your wallet
-              </div>
+                Connect <br className='hidden sm:block' /> your wallet
+              </p>
             </div>
 
             {/* Connector 1->2 */}
@@ -821,7 +800,7 @@ export const LandingPage: React.FC = () => {
             </div>
 
             {/* Step 2 */}
-            <div className="relative z-10 w-full max-w-[240px] md:max-w-[226px] p-4 sm:p-6 bg-[#1D2022] backdrop-blur-xl card-border-gradient rounded-[34px]">
+            <div className='relative z-10 w-full min-w-[256px] max-w-[312px] sm:max-w-[240px] md:max-w-[226px] p-4 sm:p-6 bg-[#1D2022] backdrop-blur-xl card-border-gradient rounded-[34px]'>
               <span
                 className="not-italic font-medium leading-6 text-center text-lg sm:text-xl text-[#FBFF69] bg-[#232724] w-[45px] h-[45px] flex items-center justify-center rounded-lg mb-3"
                 style={{
@@ -836,7 +815,8 @@ export const LandingPage: React.FC = () => {
                   fontFamily: "Roboto, sans-serif",
                 }}
               >
-                Choose easy mode <br /> or design your route
+                Choose easy mode <br className='hidden sm:block' /> or design
+                your route
               </p>
             </div>
 
@@ -864,7 +844,7 @@ export const LandingPage: React.FC = () => {
               {/* Cards Row */}
               <div className="flex flex-col lg:flex-row gap-8 justify-center items-center lg:items-start px-4">
                 {/* Easy Mode Card */}
-                <div className="relative z-10 w-full max-w-[312px] h-[201px] p-4 sm:p-6 bg-[#1D2022] backdrop-blur-xl card-border-gradient rounded-[34px]">
+                <div className='relative z-10 w-full min-w-[256px] max-w-[312px] h-[201px] p-4 sm:p-6 bg-[#1D2022] backdrop-blur-xl card-border-gradient rounded-[34px]'>
                   <span
                     className="not-italic font-medium leading-6 text-center text-lg sm:text-xl text-[#FBFF69] bg-[#232724] w-[45px] h-[45px] flex items-center justify-center rounded-lg mb-3"
                     style={{
@@ -874,7 +854,7 @@ export const LandingPage: React.FC = () => {
                     3
                   </span>
                   <p
-                    className="not-italic text-base leading-[22px] w-[255px]"
+                    className='not-italic text-base leading-[22px] w-full sm-w-[255px]'
                     style={{
                       fontFamily: "Roboto, sans-serif",
                     }}
@@ -892,7 +872,7 @@ export const LandingPage: React.FC = () => {
                 {/* Mobile Connector (Simple Vertical) */}
                 <div className="absolute lg:hidden w-1.5 h-8 bg-gradient-to-b from-mh-yellow/30 to-mh-yellow/10" />
                 {/* Design Mode Card */}
-                <div className="relative z-10 w-full max-w-[312px] h-[201px] p-4 sm:p-6 bg-[#1D2022] backdrop-blur-xl card-border-gradient rounded-[34px]">
+                <div className='relative z-10 w-full min-w-[256px] max-w-[312px] h-[201px] p-4 sm:p-6 bg-[#1D2022] backdrop-blur-xl card-border-gradient rounded-[34px]'>
                   <span
                     className="not-italic font-medium leading-6 text-center text-lg sm:text-xl text-[#FBFF69] bg-[#232724] w-[45px] h-[45px] flex items-center justify-center rounded-lg mb-3"
                     style={{
@@ -902,7 +882,7 @@ export const LandingPage: React.FC = () => {
                     3
                   </span>
                   <p
-                    className="not-italic text-base leading-[22px] w-[250px]"
+                    className='not-italic text-base leading-[22px] w-full sm-w-[250px]'
                     style={{
                       fontFamily: "Roboto, sans-serif",
                     }}
@@ -932,7 +912,7 @@ export const LandingPage: React.FC = () => {
             <div className="lg:hidden w-1.5 h-8 bg-gradient-to-b from-mh-yellow/30 to-mh-yellow/10" />
 
             {/* Step 4 */}
-            <div className="relative z-10 w-full max-w-[286px] md:max-w-[286px] h-[140px] p-4 sm:p-6 bg-[#1D2022] backdrop-blur-xl card-border-gradient rounded-[34px]">
+            <div className='relative z-10 w-full min-w-[256px] max-w-[312px] sm:max-w-[286px] md:max-w-[286px] h-[140px] p-4 sm:p-6 bg-[#1D2022] backdrop-blur-xl card-border-gradient rounded-[34px]'>
               <span
                 className="not-italic font-medium leading-6 text-center text-lg sm:text-xl text-[#FBFF69] bg-[#232724] w-[45px] h-[45px] flex items-center justify-center rounded-lg mb-3"
                 style={{
@@ -1118,39 +1098,48 @@ export const LandingPage: React.FC = () => {
           </div>
 
           <div
-            className="relative max-w-2xl mx-auto p-6 sm:p-8 lg:p-10 bg-[#16181A] border border-white/[0.08] rounded-2xl sm:rounded-3xl shadow-2xl"
+            className='max-w-2xl mx-auto p-6 sm:p-8 lg:p-10 bg-[#16181A] border border-white/[0.08] rounded-2xl sm:rounded-3xl shadow-2xl'
             style={{
               background:
                 "linear-gradient(#1D2022, #1D2022) padding-box, linear-gradient(0deg, rgba(255,255,255,0) 23%, rgba(255,255,255,0.5) 49%, rgba(255,255,255,0) 75%) border-box",
             }}
           >
-            {/* Bunny Icon Top Right */}
-            <div className="absolute top-8 right-8 w-[72px] h-[72px] bg-[#fbff69] bg-opacity-[0.26] flex items-center justify-center rounded-[17px]">
-              <div className="w-[59px] h-[59px] rounded-[17px] bg-mh-yellow  flex items-center justify-center">
-                <img src={LtsBunnyIcon} alt="" className="w-[33px] h-[47px]" />
+            <div className='flex gap-5 items-start justify-between mb-6 sm:mb-8'>
+              <div className='flex flex-col gap-3'>
+                <h3
+                  className='text-xl sm:text-2xl not-italic font-normal leading-6'
+                  style={{
+                    fontFamily: 'Roboto, sans-serif',
+                  }}
+                >
+                  Let's Talk
+                </h3>
+                <p
+                  className='text-sm sm:text-base text-white/60 not-italic font-light leading-6 w-full sm:w-[290px]'
+                  style={{
+                    fontFamily: 'Roboto, sans-serif',
+                  }}
+                >
+                  Looking to partner with us, or resell the{' '}
+                  <br className='hidden sm:block' /> MultiHopper to your
+                  clients?
+                </p>
+              </div>
+
+              {/* Bunny Icon Top Right */}
+              <div className='w-[72px] h-[72px] bg-[#fbff69] bg-opacity-[0.26] flex items-center justify-center rounded-[17px]'>
+                <div className='w-[59px] h-[59px] rounded-[17px] bg-mh-yellow  flex items-center justify-center'>
+                  <img
+                    src={LtsBunnyIcon}
+                    alt=''
+                    className='w-[33px] h-[47px]'
+                  />
+                </div>
               </div>
             </div>
 
-            <h3
-              className="text-xl sm:text-2xl mb-3 not-italic font-normal leading-6"
-              style={{
-                fontFamily: "Roboto, sans-serif",
-              }}
-            >
-              Let's Talk
-            </h3>
-            <p
-              className="text-sm sm:text-base text-white/60 mb-6 sm:mb-8 pr-16 not-italic font-light leading-6"
-              style={{
-                fontFamily: "Roboto, sans-serif",
-              }}
-            >
-              Looking to partner with us, or resell the <br /> MultiHopper to
-              your clients?
-            </p>
-
-            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+            <form onSubmit={handleSubmit} className='space-y-4 sm:space-y-6'>
+              <div className='grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6'>
                 <div>
                   <label
                     className="block text-xs sm:text-sm text-white/60 mb-2 not-italic font-normal leading-6"
@@ -1364,8 +1353,8 @@ export const LandingPage: React.FC = () => {
                 />
               </div>
 
-              <div className="flex items-center justify-between pt-2">
-                <div className="flex items-center gap-2 text-sm font-medium text-white">
+              <div className='flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-1 pt-2'>
+                <div className='flex items-center gap-2 text-sm font-medium text-white'>
                   <span>@MULTIHOPPERDEV</span>
                 </div>
                 <button
