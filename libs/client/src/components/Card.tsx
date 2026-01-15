@@ -9,6 +9,7 @@ import {
 interface CardHeaderConfig {
   tabs: CardHeaderTab[]
   activeKey: string
+  leftSlot?: React.ReactNode
   rightSlot?: React.ReactNode
   headerClasses?: CardHeaderClassNames
 }
@@ -60,6 +61,8 @@ export const Card: React.FC<CardProps> = ({
         )}
         style={{
           ...(cardHeight !== 'auto' && { height: cardHeight }),
+          border: '1px solid transparent',
+          background: 'linear-gradient(#1F2224, #1F2224) padding-box, linear-gradient(0deg, rgba(255,255,255,0) 23%, rgba(255,255,255,0.5) 49%, rgba(255,255,255,0) 75%) border-box',
           ...cardStyle,
         }}
       >
@@ -67,6 +70,7 @@ export const Card: React.FC<CardProps> = ({
         <CardHeader
           tabs={cardHeader.tabs}
           activeKey={cardHeader.activeKey}
+          leftSlot={cardHeader.leftSlot}
           rightSlot={cardHeader.rightSlot}
           headerClasses={cardHeader.headerClasses}
         />

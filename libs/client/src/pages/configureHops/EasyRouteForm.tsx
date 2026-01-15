@@ -186,7 +186,9 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
     setIsEditingAmount(false)
   }
 
-  const handleAmountInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleAmountInputKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>
+  ) => {
     if (e.key === 'Enter') {
       handleAmountInputBlur()
     } else if (e.key === 'Escape') {
@@ -210,7 +212,9 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
     setTimeout(() => hopCountInputRef.current?.select(), 50)
   }
 
-  const handleHopCountInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleHopCountInputChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const value = e.target.value
     if (value === '' || /^\d+$/.test(value)) {
       setHopCountInputValue(value)
@@ -269,69 +273,98 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
   }
 
   // Custom Input for DatePicker to match Figma design
-  const DateCustomInput = forwardRef<HTMLButtonElement, any>(({ value, onClick }, ref) => (
-    <button
-      type="button"
-      className="w-full h-full flex flex-col items-center justify-center text-center outline-none group"
-      onClick={onClick}
-      ref={ref}
-    >
-      {arrivalTime ? (
-        <>
-          <span className="text-xs sm:text-sm font-medium text-[var(--white-100)] group-hover:text-[var(--laser-lemon-500)] transition-colors mb-1">
-            {arrivalTime.toLocaleString('default', { weekday: 'short', day: 'numeric', month: 'short' })}
+  const DateCustomInput = forwardRef<HTMLButtonElement, any>(
+    ({ value, onClick }, ref) => (
+      <button
+        type='button'
+        className='w-full h-full flex flex-col items-center justify-center text-center outline-none group'
+        onClick={onClick}
+        ref={ref}
+      >
+        {arrivalTime ? (
+          <>
+            <span className='text-xs sm:text-sm font-medium text-[var(--white-100)] group-hover:text-[var(--laser-lemon-500)] transition-colors mb-1'>
+              {arrivalTime.toLocaleString('default', {
+                weekday: 'short',
+                day: 'numeric',
+                month: 'short',
+              })}
+            </span>
+            <span className='text-xs sm:text-sm font-bold text-[var(--laser-lemon-500)]'>
+              {arrivalTime.toLocaleString('default', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+              })}
+            </span>
+          </>
+        ) : (
+          <span className='text-xs sm:text-sm text-[var(--philippine-gray-500)]'>
+            Select Date
           </span>
-          <span className="text-xs sm:text-sm font-bold text-[var(--laser-lemon-500)]">
-            {arrivalTime.toLocaleString('default', { hour: '2-digit', minute: '2-digit', hour12: false })}
-          </span>
-        </>
-      ) : (
-        <span className="text-xs sm:text-sm text-[var(--philippine-gray-500)]">Select Date</span>
-      )}
-    </button>
-  ))
+        )}
+      </button>
+    )
+  )
 
   return (
-    <div className="flex flex-col">
+    <div className='flex flex-col'>
       <style dangerouslySetInnerHTML={{ __html: darkThemeCss }} />
 
       {/* Header */}
-      <div className="flex items-center gap-3 mb-2">
-        <div className="w-12 h-12 rounded-xl flex items-center justify-center">
-          <img src="/easy-route.svg" alt="Easy Route" className="w-full h-full" />
+      <div className='relative flex items-center gap-3 mb-5'>
+        <div className='w-[48px] h-[48px] rounded-2xl bg-[var(--laser-lemon-500-transparency-07)] flex items-center justify-center'>
+          <div className='w-[40px] h-[40px] rounded-2xl bg-[var(--laser-lemon-500-transparency-13)] flex items-center justify-center'>
+            <div className='w-[32px] h-[32px] rounded-xl bg-[var(--laser-lemon-500)] flex items-center justify-center'>
+              <svg
+                className='w-[18px] h-7 text-[var(--chinese-black-800)]'
+                viewBox='0 0 24 24'
+                fill='currentColor'
+              >
+                <path d='M13 2L3 14H12L11 22L21 10H12L13 2Z' />
+              </svg>
+            </div>
+          </div>
         </div>
-        <div>
-          <h2 className="text-xl font-medium text-[var(--white-100)]">
+
+        <div className='flex flex-col gap-1'>
+          <h2
+            className='text-xl not-italic font-medium leading-6 text-[var(--white-100)]'
+            style={{ fontFamily: 'Roboto, sans-serif' }}
+          >
             Set your quick route
           </h2>
-          <p className="text-sm text-[var(--philippine-gray-500)]">
+          <p
+            className='text-base not-italic font-light leading-5 text-[#8B8A8A]'
+            style={{ fontFamily: 'Roboto, sans-serif' }}
+          >
             A few clicks to decide how, when, and where your assets travel
           </p>
         </div>
       </div>
 
       {/* Main Container for the 3 Cards */}
-      <div className="bg-[#0C0D0F] rounded-[24px] sm:rounded-[32px] p-4 sm:p-6 mb-6 sm:mb-8 border border-[#25282c]/50">
-        <div className="flex flex-col sm:flex-row gap-4 sm:h-[250px]">
+      <div className='bg-[#0C0D0F] rounded-[24px] sm:rounded-[32px] p-4 sm:p-6 mb-6 sm:mb-8 border border-[#25282c]/50'>
+        <div className='flex flex-col sm:flex-row gap-4 sm:h-[250px]'>
           {/* Arrival Date Column */}
-          <div className="flex-1 flex flex-col gap-3">
-            <div className="text-[11px] text-[var(--philippine-gray-500)] font-semibold uppercase tracking-wider pl-1">
+          <div className='flex-1 flex flex-col gap-3'>
+            <div className='text-[11px] text-[var(--philippine-gray-500)] font-semibold uppercase tracking-wider pl-1'>
               Arrival Date
             </div>
-            <div className="h-[140px] sm:flex-1 bg-[#131416] rounded-[20px] sm:rounded-[24px] border border-[#25282c] flex flex-col items-center justify-center relative shadow-inner hover:border-[var(--laser-lemon-500)]/20 transition-colors group">
+            <div className='h-[140px] sm:flex-1 bg-[#131416] rounded-[20px] sm:rounded-[24px] border border-[#25282c] flex flex-col items-center justify-center relative shadow-inner hover:border-[var(--laser-lemon-500)]/20 transition-colors group'>
               <DatePicker
                 selected={arrivalTime}
                 onChange={onArrivalTimeChange}
                 showTimeSelect
-                dateFormat="EEEE d MMMM HH:mm"
+                dateFormat='EEEE d MMMM HH:mm'
                 minDate={minDate}
                 filterTime={filterPastTime}
                 timeIntervals={2}
-                timeCaption="Time"
+                timeCaption='Time'
                 customInput={<DateCustomInput />}
-                calendarClassName="mh-easy-datepicker"
-                popperClassName="mh-datepicker-popper"
-                portalId="root"
+                calendarClassName='mh-easy-datepicker'
+                popperClassName='mh-datepicker-popper'
+                portalId='root'
                 renderCustomHeader={({
                   date,
                   decreaseMonth,
@@ -339,23 +372,26 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
                   prevMonthButtonDisabled,
                   nextMonthButtonDisabled,
                 }) => (
-                  <div className="flex items-center justify-between px-2 py-2">
+                  <div className='flex items-center justify-between px-2 py-2'>
                     <button
                       onClick={decreaseMonth}
                       disabled={prevMonthButtonDisabled}
-                      className="text-[var(--white-100)] disabled:opacity-30"
-                      type="button"
+                      className='text-[var(--white-100)] disabled:opacity-30'
+                      type='button'
                     >
                       &lt;
                     </button>
-                    <span className="text-[var(--white-100)] font-medium">
-                      {date.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                    <span className='text-[var(--white-100)] font-medium'>
+                      {date.toLocaleString('default', {
+                        month: 'long',
+                        year: 'numeric',
+                      })}
                     </span>
                     <button
                       onClick={increaseMonth}
                       disabled={nextMonthButtonDisabled}
-                      className="text-[var(--white-100)] disabled:opacity-30"
-                      type="button"
+                      className='text-[var(--white-100)] disabled:opacity-30'
+                      type='button'
                     >
                       &gt;
                     </button>
@@ -366,20 +402,20 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
           </div>
 
           {/* Hops Column */}
-          <div className="flex-1 flex flex-col gap-3">
-            <div className="text-[11px] text-[var(--philippine-gray-500)] font-semibold uppercase tracking-wider pl-1">
+          <div className='flex-1 flex flex-col gap-3'>
+            <div className='text-[11px] text-[var(--philippine-gray-500)] font-semibold uppercase tracking-wider pl-1'>
               Hops
             </div>
             <div
-              className="h-[140px] sm:flex-1 bg-[#131416] rounded-[20px] sm:rounded-[24px] border border-[#25282c] flex flex-col items-center justify-center relative group hover:border-[var(--laser-lemon-500)]/40 transition-all duration-300"
+              className='h-[140px] sm:flex-1 bg-[#131416] rounded-[20px] sm:rounded-[24px] border border-[#25282c] flex flex-col items-center justify-center relative group hover:border-[var(--laser-lemon-500)]/40 transition-all duration-300'
               style={{ zIndex: 1 }}
             >
               {/* Central Glow Background */}
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(251,255,105,0.06)_0%,transparent_55%)] rounded-[24px]" />
+              <div className='absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(251,255,105,0.06)_0%,transparent_55%)] rounded-[24px]' />
 
-              <div className="flex flex-col items-center justify-center h-full relative">
+              <div className='flex flex-col items-center justify-center h-full relative'>
                 {/* Top indicator lines - show up to 5 */}
-                <div className="flex gap-1 sm:gap-1.5 mb-1 sm:mb-2">
+                <div className='flex gap-1 sm:gap-1.5 mb-1 sm:mb-2'>
                   {[1, 2, 3, 4, 5].map(i => (
                     <div
                       key={`top-${i}`}
@@ -396,10 +432,10 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
                 </div>
 
                 {/* Hop counter with +/- buttons */}
-                <div className="flex items-center gap-2 sm:gap-3">
+                <div className='flex items-center gap-2 sm:gap-3'>
                   {/* Minus button */}
                   <button
-                    type="button"
+                    type='button'
                     onClick={() => onHopCountChange(Math.max(1, hopCount - 1))}
                     disabled={hopCount <= 1}
                     className={clsx(
@@ -409,12 +445,14 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
                         : 'bg-[#25282c] text-[var(--white-100)] hover:bg-[#35383c] active:scale-95'
                     )}
                   >
-                    <span className="text-xl sm:text-2xl font-bold leading-none">−</span>
+                    <span className='text-xl sm:text-2xl font-bold leading-none'>
+                      −
+                    </span>
                   </button>
 
                   {/* Configured Number - clickeable */}
                   <button
-                    type="button"
+                    type='button'
                     onClick={handleHopCountClick}
                     className={clsx(
                       'w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center z-10 transition-all duration-200',
@@ -423,23 +461,27 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
                         ? 'shadow-[0_0_45px_rgba(251,255,105,0.6)]'
                         : 'shadow-[0_0_35px_rgba(251,255,105,0.4)]'
                     )}
-                    title="Click to enter custom hop count"
+                    title='Click to enter custom hop count'
                   >
-                    <span className="text-2xl sm:text-3xl font-bold text-[var(--chinese-black-800)]">{hopCount}</span>
+                    <span className='text-2xl sm:text-3xl font-bold text-[var(--chinese-black-800)]'>
+                      {hopCount}
+                    </span>
                   </button>
 
                   {/* Plus button - always enabled */}
                   <button
-                    type="button"
+                    type='button'
                     onClick={() => onHopCountChange(hopCount + 1)}
-                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-200 bg-[#25282c] text-[var(--white-100)] hover:bg-[#35383c] active:scale-95"
+                    className='w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-200 bg-[#25282c] text-[var(--white-100)] hover:bg-[#35383c] active:scale-95'
                   >
-                    <span className="text-xl sm:text-2xl font-bold leading-none">+</span>
+                    <span className='text-xl sm:text-2xl font-bold leading-none'>
+                      +
+                    </span>
                   </button>
                 </div>
 
                 {/* Bottom indicator lines - show 6-10 (all glow when >10) */}
-                <div className="flex gap-1 sm:gap-1.5 mt-1 sm:mt-2">
+                <div className='flex gap-1 sm:gap-1.5 mt-1 sm:mt-2'>
                   {[6, 7, 8, 9, 10].map(i => (
                     <div
                       key={`bottom-${i}`}
@@ -459,39 +501,43 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
           </div>
 
           {/* Token Column */}
-          <div className="flex-1 flex flex-col gap-3">
-            <div className="text-[11px] text-[var(--philippine-gray-500)] font-semibold uppercase tracking-wider pl-1">
+          <div className='flex-1 flex flex-col gap-3'>
+            <div className='text-[11px] text-[var(--philippine-gray-500)] font-semibold uppercase tracking-wider pl-1'>
               Token
             </div>
-            <div className="h-[140px] sm:flex-1 bg-[#131416] rounded-[20px] sm:rounded-[24px] border border-[#25282c] flex flex-col items-center justify-center relative shadow-inner group">
-              <div className="flex flex-col items-center justify-center">
-                <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-[#1c1e22] overflow-hidden flex items-center justify-center mb-2 sm:mb-5 border border-[#2d3035] shadow-xl group-hover:scale-105 transition-transform duration-300">
+            <div className='h-[140px] sm:flex-1 bg-[#131416] rounded-[20px] sm:rounded-[24px] border border-[#25282c] flex flex-col items-center justify-center relative shadow-inner group'>
+              <div className='flex flex-col items-center justify-center'>
+                <div className='w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-[#1c1e22] overflow-hidden flex items-center justify-center mb-2 sm:mb-5 border border-[#2d3035] shadow-xl group-hover:scale-105 transition-transform duration-300'>
                   <img
-                    src={imageError ? fallbackIcon : selectedAsset?.icon || fallbackIcon}
+                    src={
+                      imageError
+                        ? fallbackIcon
+                        : selectedAsset?.icon || fallbackIcon
+                    }
                     alt={selectedAsset?.symbol || ''}
-                    className="h-full w-full object-contain"
+                    className='h-full w-full object-contain'
                     onError={() => setImageError(true)}
                   />
                 </div>
 
                 {/* Amount Display */}
-                <div className="flex flex-col items-center gap-1">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-lg sm:text-2xl font-bold text-[var(--white-100)] tracking-tight">
+                <div className='flex flex-col items-center gap-1'>
+                  <div className='flex items-baseline gap-1'>
+                    <span className='text-lg sm:text-2xl font-bold text-[var(--white-100)] tracking-tight'>
                       {formatTokenAmount(selectedAmount)}
                     </span>
-                    <span className="text-base sm:text-xl font-bold text-[var(--white-100)] opacity-60">
+                    <span className='text-base sm:text-xl font-bold text-[var(--white-100)] opacity-60'>
                       {selectedAsset?.symbol}
                     </span>
                   </div>
 
                   {/* USD value */}
-                  <div className="text-xs sm:text-sm font-medium text-[var(--philippine-gray-500)]">
+                  <div className='text-xs sm:text-sm font-medium text-[var(--philippine-gray-500)]'>
                     {totalUsd > 0
                       ? new Intl.NumberFormat('en-US', {
-                        style: 'currency',
-                        currency: 'USD',
-                      }).format(totalUsd)
+                          style: 'currency',
+                          currency: 'USD',
+                        }).format(totalUsd)
                       : '—'}
                   </div>
                 </div>
@@ -502,17 +548,17 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
       </div>
 
       {/* Final Destination */}
-      <div className="mb-20 sm:mb-4">
-        <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--white-100)] mb-3 pl-1">
+      <div className='mb-20 sm:mb-4'>
+        <label className='block text-xs font-semibold uppercase tracking-wider text-[var(--white-100)] mb-3 pl-1'>
           Final Destination
         </label>
-        <div className="relative">
+        <div className='relative'>
           <input
-            type="text"
+            type='text'
             value={destinationWallet}
             onChange={handleWalletChange}
             onBlur={handleWalletBlur}
-            placeholder="Enter Solana wallet address"
+            placeholder='Enter Solana wallet address'
             className={clsx(
               'w-full px-6 py-5 rounded-2xl bg-[#131416] text-[var(--white-100)] placeholder-[var(--philippine-gray-500)] border transition font-mono text-sm shadow-inner',
               walletError
@@ -522,13 +568,13 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
             style={{ outline: 'none' }}
           />
           {destinationWallet && !walletError && (
-            <div className="absolute right-6 top-1/2 -translate-y-1/2 text-[var(--laser-lemon-500)]">
+            <div className='absolute right-6 top-1/2 -translate-y-1/2 text-[var(--laser-lemon-500)]'>
               ✓
             </div>
           )}
         </div>
         {walletError && (
-          <p className="mt-2 text-sm text-red-500 bg-red-500/10 px-3 py-2 rounded-lg inline-block">
+          <p className='mt-2 text-sm text-red-500 bg-red-500/10 px-3 py-2 rounded-lg inline-block'>
             {walletError}
           </p>
         )}
@@ -537,57 +583,63 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
       {/* Custom Hop Count Dialog */}
       {showHopCountDialog && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          className='fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm'
           onClick={handleHopCountCancel}
         >
           <div
-            className="relative bg-[#1a1c1f] border border-[#2a2d32] rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
+            className='relative bg-[#1a1c1f] border border-[#2a2d32] rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200'
+            onClick={e => e.stopPropagation()}
             style={{ minWidth: '280px' }}
           >
             {/* Glow effect */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-[var(--laser-lemon-500)]/20 to-[var(--laser-lemon-500)]/10 rounded-3xl blur-xl opacity-50" />
+            <div className='absolute -inset-1 bg-gradient-to-r from-[var(--laser-lemon-500)]/20 to-[var(--laser-lemon-500)]/10 rounded-3xl blur-xl opacity-50' />
 
-            <div className="relative">
+            <div className='relative'>
               {/* Header */}
-              <div className="text-center mb-6">
-                <h3 className="text-lg font-bold text-[var(--white-100)] mb-1">Custom Hop Count</h3>
-                <p className="text-sm text-[var(--philippine-gray-400)]">Enter any number of hops</p>
+              <div className='text-center mb-6'>
+                <h3 className='text-lg font-bold text-[var(--white-100)] mb-1'>
+                  Custom Hop Count
+                </h3>
+                <p className='text-sm text-[var(--philippine-gray-400)]'>
+                  Enter any number of hops
+                </p>
               </div>
 
               {/* Input */}
-              <div className="relative mb-6">
+              <div className='relative mb-6'>
                 <input
                   ref={hopCountInputRef}
-                  type="text"
-                  inputMode="numeric"
+                  type='text'
+                  inputMode='numeric'
                   value={hopCountInputValue}
                   onChange={handleHopCountInputChange}
                   onKeyDown={handleHopCountKeyDown}
-                  placeholder="Enter hops"
-                  className="w-full px-4 py-4 text-center text-3xl font-bold rounded-2xl bg-[#131416] text-[var(--white-100)] border-2 border-[#25282c] focus:border-[var(--laser-lemon-500)] transition-colors outline-none"
+                  placeholder='Enter hops'
+                  className='w-full px-4 py-4 text-center text-3xl font-bold rounded-2xl bg-[#131416] text-[var(--white-100)] border-2 border-[#25282c] focus:border-[var(--laser-lemon-500)] transition-colors outline-none'
                   autoFocus
                 />
                 {hopCountInputValue && parseInt(hopCountInputValue) >= 1 && (
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--laser-lemon-500)] text-xl">
+                  <div className='absolute right-4 top-1/2 -translate-y-1/2 text-[var(--laser-lemon-500)] text-xl'>
                     ✓
                   </div>
                 )}
               </div>
 
               {/* Buttons */}
-              <div className="flex gap-3">
+              <div className='flex gap-3'>
                 <button
-                  type="button"
+                  type='button'
                   onClick={handleHopCountCancel}
-                  className="flex-1 px-4 py-3 rounded-xl bg-[#25282c] text-[var(--white-100)] font-semibold hover:bg-[#35383c] transition-colors"
+                  className='flex-1 px-4 py-3 rounded-xl bg-[#25282c] text-[var(--white-100)] font-semibold hover:bg-[#35383c] transition-colors'
                 >
                   Cancel
                 </button>
                 <button
-                  type="button"
+                  type='button'
                   onClick={handleHopCountConfirm}
-                  disabled={!hopCountInputValue || parseInt(hopCountInputValue) < 1}
+                  disabled={
+                    !hopCountInputValue || parseInt(hopCountInputValue) < 1
+                  }
                   className={clsx(
                     'flex-1 px-4 py-3 rounded-xl font-semibold transition-all',
                     hopCountInputValue && parseInt(hopCountInputValue) >= 1

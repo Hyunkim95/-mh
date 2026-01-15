@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useRef } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
 import DownloadIcon from '../../assets/icons/download-icon.svg'
-import { useMobileDevice } from "../hooks/useMobileDevice";
+import { useMobileDevice } from '../hooks/useMobileDevice'
 import { Card } from '../components/Card'
 import { useAtom } from 'jotai'
 import {
@@ -13,7 +13,7 @@ import {
   routeModeAtom,
   easyRouteConfigAtom,
 } from '../store/atoms'
-import { useNavigate, useSearch } from '@tanstack/react-router'
+import { useNavigate, useSearch, useRouterState } from '@tanstack/react-router'
 import { useSubmitRoute } from '../hooks/useSubmitRoute'
 import {
   convertTimestampToRouteInput,
@@ -40,6 +40,11 @@ import { trpc } from '../trpc'
 import { TABS } from '../constants/tab'
 import { extractErrorMessage } from '../utils/extractErrorMessage'
 
+import ChooseTokenIcon from '../assets/configure-hops/choose-token-icon.svg'
+import HopsAndDelaysIcon from '../assets/configure-hops/hops-and-delays-icon.svg'
+import FinalDestinationIcon from '../assets/configure-hops/final-destination-icon.svg'
+import ThreeLinesIndicator from '../assets/configure-hops/three-lines-indicator.svg'
+
 // Default fee percentage (1% = 0.01) - used as fallback if config fetch fails
 const DEFAULT_FEE_PERCENTAGE = 0.01
 
@@ -54,14 +59,26 @@ export const ConfigureHops: React.FC = () => {
   const navigate = useNavigate()
   const search = useSearch({ from: '/configure-hops' })
   const { publicKey } = useWallet()
+  const pathname = useRouterState({
+    select: s => s.location.pathname,
+  })
+  const activeNavTab =
+    pathname === '/my-assets'
+      ? 'assets'
+      : pathname === '/history'
+      ? 'history'
+      : null
   const { handleRouteSubmit } = useSubmitRoute({ publicKey })
   const createEasyRoute = trpc.easyRoutes.create.useMutation()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Fetch token config to get fee percentage
-  const { data: tokenConfigSPL } = trpc.contract.getTokenConfigSPL.useQuery(undefined, {
-    enabled: selectedAsset?.tokenType === 'SPL',
-  })
+  const { data: tokenConfigSPL } = trpc.contract.getTokenConfigSPL.useQuery(
+    undefined,
+    {
+      enabled: selectedAsset?.tokenType === 'SPL',
+    }
+  )
   const { data: tokenConfigSOL } = trpc.contract.getTokenConfigSOL.useQuery(
     { creator: publicKey?.toBase58() ?? '' },
     { enabled: selectedAsset?.tokenType === 'SOL' && !!publicKey }
@@ -87,13 +104,17 @@ export const ConfigureHops: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [csvErrors, setCsvErrors] = useState<RowError[]>([])
   const [csvShowAll, setCsvShowAll] = useState(false)
-  const [routeName, setRouteName] = useState<string>("")
-  const [easyRouteWalletError, setEasyRouteWalletError] = useState<string | null>(null)
-  const { isMobile } = useMobileDevice();
+  const [routeName, setRouteName] = useState<string>('')
+  const [easyRouteWalletError, setEasyRouteWalletError] = useState<
+    string | null
+  >(null)
+  const { isMobile } = useMobileDevice()
 
   // Deploy modal state
   const [showDeployModal, setShowDeployModal] = useState(false)
-  const [createdRoute, setCreatedRoute] = useState<DeployModalRoute | null>(null)
+  const [createdRoute, setCreatedRoute] = useState<DeployModalRoute | null>(
+    null
+  )
 
   // ============ Initialize from Query String ============
   React.useEffect(() => {
@@ -128,11 +149,16 @@ export const ConfigureHops: React.FC = () => {
 
     // On summary tab, validate based on route mode
     if (activeKey === 'summary') {
-      const hasValidCustomRoute = hops.length > 0 && hops.every(
-        h => h.wallet.trim().length > 0 && (h.delayMinutes !== null || !!h.scheduledAtUtc)
-      )
+      const hasValidCustomRoute =
+        hops.length > 0 &&
+        hops.every(
+          h =>
+            h.wallet.trim().length > 0 &&
+            (h.delayMinutes !== null || !!h.scheduledAtUtc)
+        )
 
-      const hasValidEasyRoute = easyRouteConfig.arrivalTime !== null &&
+      const hasValidEasyRoute =
+        easyRouteConfig.arrivalTime !== null &&
         easyRouteConfig.destinationWallet.trim().length > 0 &&
         isValidSolanaAddress(easyRouteConfig.destinationWallet) &&
         !easyRouteWalletError
@@ -144,13 +170,22 @@ export const ConfigureHops: React.FC = () => {
       }
 
       // Then check route-specific validation
-      const isRouteValid = routeMode === 'easy' ? hasValidEasyRoute : hasValidCustomRoute
+      const isRouteValid =
+        routeMode === 'easy' ? hasValidEasyRoute : hasValidCustomRoute
 
       if (!isRouteValid) {
         setActiveKey('configure')
       }
     }
-  }, [activeKey, selectedAsset, selectedAmount, hops, routeMode, easyRouteConfig, easyRouteWalletError])
+  }, [
+    activeKey,
+    selectedAsset,
+    selectedAmount,
+    hops,
+    routeMode,
+    easyRouteConfig,
+    easyRouteWalletError,
+  ])
 
   // ============ File Upload & CSV Handling ============
   const handleUploadClick = () => {
@@ -352,10 +387,7 @@ walletC,10`
 
   // ============ Mode Selection Tab ============
   const modeTabBody = (
-    <ModeSelector
-      selectedMode={routeMode}
-      onModeChange={setRouteMode}
-    />
+    <ModeSelector selectedMode={routeMode} onModeChange={setRouteMode} />
   )
 
   // ============ Easy Route Handlers ============
@@ -416,7 +448,9 @@ walletC,10`
         onWalletChange={setWallet}
         onWalletValidate={validateWallet}
         onDelayChange={setDelay}
-        onCustomClick={idx => setOpenCustomIdx(prev => (prev === idx ? null : idx))}
+        onCustomClick={idx =>
+          setOpenCustomIdx(prev => (prev === idx ? null : idx))
+        }
         onCustomDateChange={handleCustomDateChange}
         onCustomError={handleCustomDateError}
         onRemoveRow={removeRow}
@@ -438,12 +472,18 @@ walletC,10`
 
     // Calculate delay between hops based on arrival time
     const now = new Date()
-    const totalDelayMinutes = Math.max(0, Math.floor((arrivalTime.getTime() - now.getTime()) / (1000 * 60)))
+    const totalDelayMinutes = Math.max(
+      0,
+      Math.floor((arrivalTime.getTime() - now.getTime()) / (1000 * 60))
+    )
     const delayPerHop = Math.floor(totalDelayMinutes / hopCount)
 
     // Create hops array - all intermediate hops go to random wallets, last hop goes to destination
     return Array.from({ length: hopCount }, (_, index) => ({
-      wallet: index === hopCount - 1 ? destinationWallet : `Hop ${index + 1} (Auto-generated)`,
+      wallet:
+        index === hopCount - 1
+          ? destinationWallet
+          : `Hop ${index + 1} (Auto-generated)`,
       delayMinutes: delayPerHop,
     }))
   }, [routeMode, easyRouteConfig])
@@ -577,7 +617,7 @@ walletC,10`
           scheduledHops.push({
             recipient,
             scheduledAt: time,
-            isCustomTime: true
+            isCustomTime: true,
           })
         } else {
           // Delay-based time
@@ -586,17 +626,21 @@ walletC,10`
           let time: string
 
           if (i === 0) {
-            time = new Date(now.getTime() + delayMinutes * 60 * 1000).toISOString()
+            time = new Date(
+              now.getTime() + delayMinutes * 60 * 1000
+            ).toISOString()
           } else {
             const prevTime = new Date(times[i - 1])
-            time = new Date(prevTime.getTime() + delayMinutes * 60 * 1000).toISOString()
+            time = new Date(
+              prevTime.getTime() + delayMinutes * 60 * 1000
+            ).toISOString()
           }
 
           times.push(time)
           scheduledHops.push({
             recipient,
             scheduledAt: time,
-            delayMinutes // Store delay metadata for recalculation
+            delayMinutes, // Store delay metadata for recalculation
           })
         }
       })
@@ -611,9 +655,7 @@ walletC,10`
       const timestampRoute: TimestampRouteInput = {
         hopAmountTokens: String(selectedAmount || 0),
         splMint:
-          selectedAsset.tokenType === 'SPL'
-            ? selectedAsset.address
-            : undefined,
+          selectedAsset.tokenType === 'SPL' ? selectedAsset.address : undefined,
         hops: scheduledHops,
       }
 
@@ -644,7 +686,9 @@ walletC,10`
   }
 
   const canProceedFromHops =
-    !hasBlockingWalletErrors(formErrors.hopRowErrors) && canAddRow && routeName.trim().length > 0
+    !hasBlockingWalletErrors(formErrors.hopRowErrors) &&
+    canAddRow &&
+    routeName.trim().length > 0
   const canProceedFromChoose = selectedAsset && (selectedAmount || 0) > 0
   const canProceedFromEasyRoute =
     easyRouteConfig.arrivalTime !== null &&
@@ -656,6 +700,68 @@ walletC,10`
   // Determine if we should show confirm button vs next step
   const showConfirmButton = activeKey === 'summary'
 
+  // Determine if we should hide header buttons (for mode selector and easy route form)
+  const shouldHideHeaderButtons =
+    activeKey === 'mode' || (activeKey === 'configure' && routeMode === 'easy')
+
+  // Determine which internal tab button should be active
+  const getActiveTabButton = () => {
+    if (activeKey === 'choose' || activeKey === 'mode') return 'choose'
+    if (activeKey === 'configure') return 'configure'
+    if (activeKey === 'summary') return 'summary'
+    return 'choose' // default
+  }
+
+  const activeTabButton = getActiveTabButton()
+
+  // Determine if a tab is completed (has valid data)
+  const isTabCompleted = (tabKey: string): boolean => {
+    if (tabKey === 'choose') {
+      return !!canProceedFromChoose
+    }
+    if (tabKey === 'configure') {
+      return routeMode === 'easy' ? !!canProceedFromEasyRoute : !!canProceedFromHops
+    }
+    if (tabKey === 'summary') {
+      // Summary is considered completed if we can reach it (all previous steps are done)
+      return !!canProceedFromChoose && (routeMode === 'easy' ? !!canProceedFromEasyRoute : !!canProceedFromHops)
+    }
+    return false
+  }
+
+  // Determine button state: 'active' | 'completed' | 'inactive'
+  const getButtonState = (tabKey: string): 'active' | 'completed' | 'inactive' => {
+    if (tabKey === activeTabButton) {
+      return 'active' // Active state has priority
+    }
+    if (isTabCompleted(tabKey)) {
+      return 'completed'
+    }
+    return 'inactive'
+  }
+
+  // Tab buttons configuration
+  const tabButtons = [
+    {
+      key: 'choose',
+      icon: ChooseTokenIcon,
+      iconContainerClass: 'h-[17px] w-4',
+      alt: 'choose-token-icon',
+    },
+    {
+      key: 'configure',
+      icon: HopsAndDelaysIcon,
+      iconContainerClass: 'h-[21px] w-4',
+      alt: 'hops-and-delays-icon',
+    },
+    {
+      key: 'summary',
+      icon: FinalDestinationIcon,
+      iconContainerClass: 'h-[18px] w-[18px]',
+      alt: 'final-destination-icon',
+    },
+  ]
+
   // Easy route confirm handler
   const handleEasyRouteConfirm = async () => {
     if (!selectedAsset || !canProceedFromEasyRoute || !publicKey) return
@@ -664,11 +770,12 @@ walletC,10`
       setIsSubmitting(true)
 
       // Calculate token decimals
-      const decimals = typeof selectedAsset.decimals === 'number'
-        ? selectedAsset.decimals
-        : selectedAsset.tokenType === 'SOL'
-        ? 9
-        : 6
+      const decimals =
+        typeof selectedAsset.decimals === 'number'
+          ? selectedAsset.decimals
+          : selectedAsset.tokenType === 'SOL'
+          ? 9
+          : 6
 
       // Calculate raw amount (amount * 10^decimals)
       const amount = selectedAmount || 0
@@ -676,11 +783,14 @@ walletC,10`
 
       // Prepare the Easy Route data for the backend
       const easyRouteData = {
-        arrivalTime: easyRouteConfig.arrivalTime?.toISOString() || new Date().toISOString(),
+        arrivalTime:
+          easyRouteConfig.arrivalTime?.toISOString() ||
+          new Date().toISOString(),
         hopCount: easyRouteConfig.hopCount,
         destinationWallet: easyRouteConfig.destinationWallet,
         tokenType: selectedAsset.tokenType as 'SOL' | 'SPL',
-        tokenMint: selectedAsset.tokenType === 'SPL' ? selectedAsset.address : undefined,
+        tokenMint:
+          selectedAsset.tokenType === 'SPL' ? selectedAsset.address : undefined,
         tokenSymbol: selectedAsset.symbol,
         tokenDecimals: decimals,
         hopAmountTokens: String(amount),
@@ -705,7 +815,7 @@ walletC,10`
           tokenSymbol: route.tokenSymbol,
           hopAmountTokens: route.hopAmountTokens,
           hopAmountRaw: route.hopAmountRaw,
-          hops: result.data.hops
+          hops: result.data.hops,
         }
         setCreatedRoute(deployModalRoute)
         setShowDeployModal(true)
@@ -721,7 +831,15 @@ walletC,10`
   }
 
   const footer = (
-    <div className={`flex ${isMobile ? 'flex-col-reverse gap-4' : 'flex-row justify-between items-start'}`}>
+    <div
+      className={`flex ${
+        isMobile
+          ? 'flex-col-reverse gap-4'
+          : activeKey === 'mode'
+          ? 'flex-row justify-center items-start'
+          : 'flex-row justify-between items-start'
+      }`}
+    >
       {activeKey !== 'choose' && activeKey !== 'mode' ? (
         <div className={`flex flex-col gap-3 ${isMobile ? 'w-full' : ''}`}>
           <div className='not-italic font-medium text-base leading-4 text-[var(--white-100)]'>
@@ -756,7 +874,7 @@ walletC,10`
             )}
           </div>
         </div>
-      ) : (
+      ) : activeKey === 'mode' ? null : (
         <div />
       )}
 
@@ -764,7 +882,9 @@ walletC,10`
         <button
           type='button'
           onClick={handleNavigateBack}
-          className={`flex items-center justify-center gap-2 rounded-3xl bg-transparent text-[var(--white-100)] not-italic font-medium text-base leading-5 px-6 py-3 transition hover:bg-white/5 border border-[var(--white-100)] ${isMobile ? 'flex-1' : 'w-36'}`}
+          className={`flex items-center justify-center gap-2 rounded-3xl bg-transparent text-[var(--white-100)] not-italic font-medium text-base leading-5 px-6 py-3 transition hover:bg-white/5 border border-[var(--white-100)] ${
+            isMobile ? 'flex-1' : 'w-36'
+          }`}
         >
           Back
         </button>
@@ -774,8 +894,12 @@ walletC,10`
             type='button'
             onClick={handleNextStep}
             disabled={
-              (activeKey === 'configure' && routeMode === 'custom' && !canProceedFromHops) ||
-              (activeKey === 'configure' && routeMode === 'easy' && !canProceedFromEasyRoute) ||
+              (activeKey === 'configure' &&
+                routeMode === 'custom' &&
+                !canProceedFromHops) ||
+              (activeKey === 'configure' &&
+                routeMode === 'easy' &&
+                !canProceedFromEasyRoute) ||
               (activeKey === 'choose' && !canProceedFromChoose)
             }
             className={`flex items-center justify-center gap-2 rounded-3xl text-[var(--black-900)] not-italic font-medium text-base leading-5 px-6 py-3 disabled:opacity-15 shadow-[0_8px_24px_rgba(0,0,0,0.45)] transition ${
@@ -795,7 +919,9 @@ walletC,10`
         ) : (
           <button
             type='button'
-            onClick={routeMode === 'easy' ? handleEasyRouteConfirm : handleConfirm}
+            onClick={
+              routeMode === 'easy' ? handleEasyRouteConfirm : handleConfirm
+            }
             disabled={routeMode === 'easy' ? !canProceedFromEasyRoute : false}
             className={`flex items-center justify-center gap-2 rounded-3xl text-[var(--black-900)] not-italic font-medium text-base leading-5 px-6 py-3 shadow-[0_8px_24px_var(--black-900-transparency-45)] transition ${
               routeMode === 'easy' && !canProceedFromEasyRoute
@@ -819,78 +945,176 @@ walletC,10`
       </div>
       <NavBar />
       <Card
-        cardHeader={{
-          tabs: TABS,
-          activeKey,
-          rightSlot:
-            activeKey === 'configure' && routeMode === 'custom' ? (
-              <div className='flex flex-wrap items-center gap-2 w-full sm:w-auto'>
-                <button
-                  type='button'
-                  onClick={handleUploadClick}
-                  className='bg-[var(--white-100-transparency-02)] flex items-center justify-center gap-2 rounded-2xl pl-4 pr-3 py-1 not-italic font-medium text-sm leading-4 text-nowrap text-center text-[var(--cultured-white-500)] h-10 flex-1 sm:flex-none'
-                  style={{
-                    boxShadow: 'inset 0px 0px 7.9px rgba(255,255,255,0.14)',
-                  }}
-                >
-                  Upload CSV
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type='file'
-                  accept='.csv'
-                  onChange={handleFileChange}
-                  style={{ display: 'none' }}
-                />
-                <button
-                  type='button'
-                  onClick={handleDownloadTemplate}
-                  className='bg-[var(--white-100-transparency-02)] flex items-center justify-center gap-2 rounded-2xl pl-4 pr-3 py-1 not-italic font-medium text-sm leading-4 text-nowrap text-center text-[var(--cultured-white-500)] h-10 flex-1 sm:flex-none'
-                  style={{
-                    boxShadow: 'inset 0px 0px 7.9px rgba(255,255,255,0.14)',
-                  }}
-                >
-                  CSV Template
-                  <div className='h-4 w-4 rounded-full flex items-center justify-center'>
-                    <img
-                      src={DownloadIcon}
-                      alt='download-icon'
-                      className='h-full w-full object-contain'
-                    />
+        cardHeader={
+          shouldHideHeaderButtons
+            ? undefined
+            : {
+                tabs: [],
+                activeKey: '',
+                leftSlot: (
+                  <div className='flex flex-row items-center gap-2'>
+                    {tabButtons.map(tabButton => {
+                      const buttonState = getButtonState(tabButton.key)
+                      const isActive = buttonState === 'active'
+                      const isCompleted = buttonState === 'completed'
+                      
+                      return (
+                        <div key={tabButton.key} className='relative'>
+                          {isActive && (
+                            <img
+                              src={ThreeLinesIndicator}
+                              alt='active-indicator'
+                              className='hidden sm:block absolute -top-[40px] left-1/2 -translate-x-1/2 w-[25px] h-[48px] pointer-events-none z-10'
+                            />
+                          )}
+                          <div
+                            className={`relative flex items-center justify-center gap-2 transition-all rounded-2xl h-[46px] w-[46px] ${
+                              isActive
+                                ? 'bg-[var(--white-100)]'
+                                : isCompleted
+                                ? 'bg-[var(--laser-lemon-500)]'
+                                : 'bg-[var(--eerie-black-700)]'
+                            }`}
+                          >
+                            <div
+                              className={`${tabButton.iconContainerClass} flex items-center justify-center`}
+                            >
+                              <img
+                                src={tabButton.icon}
+                                alt={tabButton.alt}
+                                className='h-full w-full object-contain transition-all'
+                                style={{
+                                  filter:
+                                    isActive || isCompleted
+                                      ? 'brightness(0)' // Black when active or completed
+                                      : 'brightness(0) invert(1)', // White when inactive
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                </button>
-              </div>
-            ) : undefined,
-          headerClasses: {
-            mainCardHeaderContainer: '!mb-12',
-            tabsContainer: '!gap-2',
-            button: {
-              base: 'transition-all rounded-2xl h-[46px] w-[46px]',
-              active: 'bg-[var(--white-100)]',
-              inactive:
-                'bg-[var(--eerie-black-700)] hover:bg-[var(--white-100-transparency-07)]',
-              final: (key: string, isActive: boolean) =>
-                (key === 'configure' && routeMode === 'custom' && canAddRow) ||
-                (key === 'choose' && !isActive && (selectedAmount || 0) > 0) ||
-                (key === 'mode' && !isActive && routeMode)
-                  ? 'bg-[var(--laser-lemon-500)]'
-                  : '',
-            },
-            iconColor: {
-              active: 'var(--chinese-black-800)',
-              inactive: 'var(--white-100)',
-              final: (key: string, isActive: boolean) =>
-                (key === 'configure' && routeMode === 'custom' && canAddRow) ||
-                (key === 'choose' && !isActive && (selectedAmount || 0) > 0) ||
-                (key === 'mode' && !isActive && routeMode)
-                  ? 'var(--chinese-black-800)'
-                  : '',
-            },
-            label: {
-              base: 'hidden',
-            },
-          },
-        }}
+                ),
+                rightSlot: (
+                  <div className='flex flex-wrap items-center gap-2 w-full sm:w-auto'>
+                    {/* Navigation Tabs */}
+                    {/* <div className='flex flex-row items-center gap-2'>
+                      {TABS.map(tab => {
+                        const isActive = tab.key === activeNavTab
+                        return (
+                          <button
+                            key={tab.key}
+                            type='button'
+                            onClick={() => tab.onTabClick()}
+                            className={`flex items-center justify-center gap-2 transition-all rounded-2xl h-[46px] w-[46px] ${
+                              isActive
+                                ? 'bg-[var(--white-100)]'
+                                : 'bg-[var(--eerie-black-700)] hover:bg-[var(--white-100-transparency-07)]'
+                            }`}
+                          >
+                            <div
+                              className='h-4 w-4 flex items-center justify-center'
+                            >
+                              {typeof tab.icon === 'string' ? (
+                                <img
+                                  src={tab.icon}
+                                  alt={`${tab.key}-icon`}
+                                  className='h-full w-full object-contain'
+                                />
+                              ) : React.isValidElement(tab.icon) ? (
+                                React.cloneElement(
+                                  tab.icon as React.ReactElement<{ color?: string }>,
+                                  {
+                                    color: isActive
+                                      ? 'var(--chinese-black-800)'
+                                      : 'var(--white-100)',
+                                  }
+                                )
+                              ) : (
+                                (() => {
+                                  const Icon = tab.icon as React.ElementType
+                                  return <Icon />
+                                })()
+                              )}
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div> */}
+                    {/* CSV Buttons - only show when in custom route configure mode */}
+                    {activeKey === 'configure' && routeMode === 'custom' && (
+                      <div className='flex flex-row items-center gap-2'>
+                        <button
+                          type='button'
+                          onClick={handleUploadClick}
+                          className='bg-[var(--white-100-transparency-02)] flex items-center justify-center gap-2 rounded-2xl pl-4 pr-3 py-1 not-italic font-medium text-sm leading-4 text-nowrap text-center text-[var(--cultured-white-500)] h-10 flex-1 sm:flex-none'
+                          style={{
+                            boxShadow: 'inset 0px 0px 7.9px rgba(255,255,255,0.14)',
+                          }}
+                        >
+                          Upload CSV
+                        </button>
+                        <input
+                          ref={fileInputRef}
+                          type='file'
+                          accept='.csv'
+                          onChange={handleFileChange}
+                          style={{ display: 'none' }}
+                        />
+                        <button
+                          type='button'
+                          onClick={handleDownloadTemplate}
+                          className='bg-[var(--white-100-transparency-02)] flex items-center justify-center gap-2 rounded-2xl pl-4 pr-3 py-1 not-italic font-medium text-sm leading-4 text-nowrap text-center text-[var(--cultured-white-500)] h-10 flex-1 sm:flex-none'
+                          style={{
+                            boxShadow: 'inset 0px 0px 7.9px rgba(255,255,255,0.14)',
+                          }}
+                        >
+                          CSV Template
+                          <div className='h-4 w-4 rounded-full flex items-center justify-center'>
+                            <img
+                              src={DownloadIcon}
+                              alt='download-icon'
+                              className='h-full w-full object-contain'
+                            />
+                          </div>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ),
+                headerClasses: {
+                  mainCardHeaderContainer: '!mb-12',
+                  tabsContainer: '!gap-2',
+                  button: {
+                    base: 'transition-all rounded-2xl h-[46px] w-[46px]',
+                    active: 'bg-[var(--white-100)]',
+                    inactive:
+                      'bg-[var(--eerie-black-700)] hover:bg-[var(--white-100-transparency-07)]',
+                    final: (key: string, isActive: boolean) =>
+                      (key === 'configure' && routeMode === 'custom' && canAddRow) ||
+                      (key === 'choose' && !isActive && (selectedAmount || 0) > 0) ||
+                      (key === 'mode' && !isActive && routeMode)
+                        ? 'bg-[var(--laser-lemon-500)]'
+                        : '',
+                  },
+                  iconColor: {
+                    active: 'var(--chinese-black-800)',
+                    inactive: 'var(--white-100)',
+                    final: (key: string, isActive: boolean) =>
+                      (key === 'configure' && routeMode === 'custom' && canAddRow) ||
+                      (key === 'choose' && !isActive && (selectedAmount || 0) > 0) ||
+                      (key === 'mode' && !isActive && routeMode)
+                        ? 'var(--chinese-black-800)'
+                        : '',
+                  },
+                  label: {
+                    base: 'hidden',
+                  },
+                },
+              }
+        }
         cardBody={
           activeKey === 'choose'
             ? chooseTabBody

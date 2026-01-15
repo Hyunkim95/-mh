@@ -27,8 +27,9 @@ export interface CardHeaderClassNames {
 export interface CardHeaderProps {
   // Tabs configuration (supports 1..N tabs)
   tabs: CardHeaderTab[]
-  // Active tab key
   activeKey: string
+  // Optional left side slot (actions, buttons, etc.)
+  leftSlot?: React.ReactNode
   // Optional right side slot (actions, selectors, etc.)
   rightSlot?: React.ReactNode
   // Optional style overrides per element/state
@@ -38,6 +39,7 @@ export interface CardHeaderProps {
 export const CardHeader: React.FC<CardHeaderProps> = ({
   tabs,
   activeKey,
+  leftSlot,
   rightSlot,
   headerClasses,
 }) => {
@@ -48,12 +50,18 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
         headerClasses?.mainCardHeaderContainer || ''
       )}
     >
-      <div
-        className={clsx(
-          'flex flex-row items-center gap-6',
-          headerClasses?.tabsContainer || ''
+      <div className="flex flex-row items-center gap-6">
+        {leftSlot && (
+          <div className='flex items-center gap-2'>
+            {leftSlot}
+          </div>
         )}
-      >
+        <div
+          className={clsx(
+            'flex flex-row items-center gap-6',
+            headerClasses?.tabsContainer || ''
+          )}
+        >
         {tabs.map((tab, idx) => {
           const isActive = tab.key === activeKey
           const defaultTextActive =
@@ -140,6 +148,7 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
             </button>
           )
         })}
+        </div>
       </div>
 
       {rightSlot && (

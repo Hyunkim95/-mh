@@ -53,7 +53,7 @@ export const HopRow: React.FC<HopRowProps> = ({
       <div className='flex flex-col gap-[15px] sm:hidden'>
         {/* Hops section */}
         <div className='flex flex-col gap-[15px]'>
-          <div className='text-[17px] text-[var(--white-100-transparency-70)]'>Hops</div>
+          <div className='text-[17px] text-[var(--white-100-transparency-70)]'>Hop</div>
           <input
             id={`hop-wallet-${index}`}
             value={hop.wallet ?? ''}
@@ -70,7 +70,7 @@ export const HopRow: React.FC<HopRowProps> = ({
 
         {/* Delays section */}
         <div className='flex flex-col gap-[15px]'>
-          <div className='text-[17px] text-[var(--white-100-transparency-70)]'>Delays</div>
+          <div className='text-[17px] text-[var(--white-100-transparency-70)]'>Delay</div>
           <div className='flex flex-row items-center gap-3 min-w-0 overflow-x-hidden'>
           {DELAY_OPTIONS.map(opt => (
             <button
