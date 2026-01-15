@@ -17,49 +17,51 @@ const HOPS_PER_BATCH = 5;
  */
 const recalculateHopTimes = (
   hops: Array<{
-    recipient: string
-    scheduledAt: number | string
-    delayMinutes?: number
-    isCustomTime?: boolean
+    recipient: string;
+    scheduledAt: number | string;
+    delayMinutes?: number;
+    isCustomTime?: boolean;
   }>
 ): Array<{ recipient: string; scheduledAt: number }> => {
-  const now = Date.now()
-  let cumulativeTime = now
-  let lastWasCustom = false
+  const now = Date.now();
+  let cumulativeTime = now;
+  let lastWasCustom = false;
 
   return hops.map((hop) => {
     if (hop.isCustomTime) {
       // Custom time: keep original (convert to timestamp if needed)
-      const scheduledAt = typeof hop.scheduledAt === 'number'
-        ? hop.scheduledAt
-        : new Date(hop.scheduledAt).getTime()
-      lastWasCustom = true
-      cumulativeTime = scheduledAt  // Update cumulative for next hop
+      const scheduledAt =
+        typeof hop.scheduledAt === "number"
+          ? hop.scheduledAt
+          : new Date(hop.scheduledAt).getTime();
+      lastWasCustom = true;
+      cumulativeTime = scheduledAt; // Update cumulative for next hop
       return {
         recipient: hop.recipient,
-        scheduledAt
-      }
+        scheduledAt,
+      };
     } else if (hop.delayMinutes !== undefined && !lastWasCustom) {
       // Delay-based after delay-based: recalculate from cumulative time
-      cumulativeTime += hop.delayMinutes * 60 * 1000
+      cumulativeTime += hop.delayMinutes * 60 * 1000;
       return {
         recipient: hop.recipient,
-        scheduledAt: cumulativeTime
-      }
+        scheduledAt: cumulativeTime,
+      };
     } else {
       // Delay-based after custom OR no delay info: use stored timestamp (backward compatibility)
-      const scheduledAt = typeof hop.scheduledAt === 'number'
-        ? hop.scheduledAt
-        : new Date(hop.scheduledAt).getTime()
-      lastWasCustom = false
-      cumulativeTime = scheduledAt
+      const scheduledAt =
+        typeof hop.scheduledAt === "number"
+          ? hop.scheduledAt
+          : new Date(hop.scheduledAt).getTime();
+      lastWasCustom = false;
+      cumulativeTime = scheduledAt;
       return {
         recipient: hop.recipient,
-        scheduledAt
-      }
+        scheduledAt,
+      };
     }
-  })
-}
+  });
+};
 
 export const useDeploy = () => {
   const { publicKey, sendTransaction, signAllTransactions } = useWallet();
@@ -132,16 +134,16 @@ export const useDeploy = () => {
       toast.loading("Confirming transaction...", { id: "deploy" });
 
       // Wait for confirmation
-      const confirmation = await connection.confirmTransaction(
-        {
-          signature: signature,
-          blockhash: transactionSignature.data.recentBlockhash,
-          lastValidBlockHeight: transactionSignature.data.lastValidBlockHeight,
-        }
-      );
+      const confirmation = await connection.confirmTransaction({
+        signature: signature,
+        blockhash: transactionSignature.data.recentBlockhash,
+        lastValidBlockHeight: transactionSignature.data.lastValidBlockHeight,
+      });
 
       if (confirmation.value.err) {
-        throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+        throw new Error(
+          `Transaction failed: ${JSON.stringify(confirmation.value.err)}`
+        );
       }
 
       toast.success(
@@ -190,13 +192,15 @@ export const useDeploy = () => {
       }
 
       // Deserialize all transactions upfront
-      const deserializedTxs = transactions.map(batchData =>
+      const deserializedTxs = transactions.map((batchData) =>
         Transaction.from(Buffer.from(batchData.transaction, "base64"))
       );
 
       // Show loading message
       toast.loading(
-        `Please sign ${totalBatches} ${totalBatches === 1 ? 'transaction' : 'transactions'} in your wallet...`,
+        `Please sign ${totalBatches} ${
+          totalBatches === 1 ? "transaction" : "transactions"
+        } in your wallet...`,
         { id: "deploy" }
       );
 
@@ -204,7 +208,9 @@ export const useDeploy = () => {
       const signedTransactions = await signAllTransactions(deserializedTxs);
 
       toast.loading(
-        `Submitting ${totalBatches} ${totalBatches === 1 ? 'batch' : 'batches'}...`,
+        `Submitting ${totalBatches} ${
+          totalBatches === 1 ? "batch" : "batches"
+        }...`,
         { id: "deploy" }
       );
 
@@ -214,10 +220,9 @@ export const useDeploy = () => {
         const batchData = transactions[i];
         const signedTx = signedTransactions[i];
 
-        toast.loading(
-          `Sending batch ${batchNum}/${totalBatches}...`,
-          { id: "deploy" }
-        );
+        toast.loading(`Sending batch ${batchNum}/${totalBatches}...`, {
+          id: "deploy",
+        });
 
         // Send the pre-signed transaction
         const signature = await connection.sendRawTransaction(
@@ -228,27 +233,28 @@ export const useDeploy = () => {
           }
         );
 
-        toast.loading(
-          `Confirming batch ${batchNum}/${totalBatches}...`,
-          { id: "deploy" }
-        );
+        toast.loading(`Confirming batch ${batchNum}/${totalBatches}...`, {
+          id: "deploy",
+        });
 
         // Wait for confirmation
-        const confirmation = await connection.confirmTransaction(
-          {
-            signature: signature,
-            blockhash: batchData.recentBlockhash,
-            lastValidBlockHeight: batchData.lastValidBlockHeight,
-          }
-        );
+        const confirmation = await connection.confirmTransaction({
+          signature: signature,
+          blockhash: batchData.recentBlockhash,
+          lastValidBlockHeight: batchData.lastValidBlockHeight,
+        });
 
         if (confirmation.value.err) {
           throw new Error(
-            `Batch ${batchNum} transaction failed: ${JSON.stringify(confirmation.value.err)}`
+            `Batch ${batchNum} transaction failed: ${JSON.stringify(
+              confirmation.value.err
+            )}`
           );
         }
 
-        console.log(`Batch ${batchNum}/${totalBatches} confirmed: ${signature}`);
+        console.log(
+          `Batch ${batchNum}/${totalBatches} confirmed: ${signature}`
+        );
       }
 
       console.log(`All ${totalBatches} batch(es) completed successfully`);
@@ -266,8 +272,8 @@ export const useDeploy = () => {
       hops: {
         recipient: string;
         scheduledAt: number | string;
-        delayMinutes?: number;        // Optional delay metadata
-        isCustomTime?: boolean;       // Flag for custom times
+        delayMinutes?: number; // Optional delay metadata
+        isCustomTime?: boolean; // Flag for custom times
       }[];
       hopAmount: string;
       splMint?: string;
@@ -286,9 +292,12 @@ export const useDeploy = () => {
 
       // Check if route is already deployed
       const routeStatus = await utils.client.contract.routeHasHops.query({
-        routeId: data.routeId
+        routeId: data.routeId,
       });
-      const { hasHops, isDeployed } = routeStatus.data || { hasHops: false, isDeployed: false };
+      const { hasHops, isDeployed } = routeStatus.data || {
+        hasHops: false,
+        isDeployed: false,
+      };
 
       // Calculate number of hop batches needed
       const hopBatches = Math.ceil(freshHops.length / HOPS_PER_BATCH);
@@ -300,11 +309,16 @@ export const useDeploy = () => {
         // Step 1: Initialize route
         toast.loading("Deploying route: Initializing...", { id: "deploy" });
 
-        const initSignature = await initializeRouteMutation({ ...data, hops: freshHops }, type);
+        const initSignature = await initializeRouteMutation(
+          { ...data, hops: freshHops },
+          type
+        );
 
         // Step 2: Add hops (may require multiple batches)
         toast.loading(
-          `Deploying route: Adding ${freshHops.length} hops${hopBatches > 1 ? ` in ${hopBatches} batches` : ""}...`,
+          `Deploying route: Adding ${freshHops.length} hops${
+            hopBatches > 1 ? ` in ${hopBatches} batches` : ""
+          }...`,
           { id: "deploy" }
         );
 
@@ -320,18 +334,24 @@ export const useDeploy = () => {
           verifyAttempts++;
 
           toast.loading(
-            `Verifying deployment${verifyAttempts > 1 ? ` (attempt ${verifyAttempts}/${maxAttempts})` : ''}...`,
+            `Verifying deployment${
+              verifyAttempts > 1
+                ? ` (attempt ${verifyAttempts}/${maxAttempts})`
+                : ""
+            }...`,
             { id: "deploy" }
           );
 
           if (verifyAttempts > 1) {
             // Wait 3 seconds between attempts (except first attempt)
-            await new Promise(resolve => setTimeout(resolve, 3000));
-            console.log(`Verification attempt ${verifyAttempts}/${maxAttempts}...`);
+            await new Promise((resolve) => setTimeout(resolve, 3000));
+            console.log(
+              `Verification attempt ${verifyAttempts}/${maxAttempts}...`
+            );
           }
 
           const verifyStatus = await utils.client.contract.routeHasHops.query({
-            routeId: data.routeId
+            routeId: data.routeId,
           });
 
           hasHops = verifyStatus.data?.hasHops || false;
@@ -345,7 +365,7 @@ export const useDeploy = () => {
         if (!hasHops) {
           console.warn(
             `Verification failed after ${maxAttempts} attempts. ` +
-            `Route may still be propagating on-chain. Check route status in a few moments.`
+              `Route may still be propagating on-chain. Check route status in a few moments.`
           );
           // Don't throw - mark as deployed anyway since transactions confirmed
           // The route will likely work, just RPC is slow to update
@@ -360,7 +380,9 @@ export const useDeploy = () => {
 
         // Invalidate queries to refresh UI with latest on-chain state
         await utils.routes.getByCreator.invalidate();
-        await utils.contract.getRouteState.invalidate({ routeId: data.routeId });
+        await utils.contract.getRouteState.invalidate({
+          routeId: data.routeId,
+        });
 
         toast.success(
           `Route deployed successfully with ${freshHops.length} hops!`,
@@ -370,7 +392,9 @@ export const useDeploy = () => {
       } else if (!hasHops) {
         // Route initialized but no hops - just add hops
         toast.loading(
-          `Adding ${freshHops.length} hops${hopBatches > 1 ? ` in ${hopBatches} batches` : ""}...`,
+          `Adding ${freshHops.length} hops${
+            hopBatches > 1 ? ` in ${hopBatches} batches` : ""
+          }...`,
           { id: "deploy" }
         );
 
@@ -385,17 +409,23 @@ export const useDeploy = () => {
           verifyAttempts++;
 
           toast.loading(
-            `Verifying hops were added${verifyAttempts > 1 ? ` (attempt ${verifyAttempts}/${maxAttempts})` : ''}...`,
+            `Verifying hops were added${
+              verifyAttempts > 1
+                ? ` (attempt ${verifyAttempts}/${maxAttempts})`
+                : ""
+            }...`,
             { id: "deploy" }
           );
 
           if (verifyAttempts > 1) {
-            await new Promise(resolve => setTimeout(resolve, 3000));
-            console.log(`Verification attempt ${verifyAttempts}/${maxAttempts}...`);
+            await new Promise((resolve) => setTimeout(resolve, 3000));
+            console.log(
+              `Verification attempt ${verifyAttempts}/${maxAttempts}...`
+            );
           }
 
           const verifyStatus = await utils.client.contract.routeHasHops.query({
-            routeId: data.routeId
+            routeId: data.routeId,
           });
 
           hasHopsVerified = verifyStatus.data?.hasHops || false;
@@ -409,19 +439,20 @@ export const useDeploy = () => {
         if (!hasHopsVerified) {
           console.warn(
             `Verification failed after ${maxAttempts} attempts. ` +
-            `Transactions were confirmed but RPC state is delayed.`
+              `Transactions were confirmed but RPC state is delayed.`
           );
           // Don't throw - transactions were confirmed successfully
         }
 
         // Invalidate queries to refresh UI with latest on-chain state
         await utils.routes.getByCreator.invalidate();
-        await utils.contract.getRouteState.invalidate({ routeId: data.routeId });
+        await utils.contract.getRouteState.invalidate({
+          routeId: data.routeId,
+        });
 
-        toast.success(
-          `${freshHops.length} hops added successfully!`,
-          { id: "deploy" }
-        );
+        toast.success(`${freshHops.length} hops added successfully!`, {
+          id: "deploy",
+        });
         return "hops-added";
       } else {
         // Already fully deployed
@@ -440,6 +471,6 @@ export const useDeploy = () => {
   return {
     initializeRouteMutation,
     addHopsMutation,
-    deploy
+    deploy,
   };
 };

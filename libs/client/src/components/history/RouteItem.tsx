@@ -241,10 +241,11 @@ export const RouteItem = ({ route }: RouteItemProps) => {
       const missingHops = hopsArray.slice(hopsCountOnChain);
 
       // Calculate fresh timestamps for missing hops (2 minutes apart from now)
-      const now = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
+      // Server's parseHops expects milliseconds (calls new Date(scheduledAt).getTime())
+      const now = Date.now(); // milliseconds
       const formattedMissingHops = missingHops.map((hop, index) => ({
         recipient: hop.recipient,
-        scheduledAt: now + (index + 1) * 2 * 60, // 2 minutes apart in seconds
+        scheduledAt: now + (index + 1) * 2 * 60 * 1000, // 2 minutes apart in milliseconds
       }));
 
       toast.loading(`Adding ${missingHops.length} missing hop(s)...`, {
