@@ -11,7 +11,6 @@ import CollaborateIcon from "../assets/landing/collaborate-icon.svg";
 import LtsBunnyIcon from "../assets/landing/lts-bunny-icon.svg";
 import FooterEmailArrow from "../assets/landing/footer-email-arrow.svg";
 import CheckmarkIcon from "../assets/landing/checkmark-icon.svg";
-import SocialIcons from "../assets/landing/social-icons.svg";
 import TumbellingIcon from "../../assets/icons/tumbelling.svg";
 import ControlIcon from "../../assets/icons/control.svg";
 
@@ -622,30 +621,24 @@ export const LandingPage: React.FC = () => {
                     background: "#16181A",
                   }}
                 >
-                  {/* Border element - separate from content to avoid transform issues */}
                   {isCenterCard ? (
                     <>
-                      {/* Left border - solid yellow */}
                       <div
                         className="absolute left-0 top-[32px] bottom-[32px] w-[1px] bg-[#FBFF69] pointer-events-none"
                         style={{ zIndex: 0 }}
                       />
-                      {/* Top border - gradient yellow to white */}
                       <div
                         className="absolute left-[32px] top-0 right-[32px] h-[1px] bg-gradient-to-r from-[#FBFF69] to-[#FFFFFF] pointer-events-none"
                         style={{ zIndex: 0 }}
                       />
-                      {/* Right border - solid white */}
                       <div
                         className="absolute right-0 top-[32px] bottom-[32px] w-[1px] bg-[#FFFFFF] pointer-events-none"
                         style={{ zIndex: 0 }}
                       />
-                      {/* Bottom border - gradient yellow to white */}
                       <div
                         className="absolute left-[32px] bottom-0 right-[32px] h-[1px] bg-gradient-to-r from-[#FBFF69] to-[#FFFFFF] pointer-events-none"
                         style={{ zIndex: 0 }}
                       />
-                      {/* Top-left corner - yellow with rounded corner */}
                       <div
                         className="absolute top-0 left-0 w-[32px] h-[32px] pointer-events-none overflow-hidden"
                         style={{ zIndex: 0 }}
@@ -655,7 +648,6 @@ export const LandingPage: React.FC = () => {
                           style={{ marginTop: "-1px", marginLeft: "-1px" }}
                         />
                       </div>
-                      {/* Top-right corner - white with rounded corner */}
                       <div
                         className="absolute top-0 right-0 w-[32px] h-[32px] pointer-events-none overflow-hidden"
                         style={{ zIndex: 0 }}
@@ -665,7 +657,6 @@ export const LandingPage: React.FC = () => {
                           style={{ marginTop: "-1px", marginRight: "-1px" }}
                         />
                       </div>
-                      {/* Bottom-left corner - yellow with rounded corner */}
                       <div
                         className="absolute bottom-0 left-0 w-[32px] h-[32px] pointer-events-none overflow-hidden"
                         style={{ zIndex: 0 }}
@@ -675,7 +666,6 @@ export const LandingPage: React.FC = () => {
                           style={{ marginBottom: "-1px", marginLeft: "-1px" }}
                         />
                       </div>
-                      {/* Bottom-right corner - white with rounded corner */}
                       <div
                         className="absolute bottom-0 right-0 w-[32px] h-[32px] pointer-events-none overflow-hidden"
                         style={{ zIndex: 0 }}
@@ -693,7 +683,6 @@ export const LandingPage: React.FC = () => {
                     />
                   )}
 
-                  {/* Content wrapper to ensure proper stacking - isolated from border */}
                   <div
                     className="relative w-full h-full overflow-hidden rounded-[30px] bg-[#16181A] group-hover:scale-[1.02] transition-transform duration-500"
                     style={{
@@ -701,7 +690,6 @@ export const LandingPage: React.FC = () => {
                       transformOrigin: "center center",
                     }}
                   >
-                    {/* Full Width Background Image */}
                     <img
                       src={program.image}
                       alt={program.title}
@@ -709,10 +697,8 @@ export const LandingPage: React.FC = () => {
                       style={{ transformOrigin: "center center" }}
                     />
 
-                    {/* Gradient Overlay for Text Readability */}
                     <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/20 to-transparent" />
 
-                    {/* Text Overlay */}
                     <div className="absolute top-8 left-8 max-w-[80%] text-lg text-white not-italic">
                       <h3 className="drop-shadow-lg font-medium leading-5">
                         {program.title}
