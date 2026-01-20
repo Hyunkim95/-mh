@@ -1426,30 +1426,48 @@ export const LandingPage: React.FC = () => {
                 />
               </div>
 
-              <div className='flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-1 pt-2'>
-                <div className='flex items-center gap-2 text-sm font-medium text-white'>
-                  <span>@MULTIHOPPERDEV</span>
+              {/* Error Message */}
+              {formStatus === "error" && (
+                <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-xl">
+                  <svg className="w-5 h-5 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-sm text-red-400">Something went wrong. Please try again or contact us on Telegram.</span>
                 </div>
+              )}
+
+              {/* Success Message */}
+              {formStatus === "success" && (
+                <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/30 rounded-xl">
+                  <svg className="w-5 h-5 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-sm text-green-400">Message sent successfully! We'll get back to you soon.</span>
+                </div>
+              )}
+
+              <div className='flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-1 pt-2'>
+                <a
+                  href="https://x.com/multihopper"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className='flex items-center gap-2 text-sm font-medium text-white hover:text-mh-yellow transition-colors'
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
+                  <span>@multihopper</span>
+                </a>
                 <button
                   type="submit"
                   disabled={formStatus === "submitting"}
                   className={`min-w-[132px] px-8 py-3 font-medium rounded-xl transition-all duration-300 text-sm font-grotesk ${
-                    formStatus === "success"
-                      ? "bg-green-500 text-white"
-                      : formStatus === "error"
-                      ? "bg-red-500 text-white"
-                      : formStatus === "submitting"
+                    formStatus === "submitting"
                       ? "bg-gray-500 text-white cursor-not-allowed"
                       : 'text-white bg-[url("/sbmt-bg-btn.png")] bg-no-repeat bg-center bg-contain hover:bg-none hover:bg-mh-yellow hover:text-black'
                   }`}
                 >
-                  {formStatus === "submitting"
-                    ? "Sending..."
-                    : formStatus === "success"
-                    ? "Sent!"
-                    : formStatus === "error"
-                    ? "Error - Retry"
-                    : "Submit"}
+                  {formStatus === "submitting" ? "Sending..." : "Submit"}
                 </button>
               </div>
             </form>
@@ -1685,58 +1703,58 @@ export const LandingPage: React.FC = () => {
                 </p>
                 <form
                   onSubmit={handleNewsletter}
-                  className="flex flex-col sm:flex-row items-center gap-[18px] w-[96%]"
+                  className="flex flex-col gap-3 w-[96%]"
                 >
-                  <div className="relative flex-1 w-full sm:w-auto">
-                    <div className="absolute inset-y-0 left-1 pl-3 flex items-center pointer-events-none">
-                      <img
-                        src={FooterEmailArrow}
-                        alt=""
-                        className="w-[14px] h-[14px]"
+                  <div className="flex flex-col sm:flex-row items-center gap-[18px]">
+                    <div className="relative flex-1 w-full sm:w-auto">
+                      <div className="absolute inset-y-0 left-1 pl-3 flex items-center pointer-events-none">
+                        <img
+                          src={FooterEmailArrow}
+                          alt=""
+                          className="w-[14px] h-[14px]"
+                        />
+                      </div>
+                      <input
+                        type="email"
+                        placeholder="Enter Email"
+                        value={formData.newsletterEmail}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            newsletterEmail: e.target.value,
+                          })
+                        }
+                        className="rounded-xl w-full pl-10 pr-4 py-2 bg-white/[0.04] border border-white/[0.06] text-sm text-white placeholder-white/44 focus:outline-none focus:border-mh-yellow/30 transition-colors"
+                        required
                       />
                     </div>
-                    <input
-                      type="email"
-                      placeholder="Enter Email"
-                      value={formData.newsletterEmail}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          newsletterEmail: e.target.value,
-                        })
-                      }
-                      className="rounded-xl w-full pl-10 pr-4 py-2 bg-white/[0.04] border border-white/[0.06] text-sm text-white placeholder-white/44 focus:outline-none focus:border-mh-yellow/30 transition-colors"
-                    />
+                    <div className="flex flex-col sm:flex-row items-center gap-5 w-full sm:w-auto">
+                      <button
+                        type="submit"
+                        disabled={newsletterStatus === "submitting"}
+                        className={`rounded-xl px-6 py-2 text-sm font-medium not-italic text-center transition-all duration-300 w-[165px] ${
+                          newsletterStatus === "submitting"
+                            ? "bg-gray-500 text-white cursor-not-allowed"
+                            : 'text-white bg-[url("/sbscb-bg-btn.png")] bg-no-repeat bg-center bg-cover hover:bg-none hover:bg-mh-yellow hover:text-black'
+                        }`}
+                      >
+                        {newsletterStatus === "submitting" ? "..." : "Subscribe"}
+                      </button>
+                      <button
+                        onClick={handleConnectWallet}
+                        className="rounded-xl px-6 py-2 text-sm bg-mh-yellow text-black font-semibold hover:brightness-110 transition-all w-[165px] sm:w-[118px]"
+                      >
+                        Connect
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex flex-col sm:flex-row items-center gap-5 w-full sm:w-auto">
-                    <button
-                      type="submit"
-                      disabled={newsletterStatus === "submitting"}
-                      className={`rounded-xl px-6 py-2 text-sm font-medium not-italic text-center transition-all duration-300 w-[165px] ${
-                        newsletterStatus === "success"
-                          ? "bg-green-500 text-white"
-                          : newsletterStatus === "error"
-                          ? "bg-red-500 text-white"
-                          : newsletterStatus === "submitting"
-                          ? "bg-gray-500 text-white cursor-not-allowed"
-                          : 'text-white bg-[url("/sbscb-bg-btn.png")] bg-no-repeat bg-center bg-cover hover:bg-none hover:bg-mh-yellow hover:text-black'
-                      }`}
-                    >
-                      {newsletterStatus === "submitting"
-                        ? "..."
-                        : newsletterStatus === "success"
-                        ? "Subscribed!"
-                        : newsletterStatus === "error"
-                        ? "Error"
-                        : "Subscribe"}
-                    </button>
-                    <button
-                      onClick={handleConnectWallet}
-                      className="rounded-xl px-6 py-2 text-sm bg-mh-yellow text-black font-semibold hover:brightness-110 transition-all w-[165px] sm:w-[118px]"
-                    >
-                      Connect
-                    </button>
-                  </div>
+                  {/* Newsletter Status Messages */}
+                  {newsletterStatus === "success" && (
+                    <p className="text-sm text-green-400">Thanks for subscribing!</p>
+                  )}
+                  {newsletterStatus === "error" && (
+                    <p className="text-sm text-red-400">Something went wrong. Please try again.</p>
+                  )}
                 </form>
               </div>
             </div>
