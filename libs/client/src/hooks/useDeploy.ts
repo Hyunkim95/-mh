@@ -1,8 +1,9 @@
 import { Buffer } from "buffer";
 import { toast } from "react-hot-toast";
-import { Transaction } from "@solana/web3.js";
+import { Transaction, Keypair } from "@solana/web3.js";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
+import bs58 from "bs58";
 import { trpc } from "../trpc";
 import { extractErrorMessage } from "../utils/extractErrorMessage";
 
@@ -64,7 +65,7 @@ const recalculateHopTimes = (
 };
 
 export const useDeploy = () => {
-  const { publicKey, sendTransaction, signAllTransactions } = useWallet();
+  const { publicKey, sendTransaction, signTransaction, signAllTransactions } = useWallet();
   const { connection } = useConnection();
   const utils = trpc.useUtils();
   const initializeRoute = trpc.contract.initializeRoute.useMutation();
@@ -122,12 +123,31 @@ export const useDeploy = () => {
 
       toast.loading("Please sign the transaction...", { id: "deploy" });
 
+      // Deserialize the unsigned transaction
       const transaction = Transaction.from(
         Buffer.from(transactionSignature.data.transaction, "base64")
       );
-      const simulation = await connection.simulateTransaction(transaction);
+
+      // Phantom wallet signs FIRST (required by Phantom's Lighthouse security)
+      if (!signTransaction) {
+        throw new Error("Wallet does not support signing transactions");
+      }
+      const signedTx = await signTransaction(transaction);
+
+      // Then additional signer signs AFTER Phantom (correct order for Lighthouse)
+      if (transactionSignature.data.additionalSignerSecret) {
+        const additionalSigner = Keypair.fromSecretKey(
+          bs58.decode(transactionSignature.data.additionalSignerSecret)
+        );
+        signedTx.partialSign(additionalSigner);
+      }
+
+      // Simulate the fully-signed transaction
+      const simulation = await connection.simulateTransaction(signedTx);
       console.log("Transaction simulation:", simulation);
-      const signature = await sendTransaction(transaction, connection, {
+
+      // Send the fully-signed transaction
+      const signature = await connection.sendRawTransaction(signedTx.serialize(), {
         skipPreflight: true,
         preflightCommitment: "confirmed",
       });

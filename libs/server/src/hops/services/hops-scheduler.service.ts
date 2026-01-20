@@ -46,6 +46,15 @@ export const triggerHopJob = new CronJob("*/10 * * * * *", async () => {
 
         currentHop = routeState?.currentHopIndex || 0;
         const lastHopIndex = (routeState?.hopsCount || 1) - 1;
+
+        // Check if all hops are done FIRST (before fetching config)
+        // This prevents completed routes from getting stuck if getRouteConfiguration fails
+        if (currentHop > lastHopIndex) {
+          console.log(`[HopScheduler] Route ${routeId} completed all hops (${currentHop}/${lastHopIndex + 1})`);
+          await hopsService.markAllHopsCompleted(routeId);
+          continue;
+        }
+
         const routeConfiguration = await getRouteConfiguration(routeId);
         const hops = routeConfiguration?.hops || [];
 
@@ -53,11 +62,6 @@ export const triggerHopJob = new CronJob("*/10 * * * * *", async () => {
           console.warn(
             `[HopScheduler] Route ${routeId} has no configured hops`
           );
-          continue;
-        }
-
-        if (currentHop > lastHopIndex) {
-          await hopsService.markAllHopsCompleted(routeId);
           continue;
         }
 

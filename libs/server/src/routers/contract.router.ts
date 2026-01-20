@@ -20,6 +20,7 @@ import contractService, {
   estimateDeploymentCost,
 } from "../solana/services/contract.service";
 import { PublicKey } from "@solana/web3.js";
+import bs58 from "bs58";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
 import executorService from "../executors/executor.service";
@@ -383,12 +384,13 @@ export const contractRouter = router({
           TOKEN_PROGRAM_ID
         );
 
-        const serializedTransaction = await signAndSerialize(
+        // Don't sign server-side - return unsigned tx + keypair for client to sign
+        // Phantom wallet must sign FIRST, then additional signers sign afterward
+        const serializedTransaction = await serialize(
           transaction,
           creatorKey,
-          wrappedToken,
           params.connection
-        )
+        );
 
         return {
           success: true,
@@ -396,6 +398,8 @@ export const contractRouter = router({
             ...serializedTransaction,
             routeId: routeId.toString(),
             executorPublicKey: executorService.getExecutorPublicKey(routeId),
+            // Return keypair for client to partialSign AFTER Phantom signs
+            additionalSignerSecret: bs58.encode(wrappedToken.secretKey),
           },
         };
       } catch (error) {
@@ -431,10 +435,11 @@ export const contractRouter = router({
           parsedHops
         );
 
-        const serializedTransaction = await signAndSerialize(
+        // Don't sign server-side - return unsigned tx + keypair for client to sign
+        // Phantom wallet must sign FIRST, then additional signers sign afterward
+        const serializedTransaction = await serialize(
           transaction,
           creatorKey,
-          wrappedToken,
           params.connection
         );
 
@@ -444,6 +449,8 @@ export const contractRouter = router({
             ...serializedTransaction,
             routeId: routeId.toString(),
             executorPublicKey: executorService.getExecutorPublicKey(routeId),
+            // Return keypair for client to partialSign AFTER Phantom signs
+            additionalSignerSecret: bs58.encode(wrappedToken.secretKey),
           },
         };
       } catch (error) {
