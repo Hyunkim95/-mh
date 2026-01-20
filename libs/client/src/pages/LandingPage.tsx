@@ -1627,26 +1627,42 @@ export const LandingPage: React.FC = () => {
                   >
                     <li>
                       <a
-                        href="#collaborate"
+                        href="https://docs.multihopper.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="hover:text-white transition-colors"
                       >
-                        Hop with us
+                        Docs
                       </a>
                     </li>
                     <li>
                       <a
-                        href="#medium"
-                        className="hover:text-white transition-colors"
-                      >
-                        Medium
-                      </a>
-                    </li>
-                    <li>
-                      <a
-                        href="#terms"
+                        href="https://docs.multihopper.com/Terms-of-Service-and-Conditions-2eabf5d9f7db80879010ca300c13cbcb"
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="hover:text-white transition-colors"
                       >
                         Terms & Conditions
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        href="https://docs.multihopper.com/Privacy-Policy-2eabf5d9f7db8012b945ed3963dcc524"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-white transition-colors"
+                      >
+                        Privacy Policy
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        href="https://docs.multihopper.com/Compliance-Clauses-Privacy-Routing-and-Lawful-Use-Disclaimers-Sanctions-and-Restricted-Persons-Ann-2eabf5d9f7db805496f3e43cef977cb2"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-white transition-colors"
+                      >
+                        Compliance Policy
                       </a>
                     </li>
                   </ul>

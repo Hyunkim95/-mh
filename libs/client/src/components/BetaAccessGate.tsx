@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 
-const BETA_PASSWORD = "enigma2025"; // Change this to your desired password
+const BETA_PASSWORD = "EnigmaHopper!";
 const STORAGE_KEY = "multihopper_beta_access";
 
 interface BetaAccessGateProps {
