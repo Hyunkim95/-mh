@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { router } from "../router";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { BetaAccessGate, isBetaUnlocked } from "../components/BetaAccessGate";
 
 // Import SVG assets
 import LogoIcon from "../assets/landing/logo-icon.svg";
@@ -18,6 +19,7 @@ export const LandingPage: React.FC = () => {
   const { connected } = useWallet();
   const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showBetaGate, setShowBetaGate] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -29,17 +31,88 @@ export const LandingPage: React.FC = () => {
   });
 
   const handleConnectWallet = () => {
+    if (isBetaUnlocked()) {
+      router.navigate({ to: "/login" });
+    } else {
+      setShowBetaGate(true);
+    }
+  };
+
+  const handleBetaSuccess = () => {
+    setShowBetaGate(false);
     router.navigate({ to: "/login" });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [formStatus, setFormStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [newsletterStatus, setNewsletterStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+
+  // Formspree form ID
+  const FORMSPREE_FORM_ID = "mgoollwj";
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Form submitted:", formData);
+    setFormStatus("submitting");
+
+    try {
+      const response = await fetch(`https://formspree.io/f/${FORMSPREE_FORM_ID}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fullName: formData.fullName,
+          email: formData.email,
+          company: formData.company,
+          xHandle: formData.xHandle,
+          tgHandle: formData.tgHandle,
+          reason: formData.reason,
+        }),
+      });
+
+      if (response.ok) {
+        setFormStatus("success");
+        setFormData({
+          ...formData,
+          fullName: "",
+          email: "",
+          company: "",
+          xHandle: "",
+          tgHandle: "",
+          reason: "",
+        });
+      } else {
+        setFormStatus("error");
+      }
+    } catch {
+      setFormStatus("error");
+    }
   };
 
-  const handleNewsletter = (e: React.FormEvent) => {
+  const handleNewsletter = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Newsletter subscription:", formData.newsletterEmail);
+    setNewsletterStatus("submitting");
+
+    try {
+      const response = await fetch(`https://formspree.io/f/${FORMSPREE_FORM_ID}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.newsletterEmail,
+          type: "newsletter",
+        }),
+      });
+
+      if (response.ok) {
+        setNewsletterStatus("success");
+        setFormData({ ...formData, newsletterEmail: "" });
+      } else {
+        setNewsletterStatus("error");
+      }
+    } catch {
+      setNewsletterStatus("error");
+    }
   };
 
   const scrollToTop = () => {
@@ -1054,14 +1127,14 @@ export const LandingPage: React.FC = () => {
           </div>
 
           <div className="flex items-center justify-center w-[100%] mt-16 ">
-            <button
-              onClick={() => {
-                console.log("show more CTA");
-              }}
+            <a
+              href="https://docs.multihopper.com"
+              target="_blank"
+              rel="noopener noreferrer"
               className='max-w-[124px] w-full py-2 font-medium rounded-xl text-white bg-[url("/sm-bg-btn.png")] bg-no-repeat bg-center bg-contain hover:bg-none hover:bg-mh-yellow hover:text-black transition-all duration-300 text-sm flex items-center justify-center font-grotesk'
             >
               Show more
-            </button>
+            </a>
           </div>
         </div>
       </section>
@@ -1359,9 +1432,24 @@ export const LandingPage: React.FC = () => {
                 </div>
                 <button
                   type="submit"
-                  className='min-w-[132px] px-8 py-3 text-white font-medium rounded-xl bg-[url("/sbmt-bg-btn.png")] bg-no-repeat bg-center bg-contain hover:bg-none hover:bg-mh-yellow hover:text-black transition-all duration-300 text-sm font-grotesk'
+                  disabled={formStatus === "submitting"}
+                  className={`min-w-[132px] px-8 py-3 font-medium rounded-xl transition-all duration-300 text-sm font-grotesk ${
+                    formStatus === "success"
+                      ? "bg-green-500 text-white"
+                      : formStatus === "error"
+                      ? "bg-red-500 text-white"
+                      : formStatus === "submitting"
+                      ? "bg-gray-500 text-white cursor-not-allowed"
+                      : 'text-white bg-[url("/sbmt-bg-btn.png")] bg-no-repeat bg-center bg-contain hover:bg-none hover:bg-mh-yellow hover:text-black'
+                  }`}
                 >
-                  Submit
+                  {formStatus === "submitting"
+                    ? "Sending..."
+                    : formStatus === "success"
+                    ? "Sent!"
+                    : formStatus === "error"
+                    ? "Error - Retry"
+                    : "Submit"}
                 </button>
               </div>
             </form>
@@ -1563,7 +1651,9 @@ export const LandingPage: React.FC = () => {
                   >
                     <li>
                       <a
-                        href="#twitter"
+                        href="https://x.com/multihopper"
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="hover:text-white transition-colors"
                       >
                         Twitter/X
@@ -1571,7 +1661,9 @@ export const LandingPage: React.FC = () => {
                     </li>
                     <li>
                       <a
-                        href="#telegram"
+                        href="https://t.me/multihopperportal"
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="hover:text-white transition-colors"
                       >
                         Telegram
@@ -1619,9 +1711,24 @@ export const LandingPage: React.FC = () => {
                   <div className="flex flex-col sm:flex-row items-center gap-5 w-full sm:w-auto">
                     <button
                       type="submit"
-                      className='rounded-xl px-6 py-2 text-sm font-medium not-italic text-center text-white bg-[url("/sbscb-bg-btn.png")] bg-no-repeat bg-center bg-cover hover:bg-none hover:bg-mh-yellow hover:text-black transition-all duration-300 w-[165px]'
+                      disabled={newsletterStatus === "submitting"}
+                      className={`rounded-xl px-6 py-2 text-sm font-medium not-italic text-center transition-all duration-300 w-[165px] ${
+                        newsletterStatus === "success"
+                          ? "bg-green-500 text-white"
+                          : newsletterStatus === "error"
+                          ? "bg-red-500 text-white"
+                          : newsletterStatus === "submitting"
+                          ? "bg-gray-500 text-white cursor-not-allowed"
+                          : 'text-white bg-[url("/sbscb-bg-btn.png")] bg-no-repeat bg-center bg-cover hover:bg-none hover:bg-mh-yellow hover:text-black'
+                      }`}
                     >
-                      Subscribe
+                      {newsletterStatus === "submitting"
+                        ? "..."
+                        : newsletterStatus === "success"
+                        ? "Subscribed!"
+                        : newsletterStatus === "error"
+                        ? "Error"
+                        : "Subscribe"}
                     </button>
                     <button
                       onClick={handleConnectWallet}
@@ -1717,6 +1824,13 @@ export const LandingPage: React.FC = () => {
         }
       `}
       </style>
+
+      {/* Beta Access Gate Modal */}
+      <BetaAccessGate
+        isOpen={showBetaGate}
+        onClose={() => setShowBetaGate(false)}
+        onSuccess={handleBetaSuccess}
+      />
     </div>
   );
 };

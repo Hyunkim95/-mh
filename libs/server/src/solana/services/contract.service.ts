@@ -799,12 +799,14 @@ export const estimateDeploymentCost = (
   transactionFees: number;
   flatFee: number;
   percentageFee: number;
+  accountRent: number;
   totalCost: number;
   breakdown: {
     executorFundingSOL: string;
     transactionFeesSOL: string;
     flatFeeSOL: string;
     percentageFeeSOL: string;
+    accountRentSOL: string;
     totalCostSOL: string;
   };
 } => {
@@ -813,30 +815,69 @@ export const estimateDeploymentCost = (
   const baseFunding = 0.02;
   const executorFunding = Math.floor((hopCount * perHopFunding + baseFunding) * LAMPORTS_PER_SOL);
 
-  // Transaction fees: ~5000 lamports per tx
+  // Transaction fees: ~5000 lamports per tx + priority fees (~200000 lamports per tx avg)
   // 1 init tx + ceil(hopCount / HOPS_PER_BATCH) add_hops txs
   const initTxCount = 1;
   const addHopsTxCount = Math.ceil(hopCount / HOPS_PER_BATCH);
   const totalTxCount = initTxCount + addHopsTxCount;
-  const transactionFees = totalTxCount * 5000;
+  const baseTxFee = 5000; // Base transaction fee
+  const priorityFee = 200000; // Estimated priority fee per tx (dynamic, can vary)
+  const transactionFees = totalTxCount * (baseTxFee + priorityFee);
 
   // Percentage fee: amount × feeBps / 10000
   const percentageFee = Math.floor((amountLamports * feeBps) / 10000);
 
+  // Account rent costs (rent-exempt minimum for accounts created during deployment)
+  // Rent formula: base_rent + (data_bytes × 6960 lamports/byte)
+  // base_rent ≈ 897,840 lamports (covers first 128 bytes)
+  const BASE_RENT = 897840;
+  const LAMPORTS_PER_BYTE = 6960;
+
+  // 1. wSOL Token-2022 mint (with permanent delegate extension): ~300 bytes
+  const wsolMintSize = 300;
+  const wsolMintRent = BASE_RENT + (wsolMintSize * LAMPORTS_PER_BYTE);
+
+  // 2. wSOL token account (ATA): 165 bytes standard
+  const wsolAccountRent = 2039280;
+
+  // 3. Route config PDA: 261 bytes base + 40 bytes per hop (32-byte pubkey + 8-byte i64)
+  const routeConfigBaseSize = 261;
+  const hopDataSize = 40;
+  const routeConfigSize = routeConfigBaseSize + (hopCount * hopDataSize);
+  const routeConfigRent = BASE_RENT + (routeConfigSize * LAMPORTS_PER_BYTE);
+
+  // 4. Route state PDA: 22 bytes base + 8 bytes per hop (i64 timestamps)
+  const routeStateBaseSize = 22;
+  const routeStateSize = routeStateBaseSize + (hopCount * 8);
+  const routeStateRent = BASE_RENT + (routeStateSize * LAMPORTS_PER_BYTE);
+
+  // 5. SOL vault PDA: holds native SOL for route
+  const solVaultRent = BASE_RENT;
+
+  // 6. Per-hop network overhead (Token-2022 CPI costs, transfer hook, compute units)
+  const perHopNetworkOverhead = 600000; // ~0.0006 SOL per hop
+  const networkOverhead = hopCount * perHopNetworkOverhead;
+
+  // 7. Buffer for additional fees and variance (10%)
+  const baseAccountRent = wsolMintRent + wsolAccountRent + routeConfigRent + routeStateRent + solVaultRent + networkOverhead;
+  const accountRent = Math.ceil(baseAccountRent * 1.10);
+
   // Total cost
-  const totalCost = executorFunding + transactionFees + flatFeeLamports + percentageFee;
+  const totalCost = executorFunding + transactionFees + flatFeeLamports + percentageFee + accountRent;
 
   return {
     executorFunding,
     transactionFees,
     flatFee: flatFeeLamports,
     percentageFee,
+    accountRent,
     totalCost,
     breakdown: {
       executorFundingSOL: (executorFunding / LAMPORTS_PER_SOL).toFixed(6),
       transactionFeesSOL: (transactionFees / LAMPORTS_PER_SOL).toFixed(6),
       flatFeeSOL: (flatFeeLamports / LAMPORTS_PER_SOL).toFixed(6),
       percentageFeeSOL: (percentageFee / LAMPORTS_PER_SOL).toFixed(6),
+      accountRentSOL: (accountRent / LAMPORTS_PER_SOL).toFixed(6),
       totalCostSOL: (totalCost / LAMPORTS_PER_SOL).toFixed(6),
     },
   };

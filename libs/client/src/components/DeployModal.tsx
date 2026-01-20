@@ -232,6 +232,19 @@ export const DeployModal: React.FC<DeployModalProps> = ({
                     {costEstimate.data.data.breakdown.transactionFeesSOL} SOL
                   </span>
                 </div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex flex-col">
+                    <span className="text-sm text-[var(--philippine-gray-500)]">
+                      Account Rent
+                    </span>
+                    <span className="text-xs text-[var(--philippine-gray-500)]/70">
+                      wSOL + route accounts
+                    </span>
+                  </div>
+                  <span className="text-[var(--white-100)] font-medium">
+                    {costEstimate.data.data.breakdown.accountRentSOL} SOL
+                  </span>
+                </div>
                 <div className="border-t border-[var(--white-100-transparency-10)] my-3" />
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-[var(--white-100)]">
