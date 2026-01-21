@@ -566,8 +566,9 @@ export const getVault = async (
 
 // Maximum hops per transaction to stay within Solana's 1,232-byte limit
 // Each hop = 40 bytes (32-byte pubkey + 8-byte i64 timestamp)
-// With overhead + priority fees, 5 hops per batch is safe (~520 bytes)
-export const HOPS_PER_BATCH = 5;
+// Reduced to 3 hops per batch (~320 bytes) to leave room for Phantom's Lighthouse security instructions
+// This prevents simulation warnings when batch signing multiple transactions
+export const HOPS_PER_BATCH = 3;
 
 export const addHops = async (
   creator: PublicKey,

@@ -62,8 +62,8 @@ export const DeployModal: React.FC<DeployModalProps> = ({
   }, [route]);
 
   // Calculate total transactions needed for deployment
-  // 1 transaction for initialize + ceil(hops/4) for adding hops in batches
-  const HOPS_PER_BATCH = 4;
+  // 1 transaction for initialize + ceil(hops/3) for adding hops in batches
+  const HOPS_PER_BATCH = 3;
   const transactionCount = useMemo(() => {
     if (!route?.hops?.length) return 0;
     const hopBatches = Math.ceil(route.hops.length / HOPS_PER_BATCH);

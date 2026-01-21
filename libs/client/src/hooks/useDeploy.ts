@@ -1,6 +1,6 @@
 import { Buffer } from "buffer";
 import { toast } from "react-hot-toast";
-import { Transaction, Keypair } from "@solana/web3.js";
+import { Transaction, Keypair, VersionedTransaction, TransactionMessage } from "@solana/web3.js";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import bs58 from "bs58";
@@ -8,8 +8,9 @@ import { trpc } from "../trpc";
 import { extractErrorMessage } from "../utils/extractErrorMessage";
 
 // Maximum hops that can fit in a single transaction (matches backend)
-// Each hop = ~40 bytes (32-byte pubkey + 8-byte timestamp), 5 hops is safe (~520 bytes)
-const HOPS_PER_BATCH = 5;
+// Each hop = ~40 bytes (32-byte pubkey + 8-byte timestamp)
+// Reduced to 3 hops per batch (~320 bytes) to leave room for Phantom's Lighthouse security instructions
+const HOPS_PER_BATCH = 3;
 
 /**
  * Recalculate hop times based on delay configuration
@@ -240,8 +241,8 @@ export const useDeploy = () => {
         const batchNum = i + 1;
         const batchData = transactions[i];
         const signedTx = signedTransactions[i];
-        const batchStartHop = i * 5;
-        const batchEndHop = Math.min(batchStartHop + 5, hops.length);
+        const batchStartHop = i * HOPS_PER_BATCH;
+        const batchEndHop = Math.min(batchStartHop + HOPS_PER_BATCH, hops.length);
 
         // Simulate against CURRENT state (after previous batches confirmed)
         console.log(`\n=== Batch ${batchNum}/${totalBatches} Pre-Send Simulation ===`);
