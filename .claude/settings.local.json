@@ -18,7 +18,21 @@
       "Bash(python3:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push)"
+      "Bash(git push)",
+      "Bash(heroku auth:whoami:*)",
+      "Bash(heroku apps:*)",
+      "Bash(heroku info:*)",
+      "Bash(heroku apps:info:*)",
+      "Bash(heroku run:*)",
+      "Bash(top:*)",
+      "Bash(ps:*)",
+      "Bash(find:*)",
+      "Bash(git show:*)",
+      "Bash(cat:*)",
+      "Bash(solana program show:*)",
+      "Bash(pkill:*)",
+      "Bash(jq:*)",
+      "Bash(xargs cat:*)"
     ],
     "deny": []
   }

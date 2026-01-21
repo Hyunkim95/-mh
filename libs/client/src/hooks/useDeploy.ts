@@ -1,6 +1,6 @@
 import { Buffer } from "buffer";
 import { toast } from "react-hot-toast";
-import { Transaction, Keypair, VersionedTransaction, TransactionMessage } from "@solana/web3.js";
+import { Transaction, Keypair } from "@solana/web3.js";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import bs58 from "bs58";
