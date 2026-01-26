@@ -416,7 +416,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
           (route.status !== "completed" || hasMissingHops) && (
             <div className="flex flex-col items-start text-left min-w-0 flex-1 max-w-[120px]">
               <div className="text-sm text-white font-medium">Arrival</div>
-              <div className="text-xs text-[var(--laser-lemon-500)]">
+              <div className="text-xs text-[var(--corn-yellow-500)]">
                 {formatScheduledTime(expectedArrival)}
               </div>
             </div>
@@ -446,7 +446,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
               (route.status !== "completed" || hasMissingHops) && (
                 <div className="flex items-start justify-between text-left min-w-0 flex-1 gap-3 w-full">
                   <div className="text-xs text-gray-400">Expected Arrival</div>
-                  <div className="text-sm text-[var(--laser-lemon-500)] font-medium">
+                  <div className="text-sm text-[var(--corn-yellow-500)] font-medium">
                     {formatScheduledTime(expectedArrival)}
                   </div>
                 </div>
@@ -683,7 +683,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
                             ? "text-gray-500"
                             : isUpcoming
                             ? "text-gray-400"
-                            : "text-[var(--laser-lemon-500)]"
+                            : "text-[var(--corn-yellow-500)]"
                         }`}
                       >
                         {isCompleted

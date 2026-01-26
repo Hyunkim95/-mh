@@ -1,6 +1,7 @@
 // Narrow interfaces for the Helius asset shape we consume on the client
 export interface AssetContentFile {
-  cdn_uri?: string
+  uri?: string // Original URI (often IPFS)
+  cdn_uri?: string // Helius CDN URI (may fail)
 }
 
 export interface AssetContentMetadata {

@@ -9,6 +9,12 @@ import { Card } from '../components/Card'
 import { useNavigate } from '@tanstack/react-router'
 import { useAtom } from 'jotai'
 import { selectedAssetAtom, type TokenAsset } from '../store/atoms'
+
+// Extended token type with fallback icon support
+type TokenWithFallback = TokenAsset & {
+  usdValue: string
+  fallbackIcon?: string // IPFS URI fallback when CDN fails
+}
 import { trpc } from '../trpc'
 import { NavBar } from '../components/NavBar'
 import {
@@ -22,7 +28,7 @@ import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js'
 import { getMint, getAssociatedTokenAddressSync, getAccount } from '@solana/spl-token'
 import { TABS } from '../constants/tab'
 
-type Token = TokenAsset & { usdValue: string }
+type Token = TokenWithFallback
 
 export const MyAssets: React.FC = () => {
   const [query, setQuery] = useState('')
@@ -42,8 +48,11 @@ export const MyAssets: React.FC = () => {
   const [solPrice, setSolPrice] = useState<number>(0)
 
   // Fetch only tokens that are both in the user's wallet and configured in Multihopper
-  const { data: crossSectionData, isLoading: isLoadingTokens } =
+  const { data: crossSectionData, isLoading: isLoadingTokens, refetch: refetchTokens } =
     trpc.tokens.crossSectionWithTokenConfigs.useQuery()
+
+  // Mutation to invalidate server-side cache
+  const invalidateCacheMutation = trpc.tokens.invalidateCache.useMutation()
 
   // Placeholder SVG icon as data URL for tokens without images
   const placeholderIcon =
@@ -57,7 +66,16 @@ export const MyAssets: React.FC = () => {
     )
 
   const [reloadTrigger, setReloadTrigger] = useState(0);
-  const handleReloadClick = () => {
+  const handleReloadClick = async () => {
+    // Invalidate server-side cache first, then refetch
+    try {
+      await invalidateCacheMutation.mutateAsync();
+    } catch (e) {
+      console.error('Failed to invalidate cache:', e);
+    }
+    // Refetch tokens with fresh data
+    refetchTokens();
+    // Also trigger SOL balance refresh
     setReloadTrigger((prev) => prev + 1);
   };
 
@@ -150,8 +168,11 @@ export const MyAssets: React.FC = () => {
         (hasContentMetadata(t) && t.content.metadata?.name) || 'Unknown Token'
       const symbol: string =
         (hasContentMetadata(t) && t.content.metadata?.symbol) || id?.slice(0, 6)
-      const icon: string =
-        (hasContentFiles(t) && t.content.files?.[0]?.cdn_uri) || placeholderIcon
+      // Try CDN first, fallback to original URI (often IPFS)
+      const cdnUri = hasContentFiles(t) ? t.content.files?.[0]?.cdn_uri : undefined
+      const originalUri = hasContentFiles(t) ? t.content.files?.[0]?.uri : undefined
+      const icon: string = cdnUri || originalUri || placeholderIcon
+      const fallbackIcon: string | undefined = cdnUri && originalUri ? originalUri : undefined
       // Helius often includes token_info with balance/decimals; fallback if absent
       const decimals: number =
         (hasTokenInfo(t) && typeof t.token_info.decimals === 'number'
@@ -211,12 +232,11 @@ export const MyAssets: React.FC = () => {
         tokenType: 'SPL',
         decimals,
         icon,
+        fallbackIcon, // IPFS fallback when CDN fails
         symbol,
         name,
-        // amount: amount / 10 ** decimals,
         amount,
         address: id,
-        // usdValue: usdValue ? usdValue : '', // not provided; UI tolerates empty string
         usdValue,
       }
       return tokenAsset
@@ -400,9 +420,10 @@ export const MyAssets: React.FC = () => {
                 <TokenCard
                   key={`${token.symbol}-${i}`}
                   iconUrl={token.icon}
+                  fallbackIconUrl={token.fallbackIcon}
                   symbol={token.symbol}
                   name={token.name}
-                  amount={token.amount.toLocaleString('en-US', { maximumFractionDigits: 6 })}
+                  amount={token.amount.toLocaleString('en-US', { maximumFractionDigits: 2 })}
                   usdValue={token.usdValue}
                   onClick={() => setSelectedAsset(token)}
                   selected={isSelected}

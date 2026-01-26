@@ -2,8 +2,10 @@ import React, { useState } from 'react'
 import fallbackIcon from '../assets/fallback.png'
 
 interface TokenCardProps {
-  // Image URL for token/logo
+  // Image URL for token/logo (primary, usually CDN)
   iconUrl: string
+  // Fallback image URL (e.g., IPFS) when primary fails
+  fallbackIconUrl?: string
   // Short token symbol (e.g. SOL)
   symbol: string
   // Token or project name (e.g. Solana)
@@ -20,6 +22,7 @@ interface TokenCardProps {
 
 export const TokenCard: React.FC<TokenCardProps> = ({
   iconUrl,
+  fallbackIconUrl,
   symbol,
   name,
   amount,
@@ -27,7 +30,25 @@ export const TokenCard: React.FC<TokenCardProps> = ({
   onClick,
   selected = false,
 }) => {
-  const [imageError, setImageError] = useState(false);
+  // Track which fallback level we're on: 0 = primary, 1 = fallback URL, 2 = static fallback
+  const [fallbackLevel, setFallbackLevel] = useState(0);
+
+  // Determine current image source based on fallback level
+  const getCurrentImageSrc = () => {
+    if (fallbackLevel === 0) return iconUrl;
+    if (fallbackLevel === 1 && fallbackIconUrl) return fallbackIconUrl;
+    return fallbackIcon;
+  };
+
+  const handleImageError = () => {
+    if (fallbackLevel === 0 && fallbackIconUrl) {
+      // Try fallback URL (e.g., IPFS)
+      setFallbackLevel(1);
+    } else {
+      // Use static fallback
+      setFallbackLevel(2);
+    }
+  };
   
   return (
     <button
@@ -42,12 +63,10 @@ export const TokenCard: React.FC<TokenCardProps> = ({
       <div className='flex items-center gap-4 w-full min-w-0'>
         <div className='h-12 w-12 rounded-full bg-[var(--chinese-black-600)] ring-1 ring-[var(--white-100-transparency-10)] overflow-hidden flex items-center justify-center flex-shrink-0'>
           <img
-            src={imageError ? fallbackIcon : iconUrl}
+            src={getCurrentImageSrc()}
             alt={`${symbol}-icon`}
             className='h-full w-full object-contain'
-            onError={() => {
-              setImageError(true)
-            }}
+            onError={handleImageError}
           />
         </div>
 

@@ -5,6 +5,7 @@ export type TokenAsset = {
   tokenType: 'SPL' | 'SOL'
   decimals: number
   icon: string
+  fallbackIcon?: string // IPFS fallback when CDN fails
   symbol: string
   name: string
   amount: string | number

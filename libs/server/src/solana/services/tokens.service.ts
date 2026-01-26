@@ -4,6 +4,16 @@ import { get } from "lodash";
 const internalCache = new Map<string, any>();
 const userToTimestamp = new Map<string, number>();
 
+/**
+ * Invalidate the token cache for a specific owner.
+ * Call this when you know the user's balance has changed (e.g., after a transfer).
+ */
+const invalidateCache = (owner: string): void => {
+  internalCache.delete(owner);
+  userToTimestamp.delete(owner);
+  console.log(`[TokensService] Cache invalidated for owner ${owner}`);
+};
+
 export interface HelisuTokenResponse {
   interface: string;
   id: string;
@@ -177,4 +187,5 @@ export const tokensService = {
   getTokensAccountsWithCache,
   crossSectionWithTokenConfigs,
   getTokenPrice,
+  invalidateCache,
 };

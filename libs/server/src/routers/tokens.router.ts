@@ -25,4 +25,15 @@ export const tokensRouter = router({
         process.env.HELIUS_API
       );
     }),
+  /**
+   * Invalidate the token cache for the current user.
+   * Call this after transfers or when you need fresh balance data.
+   */
+  invalidateCache: adminProcedure.mutation(async ({ ctx }) => {
+    const queryUser = ctx.user?.publicKey;
+    if (queryUser) {
+      tokensService.invalidateCache(queryUser);
+    }
+    return { success: true };
+  }),
 });
