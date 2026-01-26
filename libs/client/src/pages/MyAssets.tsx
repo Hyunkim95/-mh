@@ -318,7 +318,7 @@ export const MyAssets: React.FC = () => {
           }}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
             inputMode === 'search'
-              ? 'bg-[var(--corn-yellow-500)] text-black'
+              ? 'bg-[var(--laser-lemon-500)] text-black'
               : 'bg-[var(--white-100-transparency-10)] text-[var(--philippine-gray-500)] hover:bg-[var(--white-100-transparency-15)]'
           }`}
         >
@@ -329,7 +329,7 @@ export const MyAssets: React.FC = () => {
           onClick={() => setInputMode('manual')}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
             inputMode === 'manual'
-              ? 'bg-[var(--corn-yellow-500)] text-black'
+              ? 'bg-[var(--laser-lemon-500)] text-black'
               : 'bg-[var(--white-100-transparency-10)] text-[var(--philippine-gray-500)] hover:bg-[var(--white-100-transparency-15)]'
           }`}
         >
@@ -363,7 +363,7 @@ export const MyAssets: React.FC = () => {
               }
             }}
             placeholder='Enter SPL token mint address'
-            className='w-full px-4 py-3 bg-[var(--white-100-transparency-10)] border border-[var(--white-100-transparency-10)] rounded-lg text-[var(--white-100)] placeholder:text-[var(--philippine-gray-500)] focus:outline-none focus:border-[var(--corn-yellow-500)] transition'
+            className='w-full px-4 py-3 bg-[var(--white-100-transparency-10)] border border-[var(--white-100-transparency-10)] rounded-lg text-[var(--white-100)] placeholder:text-[var(--philippine-gray-500)] focus:outline-none focus:border-[var(--laser-lemon-500)] transition'
           />
           {isValidatingAddress && (
             <div className='absolute right-3 top-3.5 text-sm text-[var(--philippine-gray-500)]'>
@@ -464,8 +464,8 @@ export const MyAssets: React.FC = () => {
         title={!selectedAsset ? 'Select a token to continue' : undefined}
         className={`inline-flex items-center gap-2 rounded-full text-black font-semibold px-3 sm:px-6 py-3 shadow-[0_8px_24px_var(--black-900-transparency-45)] transition ${
           selectedAsset
-            ? 'bg-[var(--corn-yellow-500)] hover:brightness-95'
-            : 'bg-[var(--corn-yellow-500-transparency-30)] cursor-not-allowed'
+            ? 'bg-[var(--laser-lemon-500)] hover:brightness-95'
+            : 'bg-[var(--laser-lemon-500-transparency-30)] cursor-not-allowed'
         }`}
       >
         Configure Route

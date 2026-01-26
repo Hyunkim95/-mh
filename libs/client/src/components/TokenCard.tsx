@@ -56,7 +56,7 @@ export const TokenCard: React.FC<TokenCardProps> = ({
       onClick={onClick}
       className={`group w-full text-left rounded-2xl transition-all duration-200 position-relative shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur-sm px-5 py-4 h-[82px] flex items-center ${
         selected
-          ? 'bg-[var(--corn-yellow-500)] border-[var(--corn-yellow-500)] shadow-[0_0_20px_rgba(251,255,105,0.3)]'
+          ? 'bg-[var(--laser-lemon-500)] border-[var(--laser-lemon-500)] shadow-[0_0_20px_rgba(251,255,105,0.3)]'
           : 'bg-[var(--eerie-black-700-transparency-80)] border border-[var(--white-100-transparency-05)] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] hover:bg-[var(--dark-gunmetal-500)] hover:border-[var(--white-100-transparency-15)]'
       }`}
     >

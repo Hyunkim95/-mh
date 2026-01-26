@@ -189,8 +189,8 @@ export const Login: React.FC = () => {
           !isLoading &&
           !isVerifyUserWithSignaturePending &&
           !isWaitingForSignature
-            ? "bg-[var(--corn-yellow-500)] hover:brightness-95"
-            : "bg-[var(--corn-yellow-500-transparency-30)] cursor-not-allowed"
+            ? "bg-[var(--laser-lemon-500)] hover:brightness-95"
+            : "bg-[var(--laser-lemon-500-transparency-30)] cursor-not-allowed"
         }`}
       >
         {isPending
