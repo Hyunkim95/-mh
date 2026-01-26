@@ -101,10 +101,10 @@ export const History = ({ reloadTrigger }: { reloadTrigger: number }) => {
   };
 
   return (
-    <div className="flex flex-col md:bg-[var(--chinese-black-800)] md:rounded-3xl md:p-6 md:border md:border-[var(--white-100-transparency-05)]">
+    <div className="flex flex-col md:bg-[var(--chinese-black-800)] md:rounded-3xl md:px-3 md:py-6 md:border md:border-[var(--white-100-transparency-05)]">
       <div className="rounded-2xl shadow-lg flex flex-col max-h-[590px]">
         <div
-          className="overflow-y-auto md:bg-[var(--chinese-black-800)] md:p-6 md:space-y-4 rounded-b-2xl scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent"
+          className="overflow-y-auto md:bg-[var(--chinese-black-800)] md:px-3 md:py-6 md:space-y-4 rounded-b-2xl scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent"
           onScroll={handleScroll}
         >
           {isLoading ? (

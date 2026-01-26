@@ -378,7 +378,7 @@ export const MyAssets: React.FC = () => {
         </div>
       )}
 
-      <div className='flex flex-col gap-[15px] sm:grid sm:grid-cols-2 sm:gap-4 mt-6 h-auto max-h-[445px] sm:h-[328px] overflow-x-hidden overflow-y-auto pr-2 relative'>
+      <div className='flex flex-col gap-[15px] sm:grid sm:grid-cols-2 sm:gap-4 mt-6 h-auto overflow-x-hidden overflow-y-auto pr-2 relative'>
         {isLoadingTokens ? (
           // Show skeleton cards while loading
           <>
@@ -488,16 +488,15 @@ export const MyAssets: React.FC = () => {
           tabs: TABS,
           activeKey: 'assets',
           rightSlot: (
-            <div className='h-10 w-10 rounded-lg bg-[var(--light-silver-500-transparency-04)] flex items-center justify-center'>
-              <div className='h-4 w-4 rounded-full flex items-center justify-center'
-                onClick={handleReloadClick}
-                >
-                <img
-                  src={ReloadIcon}
-                  alt='reload-icon'
-                  className='h-full w-full object-contain'
-                />
-              </div>
+            <div
+              className='h-10 w-10 rounded-lg bg-[var(--light-silver-500-transparency-04)] flex items-center justify-center cursor-pointer'
+              onClick={handleReloadClick}
+            >
+              <img
+                src={ReloadIcon}
+                alt='reload-icon'
+                className='h-4 w-4 object-contain'
+              />
             </div>
           ),
         }}

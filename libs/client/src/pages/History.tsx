@@ -28,17 +28,15 @@ export const History: React.FC = () => {
           tabs: TABS,
           activeKey: 'history',
           rightSlot: (
-            <div className='h-10 w-10 rounded-lg bg-[var(--light-silver-500-transparency-04)] flex items-center justify-center'>
-              <div 
-                className='h-4 w-4 rounded-full flex items-center justify-center cursor-pointer'
-                onClick={handleReloadClick}
-              >
-                <img
-                  src={ReloadIcon}
-                  alt='reload-icon'
-                  className='h-full w-full object-contain'
-                />
-              </div>
+            <div
+              className='h-10 w-10 rounded-lg bg-[var(--light-silver-500-transparency-04)] flex items-center justify-center cursor-pointer'
+              onClick={handleReloadClick}
+            >
+              <img
+                src={ReloadIcon}
+                alt='reload-icon'
+                className='h-4 w-4 object-contain'
+              />
             </div>
           ),
         }}

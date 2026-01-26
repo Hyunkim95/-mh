@@ -351,7 +351,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
   };
 
   return (
-    <div className="relative flex flex-col bg-[var(--dark-jungle-green-500)] rounded-xl shadow-sm overflow-hidden">
+    <div className="relative flex flex-col bg-[var(--dark-jungle-green-500)] rounded-xl shadow-sm overflow-hidden mb-3 md:mb-0">
       {/* Header */}
       <button
         onClick={onToggle}
@@ -369,38 +369,37 @@ export const RouteItem = ({ route }: RouteItemProps) => {
           </div>
         )}
 
-        {/* Token info - Flexible with overflow */}
-        <div className="flex flex-row gap-[10px] text-left min-w-0 flex-1 max-w-[120px]">
-          {/* <img
-            src={route.token}
-            alt={route.symbol}
-            className="w-10 h-10 rounded-full justify-center items-center"
-          /> */}
-          <div className="flex flex-col items-start text-left min-w-0">
-            <div className="font-medium text-white truncate w-full">
-              {route.tokenSymbol || route.tokenType}
-            </div>
-            {formattedAmount ? (
-              <div className="text-xs text-gray-400 truncate w-full overflow-x-auto scrollbar-hide">
-                {formattedAmount}
+        {/* Token info - Desktop only */}
+        {!isMobile && (
+          <div className="flex flex-row gap-[10px] text-left min-w-0 flex-1 max-w-[120px]">
+            <div className="flex flex-col items-start text-left min-w-0">
+              <div className="font-medium text-white truncate w-full">
+                {route.tokenSymbol || route.tokenType}
               </div>
-            ) : null}
+              {formattedAmount ? (
+                <div className="text-xs text-gray-400 truncate w-full overflow-x-auto scrollbar-hide">
+                  {formattedAmount}
+                </div>
+              ) : null}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Creator/Wallet - Flexible with overflow */}
-        <div className="flex flex-col items-start text-left min-w-0 flex-1 max-w-[140px]">
-          <a
-            href={getSolscanAccountUrl(route.creator)}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="font-medium text-white truncate w-full overflow-x-auto scrollbar-hide hover:underline hover:text-yellow-400 transition-colors duration-200 cursor-pointer"
-          >
-            {trimAddress(route.creator)}
-          </a>
-          <div className="text-xs text-gray-400 truncate w-full">Creator</div>
-        </div>
+        {/* Creator/Wallet - Desktop only */}
+        {!isMobile && (
+          <div className="flex flex-col items-start text-left min-w-0 flex-1 max-w-[140px]">
+            <a
+              href={getSolscanAccountUrl(route.creator)}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="font-medium text-white truncate w-full overflow-x-auto scrollbar-hide hover:underline hover:text-yellow-400 transition-colors duration-200 cursor-pointer"
+            >
+              {trimAddress(route.creator)}
+            </a>
+            <div className="text-xs text-gray-400 truncate w-full">Creator</div>
+          </div>
+        )}
 
         {/* Hops - Flexible */}
         {!isMobile && (
@@ -423,39 +422,70 @@ export const RouteItem = ({ route }: RouteItemProps) => {
           )}
 
         {isMobile && (
-          <div className="flex flex-col gap-3 col-start-1 col-end-3">
-            <div className="flex items-start justify-between text-left min-w-0 flex-1 gap-3 w-full">
-              <div className="text-xs text-gray-400">Creator</div>
+          <div className="flex flex-col gap-2 w-full">
+            {/* Top row: Token + Amount + Status */}
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-white">
+                  {route.tokenSymbol || route.tokenType}
+                </span>
+                {formattedAmount && (
+                  <span className="text-xs text-gray-400">{formattedAmount}</span>
+                )}
+              </div>
+              <div
+                className={`text-xs font-medium px-2 py-0.5 rounded ${
+                  hasMissingHops
+                    ? "text-red-400 bg-red-400/10"
+                    : isIncomplete
+                    ? "text-red-400 bg-red-400/10"
+                    : route.status === "completed" && !hasMissingHops
+                    ? "text-green-400 bg-green-400/10"
+                    : isDraft
+                    ? "text-gray-400 bg-gray-400/10"
+                    : "text-yellow-400 bg-yellow-400/10"
+                }`}
+              >
+                {hasMissingHops
+                  ? "Partial"
+                  : isIncomplete
+                  ? "Incomplete"
+                  : route.status === "completed" && !hasMissingHops
+                  ? "Completed"
+                  : isDraft
+                  ? "Draft"
+                  : "Pending"}
+              </div>
+            </div>
+            {/* Second row: Creator + Route ID */}
+            <div className="flex items-center justify-between w-full text-xs">
               <a
                 href={getSolscanAccountUrl(route.creator)}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                className="text-sm text-white font-medium hover:underline hover:text-yellow-400 transition-colors duration-200 cursor-pointer"
+                className="text-gray-400 hover:underline hover:text-yellow-400 transition-colors duration-200 cursor-pointer"
               >
                 {trimAddress(route.creator)}
               </a>
+              <span className="text-gray-400">#{route.id}</span>
             </div>
-            <div className="flex items-start justify-between text-left min-w-0 flex-1 gap-3 w-full">
-              <div className="text-xs text-gray-400 truncate ">Route</div>
-              <div className="text-sm text-white font-medium truncate overflow-x-auto scrollbar-hide">
-                #{route.id}
-              </div>
-            </div>
+            {/* Third row: Expected Arrival (if applicable) */}
             {expectedArrival &&
               (route.status !== "completed" || hasMissingHops) && (
-                <div className="flex items-start justify-between text-left min-w-0 flex-1 gap-3 w-full">
-                  <div className="text-xs text-gray-400">Expected Arrival</div>
-                  <div className="text-sm text-[var(--laser-lemon-500)] font-medium">
+                <div className="flex items-center justify-between w-full text-xs">
+                  <span className="text-gray-400">Arrival</span>
+                  <span className="text-[var(--laser-lemon-500)]">
                     {formatScheduledTime(expectedArrival)}
-                  </div>
+                  </span>
                 </div>
               )}
           </div>
         )}
 
-        {/* Status - Flexible */}
-        <div className="flex flex-col items-start text-left -order-1 md:order-0 min-w-0 flex-1 max-w-[100px]">
+        {/* Status - Desktop only */}
+        {!isMobile && (
+          <div className="flex flex-col items-start text-left min-w-0 flex-1 max-w-[100px]">
           <div className="text-xs text-gray-400">Status</div>
           <div
             className={`text-sm font-medium ${
@@ -481,17 +511,16 @@ export const RouteItem = ({ route }: RouteItemProps) => {
               : "Pending"}
           </div>
         </div>
+        )}
 
-        {/* Right side status + toggle icon - Fixed width */}
-        <div className="flex flex-col sm:flex-row items-center gap-3 flex-shrink-0">
-          {/* Deploy and Replay buttons temporarily hidden */}
-          {/* {isDraft ? (
+        {/* Right side button + toggle icon - Fixed width */}
+        <div className="flex flex-row items-center gap-3 flex-shrink-0">
+          {isDraft ? (
             <Button
               onClick={handleDeploy}
               disabled={isDeploying}
               variant="ghost"
-              // className='px-3 py-1 rounded-lg text-[var(--black-900)] bg-yellow-400 hover:brightness-95 disabled:opacity-60 disabled:cursor-not-allowed'
-              className="!py-0 rounded-lg hover:text-[var(--black-900)] hover:bg-yellow-400 disabled:opacity-60 disabled:cursor-not-allowed h-8 w-[72px] order-1 md:order-0"
+              className="!py-0 rounded-lg hover:text-[var(--black-900)] hover:bg-[var(--laser-lemon-500)] disabled:opacity-60 disabled:cursor-not-allowed h-8 w-[72px]"
             >
               Deploy
             </Button>
@@ -500,12 +529,11 @@ export const RouteItem = ({ route }: RouteItemProps) => {
               onClick={handleReplay}
               disabled={isPending}
               variant="ghost"
-              // className='px-3 py-1 rounded-lg text-black bg-yellow-400 hover:brightness-95 disabled:opacity-60 disabled:cursor-not-allowed'
-              className="!py-0 rounded-lg hover:text-[var(--black-900)] hover:bg-yellow-400 disabled:opacity-60 disabled:cursor-not-allowed h-8 w-[72px]"
+              className="!py-0 rounded-lg hover:text-[var(--black-900)] hover:bg-[var(--laser-lemon-500)] disabled:opacity-60 disabled:cursor-not-allowed h-8 w-[72px]"
             >
               Replay
             </Button>
-          )} */}
+          )}
           {open ? (
             <img src={OpenIcon} alt="open" className="w-7 h-7" />
           ) : (
