@@ -490,7 +490,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
           <div className="flex flex-col items-start text-left min-w-0 flex-1 max-w-[100px]">
           <div className="text-xs text-gray-400">Status</div>
           <div
-            className={`text-sm font-medium ${
+            className={`text-xs font-medium ${
               hasMissingHops
                 ? "text-red-400"
                 : isIncomplete
