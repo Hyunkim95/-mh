@@ -195,7 +195,7 @@ export const HopsTab: React.FC = () => {
   const getStatusBadge = (status: string) => {
     const statusColors = {
       draft: "bg-gray-100 text-gray-800",
-      deploying: "bg-yellow-100 text-yellow-800",
+      deploying: "bg-[var(--laser-lemon-500-transparency-13)] text-[var(--laser-lemon-500)]",
       deployed: "bg-green-100 text-green-800",
       failed: "bg-red-100 text-red-800",
     };

@@ -50,8 +50,10 @@ export const RouteItem = ({ route }: RouteItemProps) => {
   const addHopsBatched = trpc.contract.addHopsBatched.useMutation();
   const { sendTransaction } = useWallet();
   const { connection } = useConnection();
-  const isDeployed = route.deploymentStatus === "deployed";
-  const isDraft = !isDeployed;
+  // A route should show "Deploy" only if it's a true draft that hasn't been sent yet
+  // Show "Replay" for anything that has been sent (deployed, deploying, failed, or completed)
+  const isDraft = route.deploymentStatus === "draft" && route.status !== "completed";
+  const isDeployed = !isDraft;
   const hopsCount = route.hops?.length ?? 0;
   const { isMobile } = useMobileDevice();
 
@@ -393,7 +395,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="font-medium text-white truncate w-full overflow-x-auto scrollbar-hide hover:underline hover:text-yellow-400 transition-colors duration-200 cursor-pointer"
+              className="font-medium text-white truncate w-full overflow-x-auto scrollbar-hide hover:underline hover:text-[var(--laser-lemon-500)] transition-colors duration-200 cursor-pointer"
             >
               {trimAddress(route.creator)}
             </a>
@@ -443,7 +445,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
                     ? "text-green-400 bg-green-400/10"
                     : isDraft
                     ? "text-gray-400 bg-gray-400/10"
-                    : "text-yellow-400 bg-yellow-400/10"
+                    : "text-[var(--laser-lemon-500)] bg-[var(--laser-lemon-500-transparency-13)]"
                 }`}
               >
                 {hasMissingHops
@@ -464,7 +466,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
-                className="text-gray-400 hover:underline hover:text-yellow-400 transition-colors duration-200 cursor-pointer"
+                className="text-gray-400 hover:underline hover:text-[var(--laser-lemon-500)] transition-colors duration-200 cursor-pointer"
               >
                 {trimAddress(route.creator)}
               </a>
@@ -497,7 +499,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
                 ? "text-green-400"
                 : isDraft
                 ? "text-gray-400"
-                : "text-yellow-400"
+                : "text-[var(--laser-lemon-500)]"
             }`}
           >
             {hasMissingHops
@@ -544,10 +546,10 @@ export const RouteItem = ({ route }: RouteItemProps) => {
 
       {/* Incomplete deployment warning */}
       {isIncomplete && (
-        <div className="mx-4 mt-3 p-4 bg-yellow-900/20 border border-yellow-500/30 rounded-lg">
+        <div className="mx-4 mt-3 p-4 bg-[var(--laser-lemon-500-transparency-07)] border border-[var(--laser-lemon-500-transparency-30)] rounded-lg">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex-1">
-              <div className="flex items-center gap-2 text-yellow-400 font-medium text-sm mb-1">
+              <div className="flex items-center gap-2 text-[var(--laser-lemon-500)] font-medium text-sm mb-1">
                 {/* <svg
                   className="w-5 h-5"
                   fill="currentColor"
@@ -580,7 +582,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
               onClick={handleCompleteDeployment}
               disabled={isDeploying}
               variant="ghost"
-              className="!py-2 px-4 rounded-lg bg-yellow-500 text-black hover:bg-yellow-400 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap text-sm w-auto"
+              className="!py-2 px-4 rounded-lg bg-[var(--laser-lemon-500)] text-black hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap text-sm w-auto"
             >
               <span className="text-black">
                 {isDeploying ? "Adding Hops..." : "Complete Deployment"}
@@ -649,14 +651,14 @@ export const RouteItem = ({ route }: RouteItemProps) => {
             // Colors based on progress
             const dotColor = isUpcoming
               ? "bg-gray-600 border-gray-600"
-              : "bg-yellow-400 border-yellow-400";
-            const lineColor = isUpcoming ? "bg-gray-600" : "bg-yellow-400";
+              : "bg-[var(--laser-lemon-500)] border-[var(--laser-lemon-500)]";
+            const lineColor = isUpcoming ? "bg-gray-600" : "bg-[var(--laser-lemon-500)]";
 
             return (
               <div
                 key={`${route.id}-${index}`}
                 className={`relative flex items-start bg-[var(--white-100-transparency-03)] gap-3 border ${
-                  isCurrentHop ? "border-yellow-400" : "border-transparent"
+                  isCurrentHop ? "border-[var(--laser-lemon-500)]" : "border-transparent"
                 } rounded-2xl p-3`}
               >
                 {/* Dot + connecting line */}
@@ -672,7 +674,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
                   <div
                     className={`text-[11px] w-11 h-11 flex items-center justify-center rounded-2xl ${
                       isCurrentHop
-                        ? "text-[var(--black-900)] bg-yellow-300"
+                        ? "text-[var(--black-900)] bg-[var(--laser-lemon-500)]"
                         : "text-[var(--white-100)] bg-[var(--white-100-transparency-05)]"
                     }`}
                   >
@@ -684,7 +686,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
                     <div className="flex flex-row items-center gap-2 justify-between">
                       <div className="flex flex-row items-center gap-2">
                         {isCompleted && (
-                          <div className="text-[10px] text-[var(--black-900)] bg-yellow-400 w-3 h-3 rounded-[3px] flex items-center justify-center">
+                          <div className="text-[10px] text-[var(--black-900)] bg-[var(--laser-lemon-500)] w-3 h-3 rounded-[3px] flex items-center justify-center">
                             ✓
                           </div>
                         )}
@@ -692,7 +694,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
                           href={getSolscanAccountUrl(step.recipient)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-sm text-white hover:underline hover:text-yellow-400 transition-colors duration-200 cursor-pointer"
+                          className="text-sm text-white hover:underline hover:text-[var(--laser-lemon-500)] transition-colors duration-200 cursor-pointer"
                         >
                           {trimAddress(step.recipient)}
                         </a>

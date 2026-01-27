@@ -10,8 +10,9 @@ import { clusterApiUrl } from "@solana/web3.js";
 import {
   PhantomWalletAdapter,
   SolflareWalletAdapter,
-  TorusWalletAdapter,
 } from '@solana/wallet-adapter-wallets'
+import { BackpackWalletAdapter } from '@solana/wallet-adapter-backpack'
+import { MagicEdenWalletAdapter } from '@solana/wallet-adapter-magiceden'
 import { useMemo } from 'react'
 import { Toaster } from 'react-hot-toast'
 const endpoint =
@@ -25,7 +26,8 @@ export const Root = ({ children }: RootProps) => {
     () => [
       new PhantomWalletAdapter(),
       new SolflareWalletAdapter(),
-      new TorusWalletAdapter(),
+      new BackpackWalletAdapter(),
+      new MagicEdenWalletAdapter(),
     ],
     []
   );

@@ -36,7 +36,7 @@ export const WalletConnectPrompt: React.FC = () => {
 
           <div className="text-sm text-gray-500">
             <p>Supported wallets:</p>
-            <div className="flex justify-center space-x-4 mt-2">
+            <div className="flex justify-center flex-wrap gap-2 mt-2">
               <span className="px-2 py-1 bg-gray-100 rounded text-xs">
                 Phantom
               </span>
@@ -44,7 +44,10 @@ export const WalletConnectPrompt: React.FC = () => {
                 Solflare
               </span>
               <span className="px-2 py-1 bg-gray-100 rounded text-xs">
-                Torus
+                Backpack
+              </span>
+              <span className="px-2 py-1 bg-gray-100 rounded text-xs">
+                MagicEden
               </span>
             </div>
           </div>

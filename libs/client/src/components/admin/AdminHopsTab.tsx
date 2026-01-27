@@ -152,7 +152,7 @@ export const AdminHopsTab: React.FC = () => {
   const getStatusBadge = (status: string) => {
     const statusColors: Record<string, string> = {
       draft: 'bg-white/10 text-white',
-      deploying: 'bg-yellow-500/20 text-yellow-300',
+      deploying: 'bg-[var(--laser-lemon-500-transparency-13)] text-[var(--laser-lemon-500)]',
       deployed: 'bg-green-500/20 text-green-300',
       failed: 'bg-red-500/20 text-red-300',
     }

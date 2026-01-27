@@ -165,7 +165,7 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
   const getStatusBadge = (status: string) => {
     const statusColors = {
       draft: "bg-[var(--dark-gunmetal-500)] text-[var(--white-100)]",
-      deploying: "bg-yellow-900 text-yellow-200",
+      deploying: "bg-[var(--laser-lemon-500-transparency-13)] text-[var(--laser-lemon-500)]",
       deployed: "bg-green-900 text-green-200",
       failed: "bg-red-900 text-red-200",
     };
@@ -457,7 +457,7 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
                         className={`font-semibold ${
                           routeConfigQuery.data.data?.isFinalized
                             ? "text-green-400"
-                            : "text-yellow-400"
+                            : "text-[var(--laser-lemon-500)]"
                         }`}
                       >
                         {routeConfigQuery.data.data?.isFinalized ? "Yes" : "No"}

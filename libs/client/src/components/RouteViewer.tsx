@@ -187,7 +187,7 @@ export const RouteViewer: React.FC<RouteViewerProps> = () => {
                   className={`font-semibold ${
                     routeConfigQuery.data.data?.isFinalized
                       ? "text-green-600"
-                      : "text-yellow-600"
+                      : "text-[var(--laser-lemon-500)]"
                   }`}
                 >
                   {routeConfigQuery.data.data?.isFinalized ? "Yes" : "No"}
