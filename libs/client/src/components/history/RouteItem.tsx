@@ -582,7 +582,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
               onClick={handleCompleteDeployment}
               disabled={isDeploying}
               variant="ghost"
-              className="!py-2 px-4 rounded-lg bg-[var(--laser-lemon-500)] text-black hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap text-sm w-auto"
+              className="!py-2 px-4 rounded-lg !bg-[var(--laser-lemon-500)] text-black hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap text-sm w-auto"
             >
               <span className="text-black">
                 {isDeploying ? "Adding Hops..." : "Complete Deployment"}
