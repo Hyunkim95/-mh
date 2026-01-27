@@ -3667,6 +3667,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@solana/wallet-adapter-backpack@npm:^0.1.14":
+  version: 0.1.14
+  resolution: "@solana/wallet-adapter-backpack@npm:0.1.14"
+  dependencies:
+    "@solana/wallet-adapter-base": "npm:^0.9.23"
+  peerDependencies:
+    "@solana/web3.js": ^1.77.3
+  checksum: 10c0/889a26f1c5c918e12a67d3325a22e7c0c552fa796e5bfd9828915ac90ff53fdf674515cb71c19f9b908300ef794c14581392899fbd9436b8cfb7a1898a893ddf
+  languageName: node
+  linkType: hard
+
 "@solana/wallet-adapter-base-ui@npm:^0.1.6":
   version: 0.1.6
   resolution: "@solana/wallet-adapter-base-ui@npm:0.1.6"
@@ -3831,6 +3842,17 @@ __metadata:
   peerDependencies:
     "@solana/web3.js": ^1.98.0
   checksum: 10c0/c26859ada2ed1b48abfc4ca0da6ca6bd87874dfa1daf46de5c36504f50e79a8073777783dda3bb0adc1832eecb93e0db88f57fc74fba2ba40f23d5376b0749f1
+  languageName: node
+  linkType: hard
+
+"@solana/wallet-adapter-magiceden@npm:^0.1.13":
+  version: 0.1.13
+  resolution: "@solana/wallet-adapter-magiceden@npm:0.1.13"
+  dependencies:
+    "@solana/wallet-adapter-base": "npm:^0.9.23"
+  peerDependencies:
+    "@solana/web3.js": ^1.77.3
+  checksum: 10c0/a220e9b323983357b4b49cbab2ef1d9d43678f35465217ce15f1e04dd8357bdd56886b17f3c0a9d50c55bb88d441f3aecdd7ff07a72ac914ffe27a42a2acc973
   languageName: node
   linkType: hard
 
@@ -5146,7 +5168,9 @@ __metadata:
   resolution: "@trpc-template/client@workspace:libs/client"
   dependencies:
     "@solana/spl-token": "npm:^0.4.8"
+    "@solana/wallet-adapter-backpack": "npm:^0.1.14"
     "@solana/wallet-adapter-base": "npm:^0.9.23"
+    "@solana/wallet-adapter-magiceden": "npm:^0.1.13"
     "@solana/wallet-adapter-react": "npm:^0.15.35"
     "@solana/wallet-adapter-react-ui": "npm:^0.9.35"
     "@solana/wallet-adapter-wallets": "npm:^0.19.32"
