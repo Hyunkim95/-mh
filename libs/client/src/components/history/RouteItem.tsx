@@ -546,7 +546,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
 
       {/* Incomplete deployment warning */}
       {isIncomplete && (
-        <div className="mx-4 mt-3 p-4 bg-[var(--laser-lemon-500-transparency-07)] border border-[var(--laser-lemon-500-transparency-30)] rounded-lg">
+        <div className="mx-4 mt-3 p-4 bg-[var(--white-100-transparency-05)] border border-[var(--laser-lemon-500)] rounded-lg">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex-1">
               <div className="flex items-center gap-2 text-[var(--laser-lemon-500)] font-medium text-sm mb-1">
