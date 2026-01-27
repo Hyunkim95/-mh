@@ -35,10 +35,13 @@ export const Login: React.FC = () => {
   }, [userData, publicKey]);
 
   const desiredWallets = useMemo(() => {
-    return wallets.map((w) => ({
-      label: w.adapter.name,
-      wallet: w,
-    }));
+    const allowedWallets = ['phantom', 'solflare', 'backpack', 'magic eden'];
+    return wallets
+      .filter((w) => allowedWallets.some((name) => w.adapter.name.toLowerCase().includes(name)))
+      .map((w) => ({
+        label: w.adapter.name,
+        wallet: w,
+      }));
   }, [wallets]);
 
   const shortAddress = (addr?: string) =>
