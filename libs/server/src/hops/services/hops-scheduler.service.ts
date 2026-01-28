@@ -98,10 +98,17 @@ export const triggerHopJob = new CronJob("*/10 * * * * *", async () => {
         }
 
         // Attempt to trigger the hop
-        await contractService.executeHop(
+        const txSignature = await contractService.executeHop(
           new PublicKey(routeDB?.creator),
-          new BN(routeDB?.id)        
+          new BN(routeDB?.id)
         );
+
+        // If route already ended, mark hops as completed
+        if (txSignature === null) {
+          console.log(`[HopScheduler] Route ${routeId} already ended on-chain, marking as completed`);
+          await hopsService.markAllHopsCompleted(routeId);
+          continue;
+        }
 
         // If successful, remove from failed hops map
         if (failedRoutes.has(routeDB.id)) {
@@ -111,14 +118,17 @@ export const triggerHopJob = new CronJob("*/10 * * * * *", async () => {
           );
         }
 
-        // Update hop execution status
+        // Update hop execution status with txHash
         await hopsService.updateHopExecutionByIndex(
           routeId,
           currentHop,
           {
             executedAt: currentTime,
+            txHash: txSignature,
           }
         );
+
+        console.log(`[HopScheduler] Hop ${currentHop} for route ${routeId} executed: ${txSignature}`);
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
