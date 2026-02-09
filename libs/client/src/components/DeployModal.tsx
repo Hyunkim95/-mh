@@ -1,4 +1,7 @@
 import React, { useState, useMemo } from "react";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { getAccount, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { useDeploy } from "../hooks/useDeploy";
 import { extractErrorMessage } from "../utils/extractErrorMessage";
 import { trpc } from "../trpc";
@@ -38,6 +41,8 @@ export const DeployModal: React.FC<DeployModalProps> = ({
   const [status, setStatus] = useState<DeployStatus>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { deploy } = useDeploy();
+  const { connection } = useConnection();
+  const { publicKey } = useWallet();
 
   // Format time display
   const formatTime = (dateStr: string) => {
@@ -88,12 +93,47 @@ export const DeployModal: React.FC<DeployModalProps> = ({
   );
 
   const handleDeployNow = async () => {
-    if (!route) return;
+    if (!route || !publicKey || !connection) return;
 
     setStatus("deploying");
     setErrorMessage(null);
 
     try {
+      // Pre-flight: verify on-chain balance is sufficient before submitting transaction
+      const hopAmountTokens = parseFloat(route.hopAmountTokens);
+      let actualBalance: number | null = null;
+
+      try {
+        if (route.tokenType === "SOL") {
+          const lamports = await connection.getBalance(publicKey);
+          actualBalance = lamports / LAMPORTS_PER_SOL;
+        } else if (route.tokenMint) {
+          const mintPubkey = new PublicKey(route.tokenMint);
+          const ata = getAssociatedTokenAddressSync(mintPubkey, publicKey, false);
+          const accountInfo = await getAccount(connection, ata);
+          // Derive decimals from the ratio of raw to display amount
+          const rawAmount = parseInt(route.hopAmountRaw, 10) || 0;
+          const decimals =
+            rawAmount > 0 && hopAmountTokens > 0
+              ? Math.round(Math.log10(rawAmount / hopAmountTokens))
+              : 6;
+          actualBalance = Number(accountInfo.amount / BigInt(10 ** decimals));
+        }
+      } catch {
+        // If balance check fails, proceed with deployment (fail on-chain instead)
+        console.warn("[DeployModal] Pre-flight balance check failed, proceeding anyway");
+      }
+
+      if (actualBalance !== null && hopAmountTokens > actualBalance) {
+        setStatus("error");
+        setErrorMessage(
+          `Insufficient balance. You're trying to deploy ${hopAmountTokens.toLocaleString()} ` +
+          `${route.tokenSymbol || route.tokenType} but your wallet only has ` +
+          `${actualBalance.toLocaleString()}. Please go back and adjust the amount.`
+        );
+        return;
+      }
+
       const deployData = {
         routeId: route.routeId,
         databaseId: route.id,

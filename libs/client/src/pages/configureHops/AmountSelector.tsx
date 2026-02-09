@@ -3,6 +3,7 @@ import { Slider } from '../../components/Slider'
 import { TooltipOverlay } from '../../components/TooltipOverlay'
 import { parseNumber, formatTokenAmount } from './utils'
 import type { TokenAsset } from '../../store/atoms'
+import { useFreshTokenBalance } from '../../hooks/useFreshTokenBalance'
 import fallbackIcon from '../../assets/fallback.png'
 
 interface AmountSelectorProps {
@@ -10,6 +11,7 @@ interface AmountSelectorProps {
   amount: number
   onAmountChange: (amount: number) => void
   feePercentage?: number // Fee as decimal (e.g., 0.01 for 1%)
+  onBalanceRefreshed?: (newBalance: number) => void
 }
 
 export const AmountSelector: React.FC<AmountSelectorProps> = ({
@@ -17,6 +19,7 @@ export const AmountSelector: React.FC<AmountSelectorProps> = ({
   amount,
   onAmountChange,
   feePercentage = 0.01, // Default 1% fee
+  onBalanceRefreshed,
 }) => {
   const [hoveredAmount, setHoveredAmount] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -25,17 +28,37 @@ export const AmountSelector: React.FC<AmountSelectorProps> = ({
   const inputRef = useRef<HTMLInputElement>(null)
   const [imageError, setImageError] = useState(false);
 
+  // Fetch fresh on-chain balance, bypassing server cache
+  const { freshBalance, refetchBalance } = useFreshTokenBalance(asset)
+  const onBalanceRefreshedRef = useRef(onBalanceRefreshed)
+  onBalanceRefreshedRef.current = onBalanceRefreshed
+
+  // Fetch fresh balance when asset changes (uses stable primitive deps, not refetchBalance ref)
+  React.useEffect(() => {
+    refetchBalance()
+  }, [asset?.address, asset?.tokenType]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Notify parent when fresh balance arrives (use ref to avoid re-trigger loops)
+  React.useEffect(() => {
+    if (freshBalance !== null && onBalanceRefreshedRef.current) {
+      onBalanceRefreshedRef.current(freshBalance)
+    }
+  }, [freshBalance])
+
+  // Use fresh on-chain balance when available, otherwise fall back to cached asset amount
+  const effectiveBalance = freshBalance ?? parseNumber(asset?.amount)
+
   // Calculate max amount accounting for fee
   // If user has balance B and fee is F%, then max routable = B / (1 + F)
   // This ensures: routeAmount + fee = balance
   const maxAmount = React.useMemo(() => {
-    const balance = parseNumber(asset?.amount)
+    const balance = effectiveBalance
     if (balance <= 0 || feePercentage <= 0) return balance
     // Max amount that can be routed = balance / (1 + fee)
     const maxRoutable = balance / (1 + feePercentage)
     // Round down to avoid precision issues that could cause insufficient funds
     return Math.floor(maxRoutable * 1e6) / 1e6
-  }, [asset, feePercentage])
+  }, [effectiveBalance, feePercentage])
 
   const usdPerToken = React.useMemo(() => {
     const assetAmount = parseNumber(asset?.amount)

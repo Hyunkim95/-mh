@@ -86,7 +86,7 @@ const getTokensAccountsWithCache = async (
   if (internalCache.has(owner) && cacheTime && cacheTime > now) {
     return internalCache.get(owner);
   }
-  userToTimestamp.set(owner, now + 1000 * 60 * 5);
+  userToTimestamp.set(owner, now + 1000 * 60 * 1);
   const tokens = await getTokenAccounts(owner, apiUrl);
   console.log(
     tokens, 

@@ -342,6 +342,24 @@ walletC,10`
   }
 
   // ============ Choose Tab ============
+  const handleBalanceRefreshed = React.useCallback((newBalance: number) => {
+    // Update the atom with the fresh on-chain balance and clamp amount if needed
+    setSelectedAsset(prev => {
+      if (!prev) return prev
+
+      setSelectedAmount(currentAmount => {
+        if (currentAmount > 0) {
+          const maxRoutable = newBalance / (1 + feePercentage)
+          const maxAmount = Math.floor(maxRoutable * 1e6) / 1e6
+          return currentAmount > maxAmount ? maxAmount : currentAmount
+        }
+        return currentAmount
+      })
+
+      return { ...prev, amount: newBalance }
+    })
+  }, [feePercentage, setSelectedAsset, setSelectedAmount])
+
   const handleInitializeAmount = React.useCallback(() => {
     const maxAmount = parseNumber(selectedAsset?.amount)
     if (
@@ -373,6 +391,7 @@ walletC,10`
         amount={selectedAmount}
         onAmountChange={setSelectedAmount}
         feePercentage={feePercentage}
+        onBalanceRefreshed={handleBalanceRefreshed}
       />
     </>
   )
