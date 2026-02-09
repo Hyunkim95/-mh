@@ -61,14 +61,14 @@ function createMockAsset(overrides: Partial<TokenAsset> = {}): TokenAsset {
 
 /**
  * Helper function to calculate expected maxAmount
+ * Max amount is now the full balance — fee deduction happens at submission time
  */
 function calculateExpectedMaxAmount(
   balance: number,
-  feePercentage: number
+  _feePercentage: number
 ): number {
-  if (balance <= 0 || feePercentage <= 0) return balance;
-  const maxRoutable = balance / (1 + feePercentage);
-  return Math.floor(maxRoutable * 1e6) / 1e6;
+  if (balance <= 0) return balance;
+  return Math.floor(balance * 1e6) / 1e6;
 }
 
 /**
@@ -507,8 +507,8 @@ describe("EasyRouteForm", () => {
     });
   });
 
-  describe("Fee-adjusted amount calculations", () => {
-    it("should calculate maxAmount with 1% default fee", () => {
+  describe("Max amount shows full balance (fee deducted at submission)", () => {
+    it("should show full balance as maxAmount regardless of fee", () => {
       const balance = 1000;
       const feePercentage = 0.01;
       const expectedMaxAmount = calculateExpectedMaxAmount(
@@ -516,12 +516,11 @@ describe("EasyRouteForm", () => {
         feePercentage
       );
 
-      // maxAmount = 1000 / 1.01 = 990.099009...
-      expect(expectedMaxAmount).toBeCloseTo(990.099, 2);
-      expect(expectedMaxAmount).toBeLessThan(balance);
+      // maxAmount now equals full balance
+      expect(expectedMaxAmount).toBe(balance);
     });
 
-    it("should calculate maxAmount with 5% fee", () => {
+    it("should show full balance with 5% fee", () => {
       const balance = 1000;
       const feePercentage = 0.05;
       const expectedMaxAmount = calculateExpectedMaxAmount(
@@ -529,8 +528,7 @@ describe("EasyRouteForm", () => {
         feePercentage
       );
 
-      // maxAmount = 1000 / 1.05 = 952.38095...
-      expect(expectedMaxAmount).toBeCloseTo(952.38, 2);
+      expect(expectedMaxAmount).toBe(balance);
     });
 
     it("should return full balance when feePercentage is 0", () => {
@@ -550,25 +548,16 @@ describe("EasyRouteForm", () => {
       const maxAmount = calculateExpectedMaxAmount(balance, feePercentage);
 
       expect(maxAmount).toBeGreaterThan(0);
-      expect(maxAmount + maxAmount * feePercentage).toBeLessThanOrEqual(
-        balance
-      );
+      expect(maxAmount).toBe(balance);
     });
 
-    it("should prevent Route 997 insufficient funds scenario", () => {
-      // Route 997 scenario: user had 1,849,611.54 tokens
-      // Tried to route 1,849,611 which caused insufficient funds
+    it("should show full balance for Route 997 scenario", () => {
       const balance = 1849611.54;
       const feePercentage = 0.01;
       const maxAmount = calculateExpectedMaxAmount(balance, feePercentage);
 
-      const total = maxAmount + maxAmount * feePercentage;
-      expect(total).toBeLessThanOrEqual(balance);
-
-      // User's attempted amount would have failed
-      const attemptedAmount = 1849611;
-      const attemptedTotal = attemptedAmount + attemptedAmount * feePercentage;
-      expect(attemptedTotal).toBeGreaterThan(balance);
+      // Max now shows full balance
+      expect(maxAmount).toBe(balance);
     });
   });
 

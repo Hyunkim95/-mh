@@ -347,10 +347,9 @@ walletC,10`
     setSelectedAsset(prev => {
       if (!prev) return prev
 
+      const maxAmount = Math.floor(newBalance * 1e6) / 1e6
       setSelectedAmount(currentAmount => {
         if (currentAmount > 0) {
-          const maxRoutable = newBalance / (1 + feePercentage)
-          const maxAmount = Math.floor(maxRoutable * 1e6) / 1e6
           return currentAmount > maxAmount ? maxAmount : currentAmount
         }
         return currentAmount
@@ -358,7 +357,7 @@ walletC,10`
 
       return { ...prev, amount: newBalance }
     })
-  }, [feePercentage, setSelectedAsset, setSelectedAmount])
+  }, [setSelectedAsset, setSelectedAmount])
 
   const handleInitializeAmount = React.useCallback(() => {
     const maxAmount = parseNumber(selectedAsset?.amount)
@@ -663,8 +662,14 @@ walletC,10`
           ? 9
           : 6
 
+      // Deduct fee from the user's selected amount so that hopAmount + fee = selectedAmount
+      const userAmount = selectedAmount || 0
+      const actualHopAmount = feePercentage > 0
+        ? Math.floor((userAmount / (1 + feePercentage)) * 1e6) / 1e6
+        : userAmount
+
       const timestampRoute: TimestampRouteInput = {
-        hopAmountTokens: String(selectedAmount || 0),
+        hopAmountTokens: String(actualHopAmount),
         splMint:
           selectedAsset.tokenType === 'SPL' ? selectedAsset.address : undefined,
         hops: scheduledHops,
@@ -683,6 +688,7 @@ walletC,10`
         tokenDecimals: decimals,
         hopAmountTokens: timestampRoute.hopAmountTokens,
         hopAmountRaw: internalRouteInput.hopAmount,
+        totalSpendTokens: String(userAmount),
         hops: timestampRoute.hops,
       }
 
@@ -781,9 +787,14 @@ walletC,10`
           ? 9
           : 6
 
+      // Deduct fee from the user's selected amount so that hopAmount + fee = selectedAmount
+      const userAmount = selectedAmount || 0
+      const actualHopAmount = feePercentage > 0
+        ? Math.floor((userAmount / (1 + feePercentage)) * 1e6) / 1e6
+        : userAmount
+
       // Calculate raw amount (amount * 10^decimals)
-      const amount = selectedAmount || 0
-      const hopAmountRaw = String(Math.round(amount * Math.pow(10, decimals)))
+      const hopAmountRaw = String(Math.round(actualHopAmount * Math.pow(10, decimals)))
 
       // Prepare the Easy Route data for the backend
       const easyRouteData = {
@@ -797,8 +808,9 @@ walletC,10`
           selectedAsset.tokenType === 'SPL' ? selectedAsset.address : undefined,
         tokenSymbol: selectedAsset.symbol,
         tokenDecimals: decimals,
-        hopAmountTokens: String(amount),
+        hopAmountTokens: String(actualHopAmount),
         hopAmountRaw,
+        totalSpendTokens: String(userAmount),
         creator: publicKey.toBase58(),
       }
 
@@ -819,6 +831,7 @@ walletC,10`
           tokenSymbol: route.tokenSymbol,
           hopAmountTokens: route.hopAmountTokens,
           hopAmountRaw: route.hopAmountRaw,
+          totalSpendTokens: String(userAmount),
           hops: result.data.hops,
         }
         setCreatedRoute(deployModalRoute)

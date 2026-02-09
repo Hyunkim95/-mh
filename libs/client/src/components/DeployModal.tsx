@@ -15,6 +15,7 @@ export interface DeployModalRoute {
   tokenSymbol?: string | null;
   hopAmountTokens: string;
   hopAmountRaw: string;
+  totalSpendTokens?: string; // User's total spend (before fee deduction)
   hops: {
     recipient: string;
     scheduledAt: string;
@@ -100,6 +101,8 @@ export const DeployModal: React.FC<DeployModalProps> = ({
 
     try {
       // Pre-flight: verify on-chain balance is sufficient before submitting transaction
+      // Compare against totalSpendTokens (includes fee) if available, otherwise hopAmountTokens
+      const totalSpend = parseFloat(route.totalSpendTokens || route.hopAmountTokens);
       const hopAmountTokens = parseFloat(route.hopAmountTokens);
       let actualBalance: number | null = null;
 
@@ -124,10 +127,10 @@ export const DeployModal: React.FC<DeployModalProps> = ({
         console.warn("[DeployModal] Pre-flight balance check failed, proceeding anyway");
       }
 
-      if (actualBalance !== null && hopAmountTokens > actualBalance) {
+      if (actualBalance !== null && totalSpend > actualBalance) {
         setStatus("error");
         setErrorMessage(
-          `Insufficient balance. You're trying to deploy ${hopAmountTokens.toLocaleString()} ` +
+          `Insufficient balance. You're trying to deploy ${totalSpend.toLocaleString()} ` +
           `${route.tokenSymbol || route.tokenType} but your wallet only has ` +
           `${actualBalance.toLocaleString()}. Please go back and adjust the amount.`
         );
@@ -211,7 +214,7 @@ export const DeployModal: React.FC<DeployModalProps> = ({
                   Amount
                 </span>
                 <span className="text-[var(--white-100)] font-medium">
-                  {route.hopAmountTokens} {route.tokenSymbol || route.tokenType}
+                  {route.totalSpendTokens || route.hopAmountTokens} {route.tokenSymbol || route.tokenType}
                 </span>
               </div>
               <div className="flex items-center justify-between mb-3">

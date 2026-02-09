@@ -68,14 +68,14 @@ function createMockAsset(overrides: Partial<TokenAsset> = {}): TokenAsset {
 /**
  * Helper function to calculate expected maxAmount
  * (duplicated from component logic for verification)
+ * Max amount is now the full balance — fee deduction happens at submission time
  */
 function calculateExpectedMaxAmount(
   balance: number,
-  feePercentage: number
+  _feePercentage: number
 ): number {
-  if (balance <= 0 || feePercentage <= 0) return balance;
-  const maxRoutable = balance / (1 + feePercentage);
-  return Math.floor(maxRoutable * 1e6) / 1e6;
+  if (balance <= 0) return balance;
+  return Math.floor(balance * 1e6) / 1e6;
 }
 
 describe("AmountSelector", () => {
@@ -204,16 +204,12 @@ describe("AmountSelector", () => {
     });
   });
 
-  describe("Max button sets fee-adjusted maxAmount", () => {
-    it("should set amount to maxAmount (balance / (1 + feePercentage)) when Max is clicked", async () => {
+  describe("Max button sets full balance (fee deducted at submission)", () => {
+    it("should set amount to full balance when Max is clicked", async () => {
       const user = userEvent.setup();
       const balance = 1000;
       const feePercentage = 0.01; // 1%
       const asset = createMockAsset({ amount: balance.toString() });
-      const expectedMaxAmount = calculateExpectedMaxAmount(
-        balance,
-        feePercentage
-      );
 
       render(
         <AmountSelector
@@ -227,17 +223,13 @@ describe("AmountSelector", () => {
       const maxButton = screen.getByRole("button", { name: "Max" });
       await user.click(maxButton);
 
-      expect(mockOnAmountChange).toHaveBeenCalledWith(expectedMaxAmount);
+      expect(mockOnAmountChange).toHaveBeenCalledWith(balance);
     });
 
-    it("should calculate maxAmount correctly with default 1% fee", async () => {
+    it("should set maxAmount to full balance with default 1% fee", async () => {
       const user = userEvent.setup();
       const balance = 1000;
       const asset = createMockAsset({ amount: balance.toString() });
-      // Default fee is 0.01 (1%)
-      // maxAmount = 1000 / 1.01 = 990.099009...
-      // Floored to 6 decimals = 990.099009
-      const expectedMaxAmount = calculateExpectedMaxAmount(balance, 0.01);
 
       render(
         <AmountSelector
@@ -250,21 +242,15 @@ describe("AmountSelector", () => {
       const maxButton = screen.getByRole("button", { name: "Max" });
       await user.click(maxButton);
 
-      expect(mockOnAmountChange).toHaveBeenCalledWith(expectedMaxAmount);
-      expect(expectedMaxAmount).toBeLessThan(balance);
-      expect(expectedMaxAmount).toBeCloseTo(990.099, 2);
+      // Max now shows full balance, fee deducted at submission
+      expect(mockOnAmountChange).toHaveBeenCalledWith(balance);
     });
 
-    it("should calculate maxAmount correctly with 5% fee", async () => {
+    it("should set maxAmount to full balance regardless of fee percentage", async () => {
       const user = userEvent.setup();
       const balance = 1000;
       const feePercentage = 0.05; // 5%
       const asset = createMockAsset({ amount: balance.toString() });
-      // maxAmount = 1000 / 1.05 = 952.380952...
-      const expectedMaxAmount = calculateExpectedMaxAmount(
-        balance,
-        feePercentage
-      );
 
       render(
         <AmountSelector
@@ -278,8 +264,7 @@ describe("AmountSelector", () => {
       const maxButton = screen.getByRole("button", { name: "Max" });
       await user.click(maxButton);
 
-      expect(mockOnAmountChange).toHaveBeenCalledWith(expectedMaxAmount);
-      expect(expectedMaxAmount).toBeCloseTo(952.38, 2);
+      expect(mockOnAmountChange).toHaveBeenCalledWith(balance);
     });
 
     it("should return full balance when feePercentage is 0", async () => {
@@ -302,9 +287,9 @@ describe("AmountSelector", () => {
       expect(mockOnAmountChange).toHaveBeenCalledWith(balance);
     });
 
-    it("should prevent Route 997 scenario - maxAmount + fee never exceeds balance", async () => {
+    it("should set Max to full balance for Route 997 scenario", async () => {
       const user = userEvent.setup();
-      const balance = 1849611.54; // Route 997's actual balance
+      const balance = 1849611.54;
       const feePercentage = 0.01;
       const asset = createMockAsset({ amount: balance.toString() });
 
@@ -321,10 +306,8 @@ describe("AmountSelector", () => {
       await user.click(maxButton);
 
       const calledAmount = mockOnAmountChange.mock.calls[0][0];
-      const fee = calledAmount * feePercentage;
-      const total = calledAmount + fee;
-
-      expect(total).toBeLessThanOrEqual(balance);
+      // Max now equals full balance
+      expect(calledAmount).toBe(balance);
     });
   });
 
@@ -781,9 +764,8 @@ describe("AmountSelector", () => {
 
       const calledAmount = mockOnAmountChange.mock.calls[0][0];
       expect(calledAmount).toBeGreaterThan(0);
-      expect(calledAmount + calledAmount * feePercentage).toBeLessThanOrEqual(
-        balance
-      );
+      // Max now equals full balance
+      expect(calledAmount).toBe(balance);
     });
 
     it("should handle string balance from asset", async () => {

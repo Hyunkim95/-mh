@@ -52,6 +52,7 @@ export const useSubmitRoute = ({
         tokenSymbol: route.tokenSymbol,
         hopAmountTokens: route.hopAmountTokens,
         hopAmountRaw: route.hopAmountRaw,
+        totalSpendTokens: data.totalSpendTokens,
         hops: data.hops.map((hop: { recipient: string; scheduledAt: string }) => ({
           recipient: hop.recipient,
           scheduledAt: hop.scheduledAt,

@@ -48,17 +48,12 @@ export const AmountSelector: React.FC<AmountSelectorProps> = ({
   // Use fresh on-chain balance when available, otherwise fall back to cached asset amount
   const effectiveBalance = freshBalance ?? parseNumber(asset?.amount)
 
-  // Calculate max amount accounting for fee
-  // If user has balance B and fee is F%, then max routable = B / (1 + F)
-  // This ensures: routeAmount + fee = balance
+  // Max amount is the full balance — fee deduction happens at submission time
   const maxAmount = React.useMemo(() => {
     const balance = effectiveBalance
-    if (balance <= 0 || feePercentage <= 0) return balance
-    // Max amount that can be routed = balance / (1 + fee)
-    const maxRoutable = balance / (1 + feePercentage)
-    // Round down to avoid precision issues that could cause insufficient funds
-    return Math.floor(maxRoutable * 1e6) / 1e6
-  }, [effectiveBalance, feePercentage])
+    if (balance <= 0) return balance
+    return Math.floor(balance * 1e6) / 1e6
+  }, [effectiveBalance])
 
   const usdPerToken = React.useMemo(() => {
     const assetAmount = parseNumber(asset?.amount)
