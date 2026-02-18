@@ -30,15 +30,16 @@ export const BetaAccessGate: React.FC<BetaAccessGateProps> = ({
 
       {/* Modal */}
       <div
-        className="relative w-full max-w-md mx-4 p-6 sm:p-8 bg-[#1D2022] rounded-2xl border border-white/10"
+        className="relative w-full max-w-md mx-4 p-6 sm:p-8 bg-black rounded-2xl border border-[#FBFF69]/30"
         style={{
-          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+          boxShadow:
+            "0 0 15px rgba(251, 255, 105, 0.15), 0 25px 50px -12px rgba(0, 0, 0, 0.5)",
         }}
       >
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors"
+          className="absolute top-4 right-4 text-[#FBFF69]/40 hover:text-[#FBFF69] transition-colors"
         >
           <svg
             className="w-6 h-6"
@@ -66,15 +67,15 @@ export const BetaAccessGate: React.FC<BetaAccessGateProps> = ({
         </div>
 
         {/* Title */}
-        <h2 className="text-xl sm:text-2xl font-medium text-white text-center mb-3">
+        <h2 className="text-xl sm:text-2xl font-medium text-[#FBFF69] text-center mb-3">
           Welcome to the Beta
         </h2>
 
         {/* Beta welcome message */}
-        <p className="text-white/60 text-sm sm:text-base text-center mb-8 leading-relaxed">
-          Welcome to the MultiHopper beta. It does not completely remove
-          traceability YET. It makes your actions abstracted from the casual
-          observer and tools like BubbleMaps.
+        <p className="text-[#FBFF69]/80 text-sm sm:text-base text-center mb-8 leading-relaxed">
+          Welcome to the MultiHopper beta. It does not completely remove full
+          traceability YET. It abstracts your actions from the casual observer
+          and tools like BubbleMaps at this stage. Big upgrades coming soon.
         </p>
 
         {/* I UNDERSTAND button */}
@@ -82,7 +83,7 @@ export const BetaAccessGate: React.FC<BetaAccessGateProps> = ({
           onClick={handleUnderstand}
           className="w-full py-3 bg-[#FBFF69] text-black font-semibold rounded-xl hover:brightness-110 transition-all"
         >
-          I UNDERSTAND
+          I understand. Let's Hop.
         </button>
       </div>
     </div>
