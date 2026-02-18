@@ -30,7 +30,7 @@ export const BetaAccessGate: React.FC<BetaAccessGateProps> = ({
 
       {/* Modal */}
       <div
-        className="relative w-full max-w-md mx-4 p-6 sm:p-8 bg-black rounded-2xl border border-[#FBFF69]/30"
+        className="relative w-full max-w-md mx-4 p-6 sm:p-8 bg-black rounded-2xl border border-mh-yellow/30"
         style={{
           boxShadow:
             "0 0 15px rgba(251, 255, 105, 0.15), 0 25px 50px -12px rgba(0, 0, 0, 0.5)",
@@ -39,7 +39,7 @@ export const BetaAccessGate: React.FC<BetaAccessGateProps> = ({
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-[#FBFF69]/40 hover:text-[#FBFF69] transition-colors"
+          className="absolute top-4 right-4 text-mh-yellow/40 hover:text-mh-yellow transition-colors"
         >
           <svg
             className="w-6 h-6"
@@ -58,21 +58,21 @@ export const BetaAccessGate: React.FC<BetaAccessGateProps> = ({
 
         {/* Beta badge */}
         <div className="flex justify-center mb-6">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#FBFF69]/10 border border-[#FBFF69]/30 rounded-full">
-            <div className="w-2 h-2 bg-[#FBFF69] rounded-full animate-pulse" />
-            <span className="text-[#FBFF69] text-sm font-medium">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-mh-yellow/10 border border-mh-yellow/30 rounded-full">
+            <div className="w-2 h-2 bg-mh-yellow rounded-full animate-pulse" />
+            <span className="text-mh-yellow text-sm font-medium">
               Beta Access
             </span>
           </div>
         </div>
 
         {/* Title */}
-        <h2 className="text-xl sm:text-2xl font-medium text-[#FBFF69] text-center mb-3">
+        <h2 className="text-xl sm:text-2xl font-medium text-mh-yellow text-center mb-3">
           Welcome to the Beta
         </h2>
 
         {/* Beta welcome message */}
-        <p className="text-[#FBFF69]/80 text-sm sm:text-base text-center mb-8 leading-relaxed">
+        <p className="text-mh-yellow/80 text-sm sm:text-base text-center mb-8 leading-relaxed">
           Welcome to the MultiHopper beta. It does not completely remove full
           traceability YET. It abstracts your actions from the casual observer
           and tools like BubbleMaps at this stage. Big upgrades coming soon.
@@ -81,7 +81,7 @@ export const BetaAccessGate: React.FC<BetaAccessGateProps> = ({
         {/* I UNDERSTAND button */}
         <button
           onClick={handleUnderstand}
-          className="w-full py-3 bg-[#FBFF69] text-black font-semibold rounded-xl hover:brightness-110 transition-all"
+          className="w-full py-3 bg-mh-yellow text-black font-semibold rounded-xl hover:brightness-110 transition-all"
         >
           I understand. Let's Hop.
         </button>
