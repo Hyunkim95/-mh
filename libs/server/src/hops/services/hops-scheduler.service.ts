@@ -129,23 +129,34 @@ export const triggerHopJob = new CronJob("*/10 * * * * *", async () => {
         );
 
         console.log(`[HopScheduler] Hop ${currentHop} for route ${routeId} executed: ${txSignature}`);
-      } catch (error) {
+      } catch (error: any) {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
+        const errorLogs = error?.logs || error?.transactionError?.logs;
+        const errorStack = error instanceof Error ? error.stack : undefined;
         console.error(
-          `[HopScheduler] Failed to trigger hop ${routeId}:`,
-          errorMessage
+          `[HopScheduler] Failed to trigger hop ${routeId}: ${errorMessage}`
         );
+        if (errorLogs) {
+          console.error(`[HopScheduler] Transaction logs for route ${routeId}:`, JSON.stringify(errorLogs));
+        }
+        if (errorStack) {
+          console.error(`[HopScheduler] Stack for route ${routeId}:`, errorStack);
+        }
+
+        const fullError = errorLogs
+          ? `${errorMessage} | Logs: ${JSON.stringify(errorLogs)}`
+          : errorMessage;
 
         // Record the failure
-        recordHopFailure(routeId, errorMessage);
-        if (currentHop) {
+        recordHopFailure(routeId, fullError);
+        if (currentHop !== undefined && currentHop !== null) {
           // Update hop with error
           await hopsService.updateHopExecutionByIndex(
             routeId,
             currentHop,
             {
-              error: errorMessage,
+              error: fullError,
             }
           );
         }
