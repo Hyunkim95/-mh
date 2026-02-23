@@ -5,12 +5,17 @@ export * from "../hops/schema/hops.schema";
 export * from "../routes/schema/route.schema";
 export * from "../token-configs/schema/token-config.schema";
 export * from "../busy-wallets/schema/busy-wallets.schema";
+export * from "../obfuscation/schema/obfuscation.schema";
 export { custodialWalletsSchema, etlCursors };
 
 // Export relations for drizzle query functionality
 export { type ContractEvent } from "../solana/schemas/contract-events.schema";
 export { hopsRelations } from "../hops/schema/hops.schema";
 export { routesRelations } from "../routes/schema/route.schema";
+export {
+  obfuscationSessionsRelations,
+  intermediateWalletsRelations,
+} from "../obfuscation/schema/obfuscation.schema";
 export {
   contractTransactions,
   contractTransactionsRelations,
