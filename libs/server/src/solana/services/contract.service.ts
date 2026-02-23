@@ -1046,13 +1046,13 @@ const triggerHop = async (
   const pairFrom = await getAssociatedTokenAddress(
     pairMint,
     fromOwner,
-    false,
+    true,
     TOKEN_2022_PROGRAM_ID
   );
   const pairTo = await getAssociatedTokenAddress(
     pairMint,
     toOwner,
-    false,
+    true,
     TOKEN_2022_PROGRAM_ID
   );
 
