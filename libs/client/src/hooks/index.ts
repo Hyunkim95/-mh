@@ -7,3 +7,5 @@ export * from "./useTriggerHop";
 export * from "./useSubmitRoute";
 export * from "./useInitializeTokenConfig";
 export * from "./useUpdateTokenConfig";
+export * from "./useObfuscationDeploy";
+export * from "./useDeploy";

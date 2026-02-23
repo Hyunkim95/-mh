@@ -6,6 +6,7 @@ import { useConnection } from "@solana/wallet-adapter-react";
 import bs58 from "bs58";
 import { trpc } from "../trpc";
 import { extractErrorMessage } from "../utils/extractErrorMessage";
+import { useObfuscationDeploy } from "./useObfuscationDeploy";
 
 // Maximum hops that can fit in a single transaction (matches backend)
 // Each hop = ~40 bytes (32-byte pubkey + 8-byte timestamp)
@@ -23,7 +24,7 @@ const recalculateHopTimes = (
     scheduledAt: number | string;
     delayMinutes?: number;
     isCustomTime?: boolean;
-  }>
+  }>,
 ): Array<{ recipient: string; scheduledAt: number }> => {
   const now = Date.now();
   let cumulativeTime = now;
@@ -73,6 +74,7 @@ export const useDeploy = () => {
   const addHopsBatched = trpc.contract.addHopsBatched.useMutation();
   const initializeRouteSOL = trpc.contract.initializeRouteSOL.useMutation();
   const markDeployed = trpc.routes.markDeployed.useMutation();
+  const { fundObfuscation, hasObfuscation } = useObfuscationDeploy();
 
   const initializeRouteMutation = async (
     data: {
@@ -327,6 +329,21 @@ export const useDeploy = () => {
     }
 
     try {
+      // Check if route has obfuscation enabled
+      const routeHasObfuscation = await hasObfuscation(data.databaseId);
+      console.log(`routeHasObfuscation: `, routeHasObfuscation);
+      if (routeHasObfuscation) {
+        // Use obfuscation flow - fund intermediate wallets, then server handles the rest
+        toast.loading("Route has obfuscation enabled...", { id: "deploy" });
+        await fundObfuscation(data.databaseId);
+        // Obfuscation handles: funding → aggregation → contract invocation → hops
+        toast.success(
+          "Route deployed with obfuscation! Hops will execute at scheduled times.",
+          { id: "deploy" },
+        );
+      }
+
+      // Standard (non-obfuscated) deployment flow below
       // Recalculate fresh timestamps based on delay configuration
       const freshHops = recalculateHopTimes(data.hops);
 
