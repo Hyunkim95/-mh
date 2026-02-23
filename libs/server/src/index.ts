@@ -20,3 +20,7 @@ export * from "./hops/services/hops-scheduler.service";
 export { dualDirectionContractEventsService };
 export { type HelisuTokenResponse } from "./solana/services/tokens.service";
 export { default as routesService } from "./routes/services/routes.service";
+
+// Obfuscation exports
+export type { ObfuscationFeeEstimate } from "./obfuscation";
+export { obfuscationSchedulerService } from "./obfuscation";
