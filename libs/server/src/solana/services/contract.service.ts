@@ -1030,6 +1030,99 @@ const initializeRouteWithWrap = async (
   };
 };
 
+/**
+ * Initialize SPL route WITHOUT the wrap instruction (split transaction 1 of 2)
+ * This keeps the transaction under Solana's 1232 byte limit
+ */
+const initializeRouteSplWithoutWrap = async (
+  payer: PublicKey,
+  creator: PublicKey,
+  routeId: BN,
+  hopAmount: BN,
+  hops: IHop[],
+  splMint: string,
+  originalTokenProgram: PublicKey,
+  wrappedTokenPubkey: PublicKey
+) => {
+  const mint = new PublicKey(splMint);
+  const tokenConfigPDA = await getTokenConfigPda();
+  const transaction = new Transaction();
+
+  // Add dynamic priority fee instructions
+  const priorityInstructions = await createDynamicPriorityInstructions(
+    params.connection
+  );
+  priorityInstructions.forEach((ix) => transaction.add(ix));
+
+  // Get deterministic executor for this route
+  const executorWallet = executorService.getWalletByRouteId(routeId.toNumber());
+
+  // Calculate and add executor funding
+  const executorFunding = calculateExecutorFunding(hops.length);
+  const fundingIx = createExecutorFundingInstruction(
+    payer,
+    executorWallet.publicKey,
+    executorFunding
+  );
+  transaction.add(fundingIx);
+
+  const initializeRouteIx = await initializeRoute(
+    payer,
+    creator,
+    tokenConfigPDA,
+    mint,
+    wrappedTokenPubkey,
+    routeId,
+    executorWallet.publicKey,
+    hopAmount,
+    hops,
+    originalTokenProgram
+  );
+  const initGuardTx = await initGuard(
+    payer,
+    wrappedTokenPubkey,
+    await getPermanentDelegate(routeId)
+  );
+  transaction.add(initializeRouteIx);
+  transaction.add(initGuardTx);
+
+  return transaction;
+};
+
+/**
+ * Create wrap transaction for SPL token (split transaction 2 of 2)
+ * This keeps the transaction under Solana's 1232 byte limit
+ */
+const wrapSplTokenTransaction = async (
+  payer: PublicKey,
+  routeId: BN,
+  splMint: string,
+  wrappedTokenPubkey: PublicKey,
+  hopAmount: BN
+) => {
+  const mint = new PublicKey(splMint);
+  const tokenConfigPDA = await getTokenConfigPda();
+  const transaction = new Transaction();
+
+  // Add dynamic priority fee instructions
+  const priorityInstructions = await createDynamicPriorityInstructions(
+    params.connection
+  );
+  priorityInstructions.forEach((ix) => transaction.add(ix));
+
+  const wrapIx = await wrap(
+    payer,
+    routeId,
+    tokenConfigPDA,
+    mint,
+    wrappedTokenPubkey,
+    hopAmount
+  );
+  transaction.add(wrapIx);
+
+  return transaction;
+};
+
 const triggerHop = async (
   routeId: BN,
   tokenConfigPda: PublicKey,
@@ -1387,6 +1480,133 @@ const updateTokenConfigWithTransaction = async (
   return transaction;
 };
 
+/**
+ * Initialize a route from Wallet X (for obfuscated routes)
+ * This is called by the obfuscation scheduler after all funds are aggregated to Wallet X
+ *
+ * @param walletXKeypair - The Wallet X keypair (has the tokens)
+ * @param routeId - The route ID
+ * @param hopAmount - The hop amount in raw units
+ * @param hops - Array of hops with recipient and executeAt
+ * @param tokenType - 'SOL' or 'SPL'
+ * @param tokenMint - SPL token mint address (optional, required for SPL)
+ * @returns Transaction signature
+ */
+export const initializeRouteFromWalletX = async (
+  walletXKeypair: Keypair,
+  routeId: BN,
+  hopAmount: BN,
+  hops: IHop[],
+  tokenType: 'SOL' | 'SPL',
+  tokenMint?: string
+): Promise<string> => {
+  if (tokenType === 'SOL') {
+    // SOL routes fit in a single transaction
+    const result = await initializeRouteSolWithWrap(
+      walletXKeypair.publicKey,
+      routeId,
+      hopAmount,
+      hops
+    );
+    const transaction = result.transaction;
+    const wrappedToken = result.wrappedToken;
+
+    // Set blockhash
+    const { blockhash, lastValidBlockHeight } = await params.connection.getLatestBlockhash('finalized');
+    transaction.recentBlockhash = blockhash;
+    transaction.lastValidBlockHeight = lastValidBlockHeight;
+    transaction.feePayer = walletXKeypair.publicKey;
+
+    // Sign with both Wallet X and the wrappedToken keypair
+    transaction.sign(walletXKeypair, wrappedToken);
+
+    // Submit the transaction
+    const signature = await sendAndConfirmTransaction(
+      params.connection,
+      transaction,
+      [walletXKeypair, wrappedToken],
+      {
+        skipPreflight: false,
+        commitment: 'confirmed',
+      }
+    );
+
+    return signature;
+  } else {
+    // SPL routes need to be split into two transactions to stay under 1232 byte limit
+    if (!tokenMint) {
+      throw new Error('Token mint is required for SPL routes');
+    }
+
+    // Generate wrapped token keypair upfront
+    const wrappedToken = Keypair.generate();
+
+    // Transaction 1: Initialize route + guard (without wrap)
+    const initTransaction = await initializeRouteSplWithoutWrap(
+      walletXKeypair.publicKey,
+      walletXKeypair.publicKey,
+      routeId,
+      hopAmount,
+      hops,
+      tokenMint,
+      TOKEN_PROGRAM_ID,
+      wrappedToken.publicKey
+    );
+
+    // Set blockhash for transaction 1
+    const { blockhash: blockhash1, lastValidBlockHeight: lastValidBlockHeight1 } =
+      await params.connection.getLatestBlockhash('finalized');
+    initTransaction.recentBlockhash = blockhash1;
+    initTransaction.lastValidBlockHeight = lastValidBlockHeight1;
+    initTransaction.feePayer = walletXKeypair.publicKey;
+
+    // Sign transaction 1 with both Wallet X and wrappedToken
+    initTransaction.sign(walletXKeypair, wrappedToken);
+
+    await sendAndConfirmTransaction(
+      params.connection,
+      initTransaction,
+      [walletXKeypair, wrappedToken],
+      {
+        skipPreflight: false,
+        commitment: 'confirmed',
+      }
+    );
+
+    // Transaction 2: Wrap
+    const wrapTransaction = await wrapSplTokenTransaction(
+      walletXKeypair.publicKey,
+      routeId,
+      tokenMint,
+      wrappedToken.publicKey,
+      hopAmount
+    );
+
+    // Set blockhash for transaction 2
+    const { blockhash: blockhash2, lastValidBlockHeight: lastValidBlockHeight2 } =
+      await params.connection.getLatestBlockhash('finalized');
+    wrapTransaction.recentBlockhash = blockhash2;
+    wrapTransaction.lastValidBlockHeight = lastValidBlockHeight2;
+    wrapTransaction.feePayer = walletXKeypair.publicKey;
+
+    // Sign transaction 2 with Wallet X only (wrap doesn't need wrappedToken signature)
+    wrapTransaction.sign(walletXKeypair);
+
+    const wrapSignature = await sendAndConfirmTransaction(
+      params.connection,
+      wrapTransaction,
+      [walletXKeypair],
+      {
+        skipPreflight: false,
+        commitment: 'confirmed',
+      }
+    );
+
+    // Return the final signature (wrap transaction)
+    return wrapSignature;
+  }
+};
+
 const contractService = {
   initializeCompleteTokenConfig,
   initializeCompleteSolTokenConfig,
@@ -1402,6 +1622,7 @@ const contractService = {
   updateTokenConfigWithTransaction,
   calculateExecutorFunding,
   createExecutorFundingInstruction,
+  initializeRouteFromWalletX,
   HOPS_PER_BATCH,
 };
 
