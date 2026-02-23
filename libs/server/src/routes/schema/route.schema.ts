@@ -22,6 +22,9 @@ export const routesSchema = pgTable('routes', {
     // Route type
     isEasyRoute: boolean('is_easy_route').default(false).notNull(),
 
+    // Obfuscation (wallet mixing before contract invocation)
+    hasObfuscation: boolean('has_obfuscation').default(false).notNull(), // false for existing routes, true for new
+
     // Ownership and metadata
     creator: varchar('creator').notNull(), // Creator wallet address
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
