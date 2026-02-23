@@ -8,6 +8,7 @@ import { utcNow } from "../../utils/timezone";
 import { PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 import { getRouteConfiguration } from "../../solana/services/contract-utils";
+import { obfuscationService } from "../../obfuscation";
 
 interface HopExecutionAttempt {
   routeId: number;
@@ -95,6 +96,25 @@ export const triggerHopJob = new CronJob("*/10 * * * * *", async () => {
             `[HopScheduler] Route ${routeId} not found in database`
           );
           continue;
+        }
+
+        // Check if route has obfuscation enabled
+        if (routeDB.hasObfuscation) {
+          const session = await obfuscationService.getSessionByRouteId(routeId);
+          if (!session) {
+            console.warn(
+              `[HopScheduler] Route ${routeId} has obfuscation but no session found`
+            );
+            continue;
+          }
+
+          // Only proceed if obfuscation is in 'executing' status
+          if (session.status !== 'executing') {
+            console.log(
+              `[HopScheduler] Route ${routeId} waiting for obfuscation (status: ${session.status})`
+            );
+            continue;
+          }
         }
 
         // Attempt to trigger the hop
