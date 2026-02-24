@@ -417,7 +417,9 @@ const cascadeCreate = async (_route: NewRoute, _hops: NewHop[]) => {
 };
 
 const triggerNextHop = async (routeId: number) => {
-  // TODO: Implement hop triggering logic
+ // TODO: Implement hop triggering logic
+  console.log(`Triggering next hop for route ${routeId}`);
+  // Implementation for triggering next hop
 };
 
 // Update hop timestamps in the database (for fixing incomplete deployments)
