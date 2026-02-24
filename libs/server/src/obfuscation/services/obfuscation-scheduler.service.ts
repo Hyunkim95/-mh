@@ -11,7 +11,9 @@ import { walletXService } from "./wallet-x.service";
 import { obfuscationTxBuilder } from "./obfuscation-tx-builder.service";
 import {
   initializeRouteFromWalletX,
+  addHopsFromWalletX,
   isRouteDeployedOnChain,
+  getRouteConfigPda,
 } from "../../solana/services/contract.service";
 import routesService from "../../routes/services/routes.service";
 
@@ -28,10 +30,8 @@ interface FailedOperation {
 }
 const failedOperations = new Map<string, FailedOperation>();
 
-// Locks to prevent concurrent job execution
-let isAggregationRunning = false;
-let isRouteTriggerRunning = false;
-let isCleanupRunning = false;
+// Lock to prevent concurrent job execution
+let isProcessorRunning = false;
 
 /**
  * Record a failed operation for retry tracking
@@ -53,11 +53,8 @@ function recordFailure(operationId: string, error: string): void {
     });
   }
 
-  const info = failedOperations.get(operationId)!;
-  console.log(
-    `[ObfuscationScheduler] Recorded failure ${info.failureCount}/${MAX_RETRY_ATTEMPTS} for ${operationId}: ${error}`,
-  );
 }
+
 
 /**
  * Check if an operation should be retried
@@ -75,194 +72,154 @@ function shouldRetry(operationId: string): boolean {
 }
 
 /**
- * Aggregation Job - Run every 5 seconds
+ * Phase 1: Process pending aggregations
  * Transfers funds from intermediate wallets to Wallet X
  */
-export const aggregationJob = new CronJob("*/5 * * * * *", async () => {
-  // Prevent concurrent execution
-  if (isAggregationRunning) {
-    console.log("[ObfuscationScheduler] Aggregation already running, skipping...");
-    return;
-  }
-  isAggregationRunning = true;
+async function processAggregations(): Promise<void> {
+  const readyWallets =
+    await intermediateWalletService.getWalletsReadyForAggregation();
 
-  try {
-    console.log("[ObfuscationScheduler] Starting aggregation scan...");
+  for (const wallet of readyWallets) {
+    const operationId = `${wallet.sessionId}_${wallet.walletIndex}_aggregate`;
+    if (!shouldRetry(operationId)) {
+      continue;
+    }
 
-    // Get wallets ready for aggregation
-    const readyWallets =
-      await intermediateWalletService.getWalletsReadyForAggregation();
+    try {
+      // Mark as sent (in progress)
+      await intermediateWalletService.updateAggregationStatus(
+        wallet.id,
+        "sent",
+      );
 
-    console.log(
-      `[ObfuscationScheduler] Found ${readyWallets.length} wallets ready for aggregation`,
-    );
+      // Build and execute aggregation transaction
+      const txData = await obfuscationTxBuilder.buildAggregationTransaction(
+        wallet.id,
+        wallet.sessionId,
+      );
 
-    for (const wallet of readyWallets) {
-      const operationId = `${wallet.sessionId}_${wallet.walletIndex}_aggregate`;
-
-      if (!shouldRetry(operationId)) {
-        console.log(
-          `[ObfuscationScheduler] Skipping ${operationId} - max retries reached, cooling down`,
-        );
-        continue;
-      }
-
-      try {
-        // Mark as sent (in progress)
-        await intermediateWalletService.updateAggregationStatus(
-          wallet.id,
-          "sent",
-        );
-
-        // Build and execute aggregation transaction
-        const txData = await obfuscationTxBuilder.buildAggregationTransaction(
-          wallet.id,
-          wallet.sessionId,
-        );
-
-        if (!txData) {
-          console.warn(
-            `[ObfuscationScheduler] Could not build aggregation tx for wallet ${wallet.id}`,
-          );
-          await intermediateWalletService.updateAggregationStatus(
-            wallet.id,
-            "failed",
-          );
-          continue;
-        }
-
-        const signature = await obfuscationTxBuilder.executeTransaction(
-          txData.transaction,
-          txData.signer,
-        );
-
-        // Mark as confirmed
-        await intermediateWalletService.updateAggregationStatus(
-          wallet.id,
-          "confirmed",
-          signature,
-        );
-
-        // Clear failure tracking on success
-        failedOperations.delete(operationId);
-
-        console.log(
-          `[ObfuscationScheduler] Aggregated wallet ${wallet.id} to Wallet X: ${signature}`,
-        );
-
-        // Check if all wallets are now aggregated
-        const allAggregated =
-          await intermediateWalletService.areAllWalletsAggregated(
-            wallet.sessionId,
-          );
-        if (allAggregated) {
-          console.log(
-            `[ObfuscationScheduler] All wallets aggregated for session ${wallet.sessionId}`,
-          );
-          // Trigger route execution job will pick this up
-        }
-      } catch (error: any) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
-        console.error(
-          `[ObfuscationScheduler] Failed to aggregate wallet ${wallet.id}: ${errorMessage}`,
-        );
-
+      if (!txData) {
         await intermediateWalletService.updateAggregationStatus(
           wallet.id,
           "failed",
         );
-        await intermediateWalletService.setError(wallet.id, errorMessage);
-        recordFailure(operationId, errorMessage);
-      }
-    }
-
-    console.log("[ObfuscationScheduler] Aggregation scan completed");
-  } catch (error) {
-    console.error(
-      "[ObfuscationScheduler] Critical error during aggregation scan:",
-      error,
-    );
-  } finally {
-    isAggregationRunning = false;
-  }
-});
-
-/**
- * Route Trigger Job - Run every 10 seconds
- * Invokes the multihopper contract once all funds are aggregated to Wallet X
- */
-export const routeTriggerJob = new CronJob("*/10 * * * * *", async () => {
-  // Prevent concurrent execution
-  if (isRouteTriggerRunning) {
-    console.log("[ObfuscationScheduler] Route trigger already running, skipping...");
-    return;
-  }
-  isRouteTriggerRunning = true;
-
-  try {
-    console.log("[ObfuscationScheduler] Starting route trigger scan...");
-
-    // Find sessions in 'aggregating' status where all wallets are aggregated
-    const sessions = await db.query.obfuscationSessionsSchema.findMany({
-      where: eq(obfuscationSessionsSchema.status, "aggregating"),
-    });
-
-    for (const session of sessions) {
-      const operationId = `${session.id}_route_trigger`;
-
-      if (!shouldRetry(operationId)) {
         continue;
       }
 
-      try {
-        // Check if all wallets are aggregated
-        const allAggregated =
-          await intermediateWalletService.areAllWalletsAggregated(session.id);
+      const signature = await obfuscationTxBuilder.executeTransaction(
+        txData.transaction,
+        txData.signer,
+      );
 
-        if (!allAggregated) {
-          continue;
-        }
+      // Mark as confirmed
+      await intermediateWalletService.updateAggregationStatus(
+        wallet.id,
+        "confirmed",
+        signature,
+      );
 
-        console.log(
-          `[ObfuscationScheduler] Session ${session.id} ready for contract invocation`,
-        );
+      // Clear failure tracking on success
+      failedOperations.delete(operationId);
+    } catch (error: any) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
 
-        // Get the route info with hops
-        const route = await db.query.routesSchema.findFirst({
-          where: eq(routesSchema.id, session.routeId),
-          with: {
-            hops: {
-              orderBy: (hops, { asc }) => [asc(hops.hopIndex)],
-            },
+      // Combined status + error update (single DB call)
+      await intermediateWalletService.updateAggregationStatus(
+        wallet.id,
+        "failed",
+        undefined,
+        errorMessage,
+      );
+      recordFailure(operationId, errorMessage);
+    }
+  }
+}
+
+/**
+ * Phase 2: Deploy route and cleanup
+ * For fully aggregated sessions:
+ * - Deploy route from Wallet X
+ * - Immediately cleanup intermediate wallets + Wallet X
+ * - Mark session as completed
+ */
+async function processDeploymentAndCleanup(): Promise<void> {
+  // Find sessions in 'aggregating' status
+  const sessions = await db.query.obfuscationSessionsSchema.findMany({
+    where: eq(obfuscationSessionsSchema.status, "aggregating"),
+  });
+
+  for (const session of sessions) {
+    const operationId = `${session.id}_deploy_and_cleanup`;
+
+    if (!shouldRetry(operationId)) {
+      continue;
+    }
+
+    try {
+      // Check if all wallets are aggregated
+      const allAggregated =
+        await intermediateWalletService.areAllWalletsAggregated(session.id);
+
+      if (!allAggregated) {
+        continue;
+      }
+
+      // Get the route info with hops
+      const route = await db.query.routesSchema.findFirst({
+        where: eq(routesSchema.id, session.routeId),
+        with: {
+          hops: {
+            orderBy: (hops, { asc }) => [asc(hops.hopIndex)],
           },
-        });
+        },
+      });
 
-        if (!route) {
-          console.warn(
-            `[ObfuscationScheduler] Route ${session.routeId} not found`,
-          );
-          continue;
-        }
+      if (!route) {
+        continue;
+      }
 
-        // Check if route is already deployed on-chain
-        const isDeployed = await isRouteDeployedOnChain(route.id);
-        if (isDeployed) {
-          console.log(
-            `[ObfuscationScheduler] Route ${session.routeId} already deployed, updating status`,
-          );
-          await obfuscationService.updateSessionStatus(session.id, "executing");
-          failedOperations.delete(operationId);
-          continue;
-        }
+      // Check if route is already deployed - verify BOTH database AND on-chain state
+      const isDeployedInDb = !!route.deploymentTxHash;
+      const routeConfigPda = await getRouteConfigPda(new BN(route.routeId));
+      const isDeployedOnChain = await isRouteDeployedOnChain(route.routeId);
+
+      // Handle case where route is on-chain but DB not updated
+      if (isDeployedOnChain && !isDeployedInDb) {
+        await routesService.updateRouteStatus(
+          route.id,
+          route.creator,
+          "deployed",
+          { deploymentTxHash: "recovered-from-chain" },
+        );
+      }
+
+      const isDeployed = isDeployedInDb || isDeployedOnChain;
+
+      if (!isDeployed) {
+        // Update session status to deploying
+        await obfuscationService.updateSessionStatus(session.id, "deploying");
 
         // Get Wallet X keypair
         const walletXKeypair = await walletXService.getKeypair(session.id);
         if (!walletXKeypair) {
-          console.warn(
-            `[ObfuscationScheduler] Wallet X keypair not found for session ${session.id}`,
-          );
           continue;
+        }
+
+        const connection = obfuscationService.getConnection();
+
+        // For SPL routes, verify Wallet X has received all tokens before deployment
+        if (session.tokenType === "SPL" && session.tokenMint) {
+          const tokenBalance = await walletXService.getTokenBalance(
+            session.id,
+            session.tokenMint,
+          );
+          const expectedAmount = new BN(session.totalAmount);
+
+          if (tokenBalance.lt(expectedAmount)) {
+            // Skip deployment - tokens haven't arrived yet
+            continue;
+          }
         }
 
         // Build hops array for contract
@@ -275,257 +232,170 @@ export const routeTriggerJob = new CronJob("*/10 * * * * *", async () => {
           })) || [];
 
         if (hops.length === 0) {
-          console.warn(
-            `[ObfuscationScheduler] Route ${session.routeId} has no hops`,
-          );
           continue;
         }
 
-        console.log(
-          `[ObfuscationScheduler] Initializing route ${session.routeId} from Wallet X`,
-        );
-
         // Initialize route from Wallet X
+        // IMPORTANT: Use route.routeId (on-chain identifier), not route.id (database ID)
         const signature = await initializeRouteFromWalletX(
           walletXKeypair,
-          new BN(route.id),
+          new BN(route.routeId),
           new BN(session.totalAmount),
           hops,
           session.tokenType as "SOL" | "SPL",
           session.tokenMint || undefined,
         );
 
-        console.log(
-          `[ObfuscationScheduler] Route ${session.routeId} initialized: ${signature}`,
+        // STEP 2: Add hops to the route
+        const addHopsSignature = await addHopsFromWalletX(
+          walletXKeypair,
+          new BN(route.routeId),
+          hops,
         );
 
-        // Update route status to deployed
+        // IMPORTANT: Store deployment hash immediately to prevent retry issues
         await routesService.updateRouteStatus(
           route.id,
           route.creator,
           "deployed",
           { deploymentTxHash: signature },
         );
-
-        // Update session status to executing
-        await obfuscationService.updateSessionStatus(session.id, "executing");
-
-        console.log(
-          `[ObfuscationScheduler] Session ${session.id} marked as executing`,
-        );
-
-        // Clear failure tracking on success
-        failedOperations.delete(operationId);
-      } catch (error: any) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
-        console.error(
-          `[ObfuscationScheduler] Failed to trigger route for session ${session.id}: ${errorMessage}`,
-        );
-        recordFailure(operationId, errorMessage);
       }
-    }
 
-    console.log("[ObfuscationScheduler] Route trigger scan completed");
-  } catch (error) {
-    console.error(
-      "[ObfuscationScheduler] Critical error during route trigger scan:",
-      error,
-    );
-  } finally {
-    isRouteTriggerRunning = false;
-  }
-});
+      // NOW CLEANUP - happens immediately after deployment
 
-/**
- * Cleanup Job - Run every 30 seconds
- * Closes ATAs and returns dust after route completes
- */
-export const cleanupJob = new CronJob("*/30 * * * * *", async () => {
-  // Prevent concurrent execution
-  if (isCleanupRunning) {
-    console.log("[ObfuscationScheduler] Cleanup already running, skipping...");
-    return;
-  }
-  isCleanupRunning = true;
+      const sourceWallet = new PublicKey(route.creator);
 
-  try {
-    console.log("[ObfuscationScheduler] Starting cleanup scan...");
+      // Cleanup all intermediate wallets
+      const walletsPendingCleanup =
+        await intermediateWalletService.getWalletsPendingCleanup(session.id);
 
-    // Find sessions where route is completed but cleanup is pending
-    // We need to check if the route status is 'completed' or 'deployed' with all hops done
-    const sessions = await db.query.obfuscationSessionsSchema.findMany({
-      where: eq(obfuscationSessionsSchema.status, "executing"),
-    });
+      for (const wallet of walletsPendingCleanup) {
+        const cleanupOpId = `${session.id}_${wallet.walletIndex}_cleanup`;
 
-    for (const session of sessions) {
-      try {
-        // Get the route to check if it's completed
-        const route = await db.query.routesSchema.findFirst({
-          where: eq(routesSchema.id, session.routeId),
-          with: {
-            hops: true,
-          },
-        });
+        try {
+          const txData = await obfuscationTxBuilder.buildCleanupTransaction(
+            wallet.id,
+            session.id,
+            sourceWallet,
+          );
 
-        if (!route) continue;
-
-        // Check if all hops are executed
-        const allHopsExecuted =
-          route.hops?.every((hop) => hop.executedAt !== null) ?? false;
-
-        if (!allHopsExecuted) {
-          continue;
-        }
-
-        console.log(
-          `[ObfuscationScheduler] Route ${session.routeId} completed, starting cleanup for session ${session.id}`,
-        );
-
-        // Update session status
-        await obfuscationService.updateSessionStatus(session.id, "cleaning");
-
-        // Get source wallet (creator)
-        const sourceWallet = new PublicKey(route.creator);
-
-        // Get all intermediate wallets pending cleanup
-        const walletsPendingCleanup =
-          await intermediateWalletService.getWalletsPendingCleanup(session.id);
-
-        for (const wallet of walletsPendingCleanup) {
-          const operationId = `${session.id}_${wallet.walletIndex}_cleanup`;
-
-          if (!shouldRetry(operationId)) {
-            continue;
-          }
-
-          try {
-            const txData = await obfuscationTxBuilder.buildCleanupTransaction(
-              wallet.id,
-              session.id,
-              sourceWallet,
+          if (txData) {
+            const cleanupSig = await obfuscationTxBuilder.executeTransaction(
+              txData.transaction,
+              txData.signer,
             );
 
-            if (txData) {
-              const signature = await obfuscationTxBuilder.executeTransaction(
-                txData.transaction,
-                txData.signer,
-              );
-
-              await intermediateWalletService.updateCleanupStatus(
-                wallet.id,
-                "completed",
-                signature, // dustReturnTxHash
-                signature, // ataCloseTxHash (same tx)
-              );
-
-              console.log(
-                `[ObfuscationScheduler] Cleaned up wallet ${wallet.id}: ${signature}`,
-              );
-              failedOperations.delete(operationId);
-            } else {
-              // No cleanup needed
-              await intermediateWalletService.updateCleanupStatus(
-                wallet.id,
-                "completed",
-              );
-            }
-          } catch (error: any) {
-            const errorMessage =
-              error instanceof Error ? error.message : "Unknown error";
-            console.error(
-              `[ObfuscationScheduler] Failed to cleanup wallet ${wallet.id}: ${errorMessage}`,
-            );
             await intermediateWalletService.updateCleanupStatus(
               wallet.id,
-              "failed",
+              "completed",
+              cleanupSig,
+              cleanupSig,
             );
-            recordFailure(operationId, errorMessage);
-          }
-        }
 
-        // Cleanup Wallet X
-        const walletXCleanupId = `${session.id}_walletX_cleanup`;
-        if (shouldRetry(walletXCleanupId)) {
-          try {
-            const txData =
-              await obfuscationTxBuilder.buildWalletXCleanupTransaction(
-                session.id,
-                sourceWallet,
-              );
-
-            if (txData) {
-              const signature = await obfuscationTxBuilder.executeTransaction(
-                txData.transaction,
-                txData.signer,
-              );
-              console.log(
-                `[ObfuscationScheduler] Cleaned up Wallet X for session ${session.id}: ${signature}`,
-              );
-              failedOperations.delete(walletXCleanupId);
-            }
-          } catch (error: any) {
-            const errorMessage =
-              error instanceof Error ? error.message : "Unknown error";
-            console.error(
-              `[ObfuscationScheduler] Failed to cleanup Wallet X: ${errorMessage}`,
+            failedOperations.delete(cleanupOpId);
+          } else {
+            // No cleanup needed (no dust to transfer)
+            await intermediateWalletService.updateCleanupStatus(
+              wallet.id,
+              "completed",
             );
-            recordFailure(walletXCleanupId, errorMessage);
           }
+        } catch (cleanupError: any) {
+          const errorMessage =
+            cleanupError instanceof Error
+              ? cleanupError.message
+              : "Unknown error";
+          // Combined status + error update (single DB call)
+          await intermediateWalletService.updateCleanupStatus(
+            wallet.id,
+            "failed",
+            undefined,
+            undefined,
+            errorMessage,
+          );
+          // Don't fail the whole operation for cleanup errors
         }
+      }
 
-        // Check if all cleanup is complete
-        const allCleanedUp =
-          await intermediateWalletService.areAllWalletsCleanedUp(session.id);
-        if (allCleanedUp) {
-          await obfuscationService.completeSession(session.id, "0"); // TODO: Calculate actual fees
-          console.log(
-            `[ObfuscationScheduler] Session ${session.id} fully completed`,
+      // Cleanup Wallet X (close ATA + return dust, but don't fully close)
+      try {
+        const walletXCleanupTx =
+          await obfuscationTxBuilder.buildWalletXCleanupTransaction(
+            session.id,
+            sourceWallet,
+          );
+
+        if (walletXCleanupTx) {
+          await obfuscationTxBuilder.executeTransaction(
+            walletXCleanupTx.transaction,
+            walletXCleanupTx.signer,
           );
         }
-      } catch (error: any) {
-        console.error(
-          `[ObfuscationScheduler] Error processing session ${session.id} cleanup:`,
-          error,
-        );
+      } catch (walletXCleanupError: any) {
+        // Don't fail the whole operation for Wallet X cleanup errors
       }
+
+      // Mark session as completed
+      await obfuscationService.completeSession(session.id, "0");
+
+      // Clear failure tracking on success
+      failedOperations.delete(operationId);
+    } catch (error: any) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      recordFailure(operationId, errorMessage);
     }
-
-    console.log("[ObfuscationScheduler] Cleanup scan completed");
-  } catch (error) {
-    console.error(
-      "[ObfuscationScheduler] Critical error during cleanup scan:",
-      error,
-    );
-  } finally {
-    isCleanupRunning = false;
   }
-});
-
-/**
- * Start all scheduler jobs
- */
-export function startObfuscationScheduler(): void {
-  aggregationJob.start();
-  routeTriggerJob.start();
-  cleanupJob.start();
-  console.log("[ObfuscationScheduler] All jobs started");
 }
 
 /**
- * Stop all scheduler jobs
+ * Unified Obfuscation Processor Job - Runs every 5 seconds
+ *
+ * Processes the complete obfuscation lifecycle:
+ * - Phase 1: Aggregate funds from intermediate wallets to Wallet X
+ * - Phase 2: Deploy route from Wallet X and immediately cleanup
+ *
+ * Note: Hop execution is handled separately by the hop scheduler
+ */
+export const obfuscationProcessorJob = new CronJob(
+  "*/5 * * * * *",
+  async () => {
+    // Prevent concurrent execution
+    if (isProcessorRunning) {
+      return;
+    }
+    isProcessorRunning = true;
+    try {
+      // Phase 1: Process pending aggregations
+      await processAggregations();
+
+      // Phase 2: Deploy and cleanup for fully aggregated sessions
+      await processDeploymentAndCleanup();
+    } catch (error) {
+      // Critical error during processing
+    } finally {
+      isProcessorRunning = false;
+    }
+  },
+);
+
+/**
+ * Start the obfuscation scheduler
+ */
+export function startObfuscationScheduler(): void {
+  obfuscationProcessorJob.start();
+}
+
+/**
+ * Stop the obfuscation scheduler
  */
 export function stopObfuscationScheduler(): void {
-  aggregationJob.stop();
-  routeTriggerJob.stop();
-  cleanupJob.stop();
-  console.log("[ObfuscationScheduler] All jobs stopped");
+  obfuscationProcessorJob.stop();
 }
 
 export const obfuscationSchedulerService = {
-  aggregationJob,
-  routeTriggerJob,
-  cleanupJob,
+  obfuscationProcessorJob,
   startObfuscationScheduler,
   stopObfuscationScheduler,
 };

@@ -31,6 +31,17 @@ const ESTIMATED_PRIORITY_FEE_LAMPORTS = 200000;
 const RENT_EXEMPT_MINIMUM_LAMPORTS = 890880;
 // Minimum lamports per intermediate wallet (rent-exempt + fees buffer)
 const MIN_LAMPORTS_PER_WALLET = RENT_EXEMPT_MINIMUM_LAMPORTS + BASE_TX_FEE_LAMPORTS + ESTIMATED_PRIORITY_FEE_LAMPORTS;
+// TOTAL SOL needed for Wallet X to deploy route on-chain
+// This covers: route_config PDA (~6M), route_state PDA (~3M), route_token_mint Token-2022 (~50M), ATA creation, tx fees
+// The actual deployment cost is ~63M lamports, we add buffer for safety
+const TOTAL_DEPLOYMENT_COST_LAMPORTS = 80_000_000; // 0.08 SOL total for deployment
+
+// Per-wallet fees for aggregation phase
+// This must cover:
+// 1. Aggregation tx fee: BASE_TX_FEE (5K) + priority (~200K) + buffer (5K) = ~210K
+// 2. Cleanup reserve kept in wallet: RENT_EXEMPT_MINIMUM (~890K) + cleanup tx fee (~210K) = ~1.1M
+// Total per wallet: ~1.3M, using 1.5M for safety margin
+const AGGREGATION_FEE_PER_WALLET = 1_500_000; // 0.0015 SOL per wallet
 
 // Initialize Solana connection
 const connection = new Connection(
@@ -146,6 +157,7 @@ export interface ObfuscationFeeEstimate {
   aggregationTxFees: number;
   cleanupTxFees: number;
   rentRecovery: number;
+  dustRefund: number; // SOL dust returned from intermediate wallets after cleanup
   netObfuscationCost: number;
   totalFeesLamports: number;
 }
@@ -171,13 +183,19 @@ function estimateObfuscationFees(
       ? (intermediateCount + 1) * (ATA_RENT_LAMPORTS - BASE_TX_FEE_LAMPORTS)
       : 0;
 
+  // Dust refund: rent-exempt minimum from each wallet gets returned during cleanup
+  // This is the SOL that was kept in each wallet to avoid rent errors during aggregation
+  // After cleanup, this dust is transferred back to the user
+  const dustRefund = (intermediateCount + 1) * (RENT_EXEMPT_MINIMUM_LAMPORTS - BASE_TX_FEE_LAMPORTS);
+
   const netObfuscationCost =
     intermediateAtaCreation +
     walletXAtaCreation +
     fundingTxFees +
     aggregationTxFees +
     cleanupTxFees -
-    rentRecovery;
+    rentRecovery -
+    dustRefund;
 
   return {
     intermediateAtaCreation,
@@ -186,6 +204,7 @@ function estimateObfuscationFees(
     aggregationTxFees,
     cleanupTxFees,
     rentRecovery,
+    dustRefund,
     netObfuscationCost,
     totalFeesLamports: Math.max(0, netObfuscationCost),
   };
@@ -228,6 +247,7 @@ async function createSession(
   const totalAmount = new BN(input.totalAmount);
   const splitAmounts = generateRandomSplit(totalAmount, intermediateCount);
 
+  // Generate intermediate wallets
   for (let i = 0; i < intermediateCount; i++) {
     const walletIdentifier = `obfuscation_intermediate_${session.id}_${i}_${Date.now()}`;
     const wallet = await walletManager.getOrCreateWallet(walletIdentifier);
@@ -429,5 +449,7 @@ export const obfuscationService = {
     ESTIMATED_PRIORITY_FEE_LAMPORTS,
     RENT_EXEMPT_MINIMUM_LAMPORTS,
     MIN_LAMPORTS_PER_WALLET,
+    TOTAL_DEPLOYMENT_COST_LAMPORTS,
+    AGGREGATION_FEE_PER_WALLET,
   },
 };

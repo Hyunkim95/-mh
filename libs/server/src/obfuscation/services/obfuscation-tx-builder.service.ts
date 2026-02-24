@@ -3,6 +3,7 @@ import {
   PublicKey,
   SystemProgram,
   Keypair,
+  Connection,
 } from "@solana/web3.js";
 import {
   getAssociatedTokenAddress,
@@ -18,21 +19,86 @@ import { walletXService } from "./wallet-x.service";
 import {
   serialize,
   createDynamicPriorityInstructions,
+  getRecommendedPriorityFee,
 } from "../../solana/services/contract.service";
 
 // Get connection from obfuscation service
 const getConnection = () => obfuscationService.getConnection();
 
 /**
+ * Build common cleanup transaction logic
+ * Used by both intermediate wallet and Wallet X cleanup
+ */
+async function buildCleanupTxCore(
+  connection: Connection,
+  ownerPublicKey: PublicKey,
+  destinationWallet: PublicKey,
+  tokenMint: string | null,
+): Promise<Transaction> {
+  const transaction = new Transaction();
+
+  // Add priority fee instructions for faster confirmation
+  const priorityInstructions = await createDynamicPriorityInstructions(
+    connection,
+    100_000,
+  );
+  priorityInstructions.forEach((ix) => transaction.add(ix));
+
+  // Close ATA if it's an SPL token
+  if (tokenMint) {
+    const mint = new PublicKey(tokenMint);
+    const ata = await getAssociatedTokenAddress(mint, ownerPublicKey);
+
+    try {
+      const account = await getAccount(connection, ata);
+      if (account.amount === BigInt(0)) {
+        transaction.add(
+          createCloseAccountInstruction(ata, destinationWallet, ownerPublicKey),
+        );
+      }
+    } catch {
+      // ATA doesn't exist
+    }
+  }
+
+  // Transfer remaining SOL dust (keeping rent-exempt minimum to avoid rent error)
+  const { BASE_TX_FEE_LAMPORTS, ESTIMATED_PRIORITY_FEE_LAMPORTS, RENT_EXEMPT_MINIMUM_LAMPORTS } =
+    obfuscationService.constants;
+  const balance = await connection.getBalance(ownerPublicKey);
+  const txFee = BASE_TX_FEE_LAMPORTS + ESTIMATED_PRIORITY_FEE_LAMPORTS;
+
+  // Must keep rent-exempt minimum + tx fee in the account
+  // Otherwise we get "insufficient funds for rent" error
+  const reserveAmount = RENT_EXEMPT_MINIMUM_LAMPORTS + txFee;
+  const dustAmount = Math.max(0, balance - reserveAmount);
+
+  if (dustAmount > 0) {
+    transaction.add(
+      SystemProgram.transfer({
+        fromPubkey: ownerPublicKey,
+        toPubkey: destinationWallet,
+        lamports: dustAmount,
+      }),
+    );
+  }
+
+  return transaction;
+}
+
+/**
  * Build a funding transaction: Source -> Intermediate wallet
  * Includes ATA creation if needed for SPL tokens
  * Returns transaction to be signed by the source wallet (user)
+ *
+ * @param totalWalletCount - Total number of intermediate wallets in the session
+ *   Used to calculate per-wallet share of deployment costs
  */
 async function buildFundingTransaction(
   sourceWallet: PublicKey,
   intermediateWalletAddress: PublicKey,
   amount: BN,
   tokenMint?: PublicKey, // null for SOL
+  totalWalletCount: number = 2, // Default to 2 for backwards compatibility
 ): Promise<{ transaction: Transaction; serialized: string }> {
   const transaction = new Transaction();
   const connection = getConnection();
@@ -68,7 +134,7 @@ async function buildFundingTransaction(
       );
     }
 
-    // Add transfer instruction
+    // Add SPL token transfer instruction
     transaction.add(
       createTransferInstruction(
         sourceAta, // from
@@ -77,13 +143,38 @@ async function buildFundingTransaction(
         BigInt(amount.toString()), // amount
       ),
     );
-  } else {
-    // SOL transfer
+
+    // ALSO send SOL to intermediate wallet for:
+    // 1. Aggregation transaction fees (per wallet)
+    // 2. SOL to forward to Wallet X for route deployment (split among all wallets)
+    // The deployment cost is FIXED (~80M total), so we divide by wallet count
+    const { TOTAL_DEPLOYMENT_COST_LAMPORTS, AGGREGATION_FEE_PER_WALLET } =
+      obfuscationService.constants;
+    const deploymentSharePerWallet = Math.ceil(TOTAL_DEPLOYMENT_COST_LAMPORTS / totalWalletCount);
+    const totalSolFunding = deploymentSharePerWallet + AGGREGATION_FEE_PER_WALLET;
+
     transaction.add(
       SystemProgram.transfer({
         fromPubkey: sourceWallet,
         toPubkey: intermediateWalletAddress,
-        lamports: amount.toNumber(),
+        lamports: totalSolFunding,
+      }),
+    );
+  } else {
+    // SOL transfer: allocated amount + extra SOL for Wallet X deployment costs
+    // The deployment cost is FIXED (~80M total), so we divide by wallet count
+    // Plus per-wallet aggregation fees
+    const { TOTAL_DEPLOYMENT_COST_LAMPORTS, AGGREGATION_FEE_PER_WALLET } =
+      obfuscationService.constants;
+    const deploymentSharePerWallet = Math.ceil(TOTAL_DEPLOYMENT_COST_LAMPORTS / totalWalletCount);
+    const extraSolForDeployment = deploymentSharePerWallet + AGGREGATION_FEE_PER_WALLET;
+    const totalFunding = amount.toNumber() + extraSolForDeployment;
+
+    transaction.add(
+      SystemProgram.transfer({
+        fromPubkey: sourceWallet,
+        toPubkey: intermediateWalletAddress,
+        lamports: totalFunding,
       }),
     );
   }
@@ -128,6 +219,8 @@ async function buildAllFundingTransactions(
     amount: string;
   }> = [];
 
+  const totalWalletCount = session.intermediateWallets.length;
+
   for (const wallet of session.intermediateWallets) {
     // Skip already funded wallets (for idempotency)
     if (wallet.fundingStatus === "funded") {
@@ -142,6 +235,7 @@ async function buildAllFundingTransactions(
       destinationAddress,
       amount,
       tokenMint,
+      totalWalletCount, // Pass wallet count for deployment cost calculation
     );
 
     results.push({
@@ -193,6 +287,21 @@ async function buildAggregationTransaction(
   const walletXPublicKey = new PublicKey(walletX.address);
   const amount = new BN(intermediateWallet.allocatedAmount);
 
+  const { BASE_TX_FEE_LAMPORTS, RENT_EXEMPT_MINIMUM_LAMPORTS } =
+    obfuscationService.constants;
+
+  // Calculate actual transaction fee dynamically based on priority fee
+  const computeUnits = 100_000; // Same as what we set in priority instructions
+  const recommendedPriorityFee = await getRecommendedPriorityFee(connection);
+  const priorityFeeLamports = Math.ceil(
+    (computeUnits * recommendedPriorityFee) / 1_000_000,
+  );
+  const actualTxFee = BASE_TX_FEE_LAMPORTS + priorityFeeLamports + 5000; // +5000 buffer
+
+  const solBalance = await connection.getBalance(intermediatePublicKey);
+
+  let solTransferAmount: number;
+
   if (session.tokenMint) {
     // SPL Token transfer
     const tokenMint = new PublicKey(session.tokenMint);
@@ -206,45 +315,53 @@ async function buildAggregationTransaction(
     );
 
     // Check if Wallet X ATA exists, if not create it
+    // Track ATA creation cost since it's paid from this wallet's SOL balance
+    let ataCreationCost = 0;
     try {
       await getAccount(connection, destinationAta);
     } catch {
-      // ATA doesn't exist, add creation instruction (intermediate pays)
+      // This wallet will pay ATA rent when creating Wallet X's ATA
+      ataCreationCost = obfuscationService.constants.ATA_RENT_LAMPORTS;
       transaction.add(
         createAssociatedTokenAccountInstruction(
-          intermediatePublicKey, // payer
-          destinationAta, // ata
-          walletXPublicKey, // owner
-          tokenMint, // mint
+          intermediatePublicKey,
+          destinationAta,
+          walletXPublicKey,
+          tokenMint,
         ),
       );
     }
 
-    // Add transfer instruction
+    // Transfer SPL tokens
     transaction.add(
       createTransferInstruction(
-        sourceAta, // from
-        destinationAta, // to
-        intermediatePublicKey, // owner
-        BigInt(amount.toString()), // amount
+        sourceAta,
+        destinationAta,
+        intermediatePublicKey,
+        BigInt(amount.toString()),
       ),
     );
-  } else {
-    // SOL transfer - leave enough for rent-exemption + fees
-    const { BASE_TX_FEE_LAMPORTS, ESTIMATED_PRIORITY_FEE_LAMPORTS, RENT_EXEMPT_MINIMUM_LAMPORTS } = obfuscationService.constants;
-    const reservedAmount = RENT_EXEMPT_MINIMUM_LAMPORTS + BASE_TX_FEE_LAMPORTS + ESTIMATED_PRIORITY_FEE_LAMPORTS;
-    const balance = await connection.getBalance(intermediatePublicKey);
-    const transferAmount = Math.max(0, balance - reservedAmount);
 
-    if (transferAmount > 0) {
-      transaction.add(
-        SystemProgram.transfer({
-          fromPubkey: intermediatePublicKey,
-          toPubkey: walletXPublicKey,
-          lamports: transferAmount,
-        }),
-      );
-    }
+    // SPL route: Keep rent-exempt + cleanup tx fee in intermediate wallet
+    // Also subtract ATA creation cost since it's deducted before SOL transfer executes
+    const reserveForCleanup = RENT_EXEMPT_MINIMUM_LAMPORTS + actualTxFee;
+    solTransferAmount = Math.max(0, solBalance - reserveForCleanup - ataCreationCost);
+  } else {
+    // SOL route: Keep rent-exempt + cleanup tx fee in intermediate wallet
+    // The cleanup phase will return this dust to the user
+    const reserveForCleanup = RENT_EXEMPT_MINIMUM_LAMPORTS + actualTxFee;
+    solTransferAmount = Math.max(0, solBalance - reserveForCleanup);
+  }
+
+  // Transfer SOL to Wallet X
+  if (solTransferAmount > 0) {
+    transaction.add(
+      SystemProgram.transfer({
+        fromPubkey: intermediatePublicKey,
+        toPubkey: walletXPublicKey,
+        lamports: solTransferAmount,
+      }),
+    );
   }
 
   // Set blockhash and fee payer
@@ -270,64 +387,22 @@ async function buildCleanupTransaction(
   const session = await obfuscationService.getSession(sessionId);
   if (!session) return null;
 
-  const intermediateWallet =
-    await intermediateWalletService.getIntermediateWalletWithCustodial(
-      intermediateWalletId,
-    );
-  if (!intermediateWallet) return null;
-
   const signer =
     await intermediateWalletService.getKeypairForWallet(intermediateWalletId);
   if (!signer) return null;
 
   const connection = getConnection();
-  const transaction = new Transaction();
 
-  const intermediatePublicKey = signer.publicKey;
+  // Use shared cleanup logic
+  const transaction = await buildCleanupTxCore(
+    connection,
+    signer.publicKey,
+    sourceWallet,
+    session.tokenMint,
+  );
 
-  // Close ATA if it's an SPL token
-  if (session.tokenMint) {
-    const tokenMint = new PublicKey(session.tokenMint);
-    const ata = await getAssociatedTokenAddress(
-      tokenMint,
-      intermediatePublicKey,
-    );
-
-    try {
-      const account = await getAccount(connection, ata);
-      // Only close if account exists and has zero balance
-      if (account.amount === BigInt(0)) {
-        transaction.add(
-          createCloseAccountInstruction(
-            ata, // account to close
-            sourceWallet, // destination for rent
-            intermediatePublicKey, // owner
-          ),
-        );
-      }
-    } catch {
-      // ATA doesn't exist, nothing to close
-    }
-  }
-
-  // Transfer remaining SOL dust to source
-  const { BASE_TX_FEE_LAMPORTS } = obfuscationService.constants;
-  const balance = await connection.getBalance(intermediatePublicKey);
-  const rentExempt = BASE_TX_FEE_LAMPORTS; // Minimum for transaction fee
-  const dustAmount = balance - rentExempt;
-
-  if (dustAmount > 0) {
-    transaction.add(
-      SystemProgram.transfer({
-        fromPubkey: intermediatePublicKey,
-        toPubkey: sourceWallet,
-        lamports: dustAmount,
-      }),
-    );
-  }
-
-  // Only proceed if there are instructions
-  if (transaction.instructions.length === 0) {
+  // Only proceed if there are instructions (priority fees don't count)
+  if (transaction.instructions.length <= 2) {
     return null;
   }
 
@@ -336,13 +411,16 @@ async function buildCleanupTransaction(
     await connection.getLatestBlockhash("finalized");
   transaction.recentBlockhash = blockhash;
   transaction.lastValidBlockHeight = lastValidBlockHeight;
-  transaction.feePayer = intermediatePublicKey;
+  transaction.feePayer = signer.publicKey;
 
   return { transaction, signer };
 }
 
 /**
  * Build a cleanup transaction for Wallet X
+ * - Close ATA (to recover rent if SPL route)
+ * - Return SOL dust to user
+ * - Do NOT fully close the account (just empty it)
  */
 async function buildWalletXCleanupTransaction(
   sessionId: number,
@@ -355,50 +433,17 @@ async function buildWalletXCleanupTransaction(
   if (!signer) return null;
 
   const connection = getConnection();
-  const transaction = new Transaction();
 
-  const walletXPublicKey = signer.publicKey;
+  // Use shared cleanup logic
+  const transaction = await buildCleanupTxCore(
+    connection,
+    signer.publicKey,
+    sourceWallet,
+    session.tokenMint,
+  );
 
-  // Close ATA if it's an SPL token
-  if (session.tokenMint) {
-    const tokenMint = new PublicKey(session.tokenMint);
-    const ata = await getAssociatedTokenAddress(tokenMint, walletXPublicKey);
-
-    try {
-      const account = await getAccount(connection, ata);
-      // Only close if account exists and has zero balance
-      if (account.amount === BigInt(0)) {
-        transaction.add(
-          createCloseAccountInstruction(
-            ata, // account to close
-            sourceWallet, // destination for rent
-            walletXPublicKey, // owner
-          ),
-        );
-      }
-    } catch {
-      // ATA doesn't exist, nothing to close
-    }
-  }
-
-  // Transfer remaining SOL dust to source
-  const { BASE_TX_FEE_LAMPORTS } = obfuscationService.constants;
-  const balance = await connection.getBalance(walletXPublicKey);
-  const rentExempt = BASE_TX_FEE_LAMPORTS;
-  const dustAmount = balance - rentExempt;
-
-  if (dustAmount > 0) {
-    transaction.add(
-      SystemProgram.transfer({
-        fromPubkey: walletXPublicKey,
-        toPubkey: sourceWallet,
-        lamports: dustAmount,
-      }),
-    );
-  }
-
-  // Only proceed if there are instructions
-  if (transaction.instructions.length === 0) {
+  // Only proceed if there are instructions (priority fees don't count)
+  if (transaction.instructions.length <= 2) {
     return null;
   }
 
@@ -407,7 +452,7 @@ async function buildWalletXCleanupTransaction(
     await connection.getLatestBlockhash("finalized");
   transaction.recentBlockhash = blockhash;
   transaction.lastValidBlockHeight = lastValidBlockHeight;
-  transaction.feePayer = walletXPublicKey;
+  transaction.feePayer = signer.publicKey;
 
   return { transaction, signer };
 }
