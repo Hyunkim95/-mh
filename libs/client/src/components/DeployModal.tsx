@@ -16,6 +16,7 @@ export interface DeployModalRoute {
   hopAmountTokens: string;
   hopAmountRaw: string;
   totalSpendTokens?: string; // User's total spend (before fee deduction)
+  hasObfuscation?: boolean; // Whether route uses obfuscation wallets
   hops: {
     recipient: string;
     scheduledAt: string;

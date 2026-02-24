@@ -54,6 +54,11 @@ export const RouteItem = ({ route }: RouteItemProps) => {
   // Show "Replay" for anything that has been sent (deployed, deploying, failed, or completed)
   const isDraft = route.deploymentStatus === "draft" && route.status !== "completed";
   const isDeployed = !isDraft;
+
+  // Check if route has an active obfuscation session (not completed or failed)
+  const isObfuscating = route.hasObfuscation &&
+    route.obfuscationStatus &&
+    !['completed', 'failed'].includes(route.obfuscationStatus);
   const hopsCount = route.hops?.length ?? 0;
   const { isMobile } = useMobileDevice();
 
@@ -100,6 +105,15 @@ export const RouteItem = ({ route }: RouteItemProps) => {
     hopsCountOnChain > 0 &&
     hopsCountOnChain < hopsCount &&
     !isRecentlyDeployed; // Don't show warning for recently deployed routes
+
+  // Check if all hops are completed based on on-chain state
+  // currentHopIndex is 1-indexed after each hop executes, so if it equals hopsCountOnChain, all hops are done
+  const isAllHopsCompletedOnChain =
+    hasRouteState &&
+    hopsCountOnChain > 0 &&
+    currentHopIndex >= hopsCountOnChain &&
+    !hasMissingHops;
+
   const formattedAmount =
     route.hopAmountTokens != null
       ? new Intl.NumberFormat(undefined, { maximumFractionDigits: 6 }).format(
@@ -441,8 +455,10 @@ export const RouteItem = ({ route }: RouteItemProps) => {
                     ? "text-red-400 bg-red-400/10"
                     : isIncomplete
                     ? "text-red-400 bg-red-400/10"
-                    : route.status === "completed" && !hasMissingHops
+                    : (route.status === "completed" && !hasMissingHops) || isAllHopsCompletedOnChain
                     ? "text-green-400 bg-green-400/10"
+                    : isDraft && isObfuscating
+                    ? "text-[var(--laser-lemon-500)] bg-[var(--laser-lemon-500-transparency-13)]"
                     : isDraft
                     ? "text-gray-400 bg-gray-400/10"
                     : "text-[var(--laser-lemon-500)] bg-[var(--laser-lemon-500-transparency-13)]"
@@ -452,8 +468,10 @@ export const RouteItem = ({ route }: RouteItemProps) => {
                   ? "Partial"
                   : isIncomplete
                   ? "Incomplete"
-                  : route.status === "completed" && !hasMissingHops
+                  : (route.status === "completed" && !hasMissingHops) || isAllHopsCompletedOnChain
                   ? "Completed"
+                  : isDraft && isObfuscating
+                  ? "Deploying"
                   : isDraft
                   ? "Draft"
                   : "Pending"}
@@ -495,8 +513,10 @@ export const RouteItem = ({ route }: RouteItemProps) => {
                 ? "text-red-400"
                 : isIncomplete
                 ? "text-red-400"
-                : route.status === "completed" && !hasMissingHops
+                : (route.status === "completed" && !hasMissingHops) || isAllHopsCompletedOnChain
                 ? "text-green-400"
+                : isDraft && isObfuscating
+                ? "text-[var(--laser-lemon-500)]"
                 : isDraft
                 ? "text-gray-400"
                 : "text-[var(--laser-lemon-500)]"
@@ -506,8 +526,10 @@ export const RouteItem = ({ route }: RouteItemProps) => {
               ? "Partial"
               : isIncomplete
               ? "Incomplete"
-              : route.status === "completed" && !hasMissingHops
+              : (route.status === "completed" && !hasMissingHops) || isAllHopsCompletedOnChain
               ? "Completed"
+              : isDraft && isObfuscating
+              ? "Deploying"
               : isDraft
               ? "Draft"
               : "Pending"}

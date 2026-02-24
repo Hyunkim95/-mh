@@ -832,6 +832,7 @@ walletC,10`
           hopAmountTokens: route.hopAmountTokens,
           hopAmountRaw: route.hopAmountRaw,
           totalSpendTokens: String(userAmount),
+          hasObfuscation: route.hasObfuscation,
           hops: result.data.hops,
         }
         setCreatedRoute(deployModalRoute)

@@ -22,5 +22,7 @@ export interface Route {
   deploymentTxHash?: string | null;
   routeConfigPda?: string | null;
   canDeploy: boolean;
-  deploymentStatus: "draft" | "deploying" | "deployed" | "failed";
+  deploymentStatus: "draft" | "deploying" | "deployed" | "completed" | "failed";
+  hasObfuscation?: boolean;
+  obfuscationStatus?: string | null;
 }
