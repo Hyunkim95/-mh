@@ -8,9 +8,8 @@ export type ObfuscationSessionStatus =
   | 'pending'      // Session created, waiting for funding
   | 'funding'      // User is signing funding transactions
   | 'aggregating'  // Intermediates are transferring to Wallet X
-  | 'executing'    // Wallet X has invoked contract, route is running
-  | 'cleaning'     // Closing ATAs and returning dust
-  | 'completed'    // All done
+  | 'deploying'    // Wallet X is deploying the route contract
+  | 'completed'    // Route deployed and cleanup done
   | 'failed';      // Something went wrong
 
 // Intermediate wallet funding status

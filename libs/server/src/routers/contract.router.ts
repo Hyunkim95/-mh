@@ -741,11 +741,10 @@ export const contractRouter = router({
     .input(triggerHopInputSchema)
     .mutation(async ({ input }) => {
       try {
-        const { routeId, creator } = input;
+        const { routeId } = input;
 
-        // Execute the hop using the simplified signature
+        // Execute the hop - sourceOwner is read from on-chain route config
         const signature = await executeHop(
-          new PublicKey(creator),
           new BN(routeId),
         );
 

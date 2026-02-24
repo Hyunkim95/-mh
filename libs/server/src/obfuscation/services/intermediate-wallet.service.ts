@@ -127,11 +127,16 @@ async function updateFundingStatusByIndex(
 
 /**
  * Update aggregation status for an intermediate wallet
+ * @param walletId - The wallet ID
+ * @param status - New aggregation status
+ * @param txHash - Optional transaction hash (for confirmed status)
+ * @param error - Optional error message (for failed status)
  */
 async function updateAggregationStatus(
   walletId: number,
   status: AggregationStatus,
   txHash?: string,
+  error?: string,
 ): Promise<void> {
   const updates: Partial<IntermediateWallet> = {
     aggregationStatus: status,
@@ -146,6 +151,10 @@ async function updateAggregationStatus(
     updates.aggregatedAt = new Date();
   }
 
+  if (error) {
+    updates.lastError = error;
+  }
+
   await db
     .update(intermediateWalletsSchema)
     .set(updates)
@@ -154,12 +163,18 @@ async function updateAggregationStatus(
 
 /**
  * Update cleanup status for an intermediate wallet
+ * @param walletId - The wallet ID
+ * @param status - New cleanup status
+ * @param dustReturnTxHash - Optional dust return transaction hash
+ * @param ataCloseTxHash - Optional ATA close transaction hash
+ * @param error - Optional error message (for failed status)
  */
 async function updateCleanupStatus(
   walletId: number,
   status: CleanupStatus,
   dustReturnTxHash?: string,
   ataCloseTxHash?: string,
+  error?: string,
 ): Promise<void> {
   const updates: Partial<IntermediateWallet> = {
     cleanupStatus: status,
@@ -176,6 +191,10 @@ async function updateCleanupStatus(
 
   if (status === "completed") {
     updates.cleanedUpAt = new Date();
+  }
+
+  if (error) {
+    updates.lastError = error;
   }
 
   await db
