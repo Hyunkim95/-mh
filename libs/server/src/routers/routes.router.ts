@@ -330,6 +330,51 @@ export const routesRouter = router({
       }
     }),
 
+  // Get obfuscation cost estimate for a route
+  getObfuscationCostEstimate: publicProcedure
+    .input(z.object({
+      routeId: z.number(),
+    }))
+    .query(async ({ input }) => {
+      try {
+        const session = await obfuscationService.getSessionByRouteId(input.routeId);
+        if (!session) {
+          return {
+            success: false,
+            data: null,
+            message: 'No obfuscation session found for this route'
+          };
+        }
+
+        // Calculate fee estimate
+        const feeEstimate = obfuscationService.estimateObfuscationFees(
+          session.intermediateCount,
+          session.tokenType as 'SOL' | 'SPL'
+        );
+
+        // Convert lamports to SOL for display
+        const lamportsToSol = (lamports: number) => (lamports / 1_000_000_000).toFixed(6);
+
+        return {
+          success: true,
+          data: {
+            ...feeEstimate,
+            intermediateCount: session.intermediateCount,
+            tokenType: session.tokenType,
+            breakdown: {
+              transactionFeesSOL: lamportsToSol(feeEstimate.fundingTxFees + feeEstimate.aggregationTxFees + feeEstimate.cleanupTxFees),
+              accountDepositsSOL: lamportsToSol(feeEstimate.intermediateAtaCreation + feeEstimate.walletXAtaCreation),
+              refundableSOL: lamportsToSol(feeEstimate.rentRecovery),
+              dustRefundSOL: lamportsToSol(feeEstimate.dustRefund),
+              netCostSOL: lamportsToSol(feeEstimate.totalFeesLamports),
+            },
+          },
+        };
+      } catch (error) {
+        throw new Error('Failed to fetch obfuscation cost estimate');
+      }
+    }),
+
   // Get funding transactions for obfuscated route (for batch signing)
   getObfuscationFundingTransactions: publicProcedure
     .input(z.object({
@@ -405,7 +450,6 @@ export const routesRouter = router({
         if (allFunded) {
           // Schedule aggregations with random delays
           await obfuscationService.scheduleAggregations(session.id);
-          console.log(`[Routes] All wallets funded for session ${session.id}, aggregations scheduled`);
         }
 
         return {
@@ -456,7 +500,6 @@ export const routesRouter = router({
         if (allFunded) {
           // Schedule aggregations with random delays
           await obfuscationService.scheduleAggregations(session.id);
-          console.log(`[Routes] All wallets funded for session ${session.id}, aggregations scheduled`);
         }
 
         return {

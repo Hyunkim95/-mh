@@ -5,7 +5,6 @@ import contractService, {
   getRouteStateAccount,
 } from "../../solana/services/contract.service";
 import { utcNow } from "../../utils/timezone";
-import { PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 import { getRouteConfiguration } from "../../solana/services/contract-utils";
 import { obfuscationService } from "../../obfuscation";
@@ -65,17 +64,17 @@ export const triggerHopJob = new CronJob("*/10 * * * * *", async () => {
             continue;
           }
 
-          // Only proceed if obfuscation is in 'executing' status
+          // Only proceed if obfuscation is in 'completed' status
           // On-chain accounts don't exist until route trigger job deploys them
-          if (session.status !== 'executing') {
+          if (session.status !== 'completed') {
             console.log(
               `[HopScheduler] Route ${routeId} waiting for obfuscation (status: ${session.status})`
             );
             continue;
           }
         }
-
-        const routeState = await getRouteStateAccount(routeId);
+        const onChainRouteId = routeDB.routeId;
+        const routeState = await getRouteStateAccount(onChainRouteId);
 
         currentHop = routeState?.currentHopIndex || 0;
         const lastHopIndex = (routeState?.hopsCount || 1) - 1;
@@ -85,10 +84,12 @@ export const triggerHopJob = new CronJob("*/10 * * * * *", async () => {
         if (currentHop > lastHopIndex) {
           console.log(`[HopScheduler] Route ${routeId} completed all hops (${currentHop}/${lastHopIndex + 1})`);
           await hopsService.markAllHopsCompleted(routeId);
+          // Also update route status to completed
+          await routesService.updateRouteStatus(routeId, routeDB.creator, 'completed');
           continue;
         }
 
-        const routeConfiguration = await getRouteConfiguration(routeId);
+        const routeConfiguration = await getRouteConfiguration(onChainRouteId);
         const hops = routeConfiguration?.hops || [];
 
         if (hops.length === 0) {
@@ -123,14 +124,15 @@ export const triggerHopJob = new CronJob("*/10 * * * * *", async () => {
 
         // Attempt to trigger the hop
         const txSignature = await contractService.executeHop(
-          new PublicKey(routeDB?.creator),
-          new BN(routeDB?.id)
+          new BN(onChainRouteId)
         );
 
         // If route already ended, mark hops as completed
         if (txSignature === null) {
           console.log(`[HopScheduler] Route ${routeId} already ended on-chain, marking as completed`);
           await hopsService.markAllHopsCompleted(routeId);
+          // Also update route status to completed
+          await routesService.updateRouteStatus(routeId, routeDB.creator, 'completed');
           continue;
         }
 

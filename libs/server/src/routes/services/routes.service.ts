@@ -77,7 +77,6 @@ const createRoute = async (input: CreateRouteInput): Promise<Routes> => {
       totalAmount: input.hopAmountRaw,
     });
   } catch (error) {
-    console.error(`[RoutesService] Failed to create obfuscation session for route ${route.id}:`, error);
     // Re-throw error to fail route creation - obfuscation is required
     throw error;
   }
@@ -201,6 +200,7 @@ const getRoutesByCreatorPaginated = async ({
       hops: {
         orderBy: (hops, { asc }) => [asc(hops.hopIndex)],
       },
+      obfuscationSession: true, // JOIN to get obfuscation status
     },
   });
 
@@ -232,7 +232,9 @@ const getRoutesByCreatorPaginated = async ({
           | "draft"
           | "deploying"
           | "deployed"
+          | "completed"
           | "failed",
+        obfuscationStatus: route.obfuscationSession?.status || null,
         hops: hopsWithDelays.map((hop) => ({
           recipient: hop.recipient,
           scheduledAt: new Date(hop.scheduledAt).toUTCString(),
@@ -304,7 +306,7 @@ const getRoute = async (
 const updateRouteStatus = async (
   id: number,
   creator: string,
-  status: "draft" | "deploying" | "deployed" | "failed",
+  status: "draft" | "deploying" | "deployed" | "completed" | "failed",
   deploymentData?: {
     deploymentTxHash?: string;
     routeConfigPda?: string;
@@ -416,8 +418,6 @@ const cascadeCreate = async (_route: NewRoute, _hops: NewHop[]) => {
 
 const triggerNextHop = async (routeId: number) => {
   // TODO: Implement hop triggering logic
-  console.log(`Triggering next hop for route ${routeId}`);
-  // Implementation for triggering next hop
 };
 
 // Update hop timestamps in the database (for fixing incomplete deployments)

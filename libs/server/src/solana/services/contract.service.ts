@@ -99,11 +99,6 @@ export const createDynamicPriorityInstructions = async (
     percentile
   );
 
-  console.log(
-    'Recommnedef priority fee (micro-lamports):', 
-    recommendedFee
-  )
-
   return [
     createComputeUnitLimitInstruction(computeUnits),
     createPriorityFeeInstruction(recommendedFee),
@@ -190,18 +185,28 @@ export const params = {
   programId: MULTI_HOPPER_PROGRAM_ID,
 };
 
+// Cache program instances to avoid memory leaks from repeated instantiation
+let cachedProgram: Program<MultiHopperProject> | null = null;
+let cachedGuardProgram: Program<TransferHookGuard> | null = null;
+
 const buildProgram = (params: SolanaInstructionParams) => {
-  return new Program<MultiHopperProject>(
-    IDL as any,
-    new AnchorProvider(params.connection, {} as any, {})
-  );
+  if (!cachedProgram) {
+    cachedProgram = new Program<MultiHopperProject>(
+      IDL as any,
+      new AnchorProvider(params.connection, {} as any, {})
+    );
+  }
+  return cachedProgram;
 };
 
 const buildGuardProgram = (params: SolanaInstructionParams) => {
-  return new Program<TransferHookGuard>(
-    GUARD_IDL as any,
-    new AnchorProvider(params.connection, {} as any, {})
-  );
+  if (!cachedGuardProgram) {
+    cachedGuardProgram = new Program<TransferHookGuard>(
+      GUARD_IDL as any,
+      new AnchorProvider(params.connection, {} as any, {})
+    );
+  }
+  return cachedGuardProgram;
 };
 
 export const getMintAuthority = async (routeId: BN) => {
@@ -451,11 +456,7 @@ export const unwrap = async (
       associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
     })
-    .instruction()
-    .catch((error) => {
-      console.log("unwrap", "error", error);
-      throw error;
-    });
+    .instruction();
 };
 export const unwrapSol = async (
   payer: PublicKey,
@@ -576,11 +577,10 @@ export const addHops = async (
   hops: IHop[]
 ) => {
   const program = buildProgram(params);
-  console.log('Adding hops:', hops);
-  
+
   const routeConfig = await getRouteConfigPda(routeId);
   const routeState = await getRouteStatePda(routeId);
-  
+
   const instruction = await program.methods
     .addHops(
       routeId,
@@ -592,8 +592,6 @@ export const addHops = async (
       routeState: routeState,
     })
     .instruction();
-
-  console.log('Add hops instruction created');
 
   const transaction = new Transaction();
   
@@ -627,13 +625,10 @@ export const addHopsBatched = async (
   // Split hops into batches
   for (let i = 0; i < hops.length; i += HOPS_PER_BATCH) {
     const batch = hops.slice(i, i + HOPS_PER_BATCH);
-    console.log(`Creating batch ${Math.floor(i / HOPS_PER_BATCH) + 1}: ${batch.length} hops`);
-
     const transaction = await addHops(creator, routeId, batch);
     transactions.push(transaction);
   }
 
-  console.log(`Created ${transactions.length} batch transaction(s) for ${hops.length} hops`);
   return transactions;
 }
 
@@ -668,10 +663,6 @@ const initializeRoute = async (
     originalMint,
     tokenConfigAccount.feeTreasury as PublicKey
   );
-  console.log(
-    'THIS IS THE ORIGINAL MINT',
-    originalMint.toBase58()
-  )
   const mintAuthority = await getMintAuthority(routeId);
   const permanentDelegate = await getPermanentDelegate(routeId);
   const offchainMetadata = await fetchTokenMetadata(
@@ -757,11 +748,7 @@ const initializeRouteSol = async (
       solTreasury: tokenConfigAccount.feeTreasury as PublicKey,
       systemProgram: SystemProgram.programId,
     })
-    .instruction()
-    .catch((error) => {
-      console.log("initializeRouteSol", "error", error);
-      throw error;
-    });
+    .instruction();
 };
 
 /**
@@ -1169,11 +1156,7 @@ const triggerHop = async (
       associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
     })
-    .instruction()
-    .catch((error) => {
-      console.log("triggerHop", "error", error);
-      throw error;
-    });
+    .instruction();
 };
 
 export const serialize = async (
@@ -1265,7 +1248,6 @@ export const initializeCompleteSolTokenConfig = async (
 };
 
 const executeHop = async (
-  creator: PublicKey,
   routeId: BN,
 ): Promise<string | null> => {
   let fromOwner;
@@ -1289,12 +1271,13 @@ const executeHop = async (
   const hasEnded = routeStateAccount.currentHopIndex >= routeConfigAccount.hops.length;
 
   if (hasEnded) {
-    console.log("Route has ended");
     return null;
   }
 
   if (isFirstHop) {
-    fromOwner = new PublicKey(creator);
+    // Use on-chain sourceOwner - this is Wallet X for obfuscated routes,
+    // or the original creator for non-obfuscated routes
+    fromOwner = routeConfigAccount.sourceOwner;
   } else {
     fromOwner = new PublicKey(previousHop.recipient);
   }
@@ -1368,7 +1351,6 @@ export const getTokenConfigSPL = async () => {
       flatFeeLamports: tokenConfigAccount.flatFeeLamports.toString(),
     };
   } catch (error) {
-    console.log("Error", error);
     return null;
   }
 };
@@ -1389,7 +1371,6 @@ export const getTokenConfigSOL = async () => {
       flatFeeLamports: tokenConfigAccount.flatFeeLamports.toString(),
     };
   } catch (error) {
-    console.log("Error", error);
     return null;
   }
 };
@@ -1538,15 +1519,35 @@ export const initializeRouteFromWalletX = async (
       throw new Error('Token mint is required for SPL routes');
     }
 
+    // IMPORTANT: initializeRoute deducts a percentage fee from the tokens.
+    // We need to calculate the POST-FEE amount upfront and use it for:
+    // 1. Route config (so hops know the correct amount to transfer)
+    // 2. Wrap transaction (to wrap the correct amount)
+    //
+    // The fee is deducted from originalFrom (Wallet X's ATA) in initializeRoute,
+    // so the remaining tokens available for wrapping = hopAmount - fee
+
+    // Fetch token config to get the fee percentage
+    const tokenConfigPda = await getTokenConfigPda();
+    const program = buildProgram(params);
+    const tokenConfigAccount = await program.account.tokenConfig.fetch(tokenConfigPda);
+    const feeBps = Number(tokenConfigAccount.feeBps.toString());
+
+    // Calculate the fee and post-fee amount
+    // Fee = hopAmount * feeBps / 10000
+    const feeAmount = hopAmount.mul(new BN(feeBps)).div(new BN(10000));
+    const postFeeAmount = hopAmount.sub(feeAmount);
+
     // Generate wrapped token keypair upfront
     const wrappedToken = Keypair.generate();
 
     // Transaction 1: Initialize route + guard (without wrap)
+    // Pass postFeeAmount so route config stores the correct amount for hops
     const initTransaction = await initializeRouteSplWithoutWrap(
       walletXKeypair.publicKey,
       walletXKeypair.publicKey,
       routeId,
-      hopAmount,
+      postFeeAmount,  // Use post-fee amount so route config matches wrapped amount
       hops,
       tokenMint,
       TOKEN_PROGRAM_ID,
@@ -1556,6 +1557,7 @@ export const initializeRouteFromWalletX = async (
     // Set blockhash for transaction 1
     const { blockhash: blockhash1, lastValidBlockHeight: lastValidBlockHeight1 } =
       await params.connection.getLatestBlockhash('finalized');
+
     initTransaction.recentBlockhash = blockhash1;
     initTransaction.lastValidBlockHeight = lastValidBlockHeight1;
     initTransaction.feePayer = walletXKeypair.publicKey;
@@ -1579,12 +1581,13 @@ export const initializeRouteFromWalletX = async (
       routeId,
       tokenMint,
       wrappedToken.publicKey,
-      hopAmount
+      postFeeAmount  // Use post-fee amount (same as stored in route config)
     );
 
     // Set blockhash for transaction 2
     const { blockhash: blockhash2, lastValidBlockHeight: lastValidBlockHeight2 } =
       await params.connection.getLatestBlockhash('finalized');
+
     wrapTransaction.recentBlockhash = blockhash2;
     wrapTransaction.lastValidBlockHeight = lastValidBlockHeight2;
     wrapTransaction.feePayer = walletXKeypair.publicKey;
@@ -1607,6 +1610,58 @@ export const initializeRouteFromWalletX = async (
   }
 };
 
+/**
+ * Add hops to a route from Wallet X (for obfuscated routes)
+ * This is called by the obfuscation scheduler after route initialization
+ *
+ * @param walletXKeypair - The Wallet X keypair (route creator)
+ * @param routeId - The route ID
+ * @param hops - Array of hops with recipient and executeAt
+ * @returns Transaction signature of the last batch
+ */
+export const addHopsFromWalletX = async (
+  walletXKeypair: Keypair,
+  routeId: BN,
+  hops: IHop[]
+): Promise<string> => {
+  // Create batched transactions for adding hops
+  const transactions = await addHopsBatched(
+    walletXKeypair.publicKey,
+    routeId,
+    hops
+  );
+
+  let lastSignature = '';
+
+  // Execute each batch sequentially
+  for (let i = 0; i < transactions.length; i++) {
+    const transaction = transactions[i];
+
+    // Set blockhash
+    const { blockhash, lastValidBlockHeight } = await params.connection.getLatestBlockhash('finalized');
+    transaction.recentBlockhash = blockhash;
+    transaction.lastValidBlockHeight = lastValidBlockHeight;
+    transaction.feePayer = walletXKeypair.publicKey;
+
+    // Sign and submit
+    transaction.sign(walletXKeypair);
+
+    const signature = await sendAndConfirmTransaction(
+      params.connection,
+      transaction,
+      [walletXKeypair],
+      {
+        skipPreflight: false,
+        commitment: 'confirmed',
+      }
+    );
+
+    lastSignature = signature;
+  }
+
+  return lastSignature;
+};
+
 const contractService = {
   initializeCompleteTokenConfig,
   initializeCompleteSolTokenConfig,
@@ -1615,6 +1670,7 @@ const contractService = {
   serialize,
   addHops,
   addHopsBatched,
+  addHopsFromWalletX,
   executeHop,
   getTokenConfigSPL,
   getTokenConfigSOL,
@@ -1641,7 +1697,6 @@ export const routeHasHops = async (routeId: number): Promise<{
       isDeployed: true
     };
   } catch (error) {
-    console.log("Error checking route hops:", error);
     return {
       hasHops: false,
       isDeployed: false
@@ -1672,7 +1727,6 @@ export const getRouteConfiguration = async (routeId: number) => {
       createdAt: routeConfigAccount.createdAt.toString(),
     };
   } catch (error) {
-    console.log("Error fetching route configuration:", error);
     return null;
   }
 };
@@ -1694,7 +1748,6 @@ export const getRouteStateAccount = async (routeId: number) => {
       hopsCount: routeStateAccount.hopsCount,
     };
   } catch (error) {
-    console.log("Error fetching route state:", error);
     return null;
   }
 };
@@ -1704,12 +1757,13 @@ export const isRouteDeployedOnChain = async (
   routeId: number
 ): Promise<boolean> => {
   try {
-    const program = buildProgram(params);
     const routeConfigPda = await getRouteConfigPda(new BN(routeId));
 
-    // Try to fetch the route config account
-    await program.account.routeConfig.fetch(routeConfigPda);
-    return true;
+    // Use getAccountInfo instead of Anchor fetch - much lighter on memory
+    const accountInfo = await params.connection.getAccountInfo(routeConfigPda);
+
+    // Account exists if accountInfo is not null and has data
+    return accountInfo !== null && accountInfo.data.length > 0;
   } catch (error) {
     // If account doesn't exist or can't be fetched, route is not deployed
     return false;
@@ -1721,12 +1775,13 @@ export const isRouteConfigPdaDeployed = async (
   routeConfigPda: string
 ): Promise<boolean> => {
   try {
-    const program = buildProgram(params);
     const pda = new PublicKey(routeConfigPda);
 
-    // Try to fetch the route config account
-    await program.account.routeConfig.fetch(pda);
-    return true;
+    // Use getAccountInfo instead of Anchor fetch - much lighter on memory
+    const accountInfo = await params.connection.getAccountInfo(pda);
+
+    // Account exists if accountInfo is not null and has data
+    return accountInfo !== null && accountInfo.data.length > 0;
   } catch (error) {
     // If account doesn't exist or can't be fetched, route is not deployed
     return false;
