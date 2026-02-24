@@ -4,9 +4,9 @@ import {
   ConnectionProvider,
   WalletProvider,
 } from "@solana/wallet-adapter-react";
-import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
+// import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import { WalletModalProvider } from "@solana/wallet-adapter-react-ui";
-import { clusterApiUrl } from "@solana/web3.js";
+// import { clusterApiUrl } from "@solana/web3.js";
 import {
   PhantomWalletAdapter,
   SolflareWalletAdapter,
@@ -15,8 +15,9 @@ import { BackpackWalletAdapter } from '@solana/wallet-adapter-backpack'
 import { MagicEdenWalletAdapter } from '@solana/wallet-adapter-magiceden'
 import { useMemo } from 'react'
 import { Toaster } from 'react-hot-toast'
-const endpoint =
-  import.meta.env.VITE_RPC_URL || clusterApiUrl(WalletAdapterNetwork.Devnet)
+// const endpoint =
+//   import.meta.env.VITE_RPC_URL || clusterApiUrl(WalletAdapterNetwork.Devnet)
+const endpoint = 'https://devnet.helius-rpc.com/?api-key=f6d0c03a-562f-4784-8b78-ebb084b72514'
 interface RootProps {
   children: React.ReactNode;
 }

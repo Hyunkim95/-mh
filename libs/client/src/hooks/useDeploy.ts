@@ -145,10 +145,6 @@ export const useDeploy = () => {
         signedTx.partialSign(additionalSigner);
       }
 
-      // Simulate the fully-signed transaction
-      const simulation = await connection.simulateTransaction(signedTx);
-      console.log("Transaction simulation:", simulation);
-
       // Send the fully-signed transaction
       const signature = await connection.sendRawTransaction(signedTx.serialize(), {
         skipPreflight: true,
@@ -176,11 +172,9 @@ export const useDeploy = () => {
         )}...`,
         { id: "deploy" }
       );
-      console.log("Route deployed with signature:", signature);
 
       return signature;
     } catch (error) {
-      console.error(`${type} Route deployment failed:`, error);
       toast.error(
         `${type} Route deployment failed: ${extractErrorMessage(error)}`,
         { id: "deploy" }
@@ -207,7 +201,6 @@ export const useDeploy = () => {
       });
 
       const { transactions, totalBatches, totalHops } = result.data;
-      console.log(`Adding ${totalHops} hops in ${totalBatches} batch(es)`);
 
       // Check if wallet supports batch signing
       if (!signAllTransactions) {
@@ -246,22 +239,6 @@ export const useDeploy = () => {
         const batchStartHop = i * HOPS_PER_BATCH;
         const batchEndHop = Math.min(batchStartHop + HOPS_PER_BATCH, hops.length);
 
-        // Simulate against CURRENT state (after previous batches confirmed)
-        console.log(`\n=== Batch ${batchNum}/${totalBatches} Pre-Send Simulation ===`);
-        console.log(`Hops ${batchStartHop + 1}-${batchEndHop}:`, hops.slice(batchStartHop, batchEndHop));
-
-        const simulation = await connection.simulateTransaction(signedTx);
-        console.log(`Batch ${batchNum} simulation result:`, simulation);
-
-        if (simulation.value.err) {
-          console.error(`Batch ${batchNum} simulation FAILED:`, simulation.value.err);
-          console.error(`Logs:`, simulation.value.logs);
-          throw new Error(
-            `Batch ${batchNum} simulation failed: ${JSON.stringify(simulation.value.err)}\nLogs: ${simulation.value.logs?.join('\n')}`
-          );
-        }
-        console.log(`Batch ${batchNum} simulation SUCCESS - sending...`);
-
         toast.loading(`Sending batch ${batchNum}/${totalBatches}...`, {
           id: "deploy",
         });
@@ -293,15 +270,8 @@ export const useDeploy = () => {
             )}`
           );
         }
-
-        console.log(
-          `Batch ${batchNum}/${totalBatches} confirmed: ${signature}`
-        );
       }
-
-      console.log(`All ${totalBatches} batch(es) completed successfully`);
     } catch (error) {
-      console.error("Adding hops failed:", error);
       toast.error(`Adding hops failed: ${extractErrorMessage(error)}`);
       throw error;
     }
@@ -330,9 +300,7 @@ export const useDeploy = () => {
 
     try {
       // Check if route has obfuscation enabled
-      const routeHasObfuscation = await hasObfuscation(data.databaseId);
-      console.log(`routeHasObfuscation: `, routeHasObfuscation);
-      if (routeHasObfuscation) {
+      if (await hasObfuscation(data.databaseId)) {
         // Use obfuscation flow - fund intermediate wallets, then server handles the rest
         toast.loading("Route has obfuscation enabled...", { id: "deploy" });
         await fundObfuscation(data.databaseId);
@@ -341,6 +309,9 @@ export const useDeploy = () => {
           "Route deployed with obfuscation! Hops will execute at scheduled times.",
           { id: "deploy" },
         );
+        // Invalidate queries to refresh UI
+        await utils.routes.getByCreator.invalidate();
+        return; // Exit early - server handles deployment via scheduler
       }
 
       // Standard (non-obfuscated) deployment flow below
@@ -402,9 +373,6 @@ export const useDeploy = () => {
           if (verifyAttempts > 1) {
             // Wait 3 seconds between attempts (except first attempt)
             await new Promise((resolve) => setTimeout(resolve, 3000));
-            console.log(
-              `Verification attempt ${verifyAttempts}/${maxAttempts}...`
-            );
           }
 
           const verifyStatus = await utils.client.contract.routeHasHops.query({
@@ -414,18 +382,8 @@ export const useDeploy = () => {
           hasHops = verifyStatus.data?.hasHops || false;
 
           if (hasHops) {
-            console.log(`Verification successful on attempt ${verifyAttempts}`);
             break;
           }
-        }
-
-        if (!hasHops) {
-          console.warn(
-            `Verification failed after ${maxAttempts} attempts. ` +
-              `Route may still be propagating on-chain. Check route status in a few moments.`
-          );
-          // Don't throw - mark as deployed anyway since transactions confirmed
-          // The route will likely work, just RPC is slow to update
         }
 
         // Mark as deployed in database only after verification
@@ -476,9 +434,6 @@ export const useDeploy = () => {
 
           if (verifyAttempts > 1) {
             await new Promise((resolve) => setTimeout(resolve, 3000));
-            console.log(
-              `Verification attempt ${verifyAttempts}/${maxAttempts}...`
-            );
           }
 
           const verifyStatus = await utils.client.contract.routeHasHops.query({
@@ -488,17 +443,8 @@ export const useDeploy = () => {
           hasHopsVerified = verifyStatus.data?.hasHops || false;
 
           if (hasHopsVerified) {
-            console.log(`Verification successful on attempt ${verifyAttempts}`);
             break;
           }
-        }
-
-        if (!hasHopsVerified) {
-          console.warn(
-            `Verification failed after ${maxAttempts} attempts. ` +
-              `Transactions were confirmed but RPC state is delayed.`
-          );
-          // Don't throw - transactions were confirmed successfully
         }
 
         // Invalidate queries to refresh UI with latest on-chain state
@@ -517,7 +463,6 @@ export const useDeploy = () => {
         return "already-deployed";
       }
     } catch (error) {
-      console.error("Deployment failed:", error);
       toast.error(`Deployment failed: ${extractErrorMessage(error)}`, {
         id: "deploy",
       });

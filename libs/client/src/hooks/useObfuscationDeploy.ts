@@ -14,7 +14,6 @@ import { extractErrorMessage } from "../utils/extractErrorMessage";
  * 2. Batch signing all transactions (single wallet popup)
  * 3. Sending each transaction individually
  * 4. Confirming funding to backend
- * 5. Polling until aggregation completes
  */
 export const useObfuscationDeploy = () => {
   const { publicKey, signAllTransactions } = useWallet();
@@ -24,43 +23,6 @@ export const useObfuscationDeploy = () => {
   const getObfuscationFundingTxs =
     trpc.routes.getObfuscationFundingTransactions.useMutation();
   const confirmFunding = trpc.routes.confirmAllObfuscationFunding.useMutation();
-
-  /**
-   * Poll obfuscation status until it reaches 'executing' or fails
-   */
-  const pollObfuscationStatus = async (
-    routeId: number,
-    maxAttempts: number = 60,
-    intervalMs: number = 2000,
-  ): Promise<{ status: string; isReady: boolean }> => {
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const result = await utils.routes.getObfuscationStatus.fetch({ routeId });
-
-      if (!result.success || !result.data) {
-        throw new Error("Failed to get obfuscation status");
-      }
-
-      const { status, isReady } = result.data;
-
-      if (status === "executing" || isReady) {
-        return { status, isReady: true };
-      }
-
-      if (status === "failed") {
-        throw new Error("Obfuscation failed");
-      }
-
-      // Wait before next poll
-      await new Promise((resolve) => setTimeout(resolve, intervalMs));
-
-      toast.loading(
-        `Waiting for aggregation... (${attempt + 1}/${maxAttempts})`,
-        { id: "obfuscation" },
-      );
-    }
-
-    throw new Error("Obfuscation timed out waiting for aggregation");
-  };
 
   /**
    * Fund obfuscation intermediate wallets
@@ -146,10 +108,6 @@ export const useObfuscationDeploy = () => {
           walletIndex: txData.walletIndex,
           txHash: signature,
         });
-
-        console.log(
-          `Funding transaction ${i + 1}/${totalTransactions} confirmed: ${signature}`,
-        );
       }
 
       toast.loading("Confirming funding to server...", { id: "obfuscation" });
@@ -165,7 +123,6 @@ export const useObfuscationDeploy = () => {
         id: "obfuscation",
       });
     } catch (error) {
-      console.error("Obfuscation funding failed:", error);
       toast.error(`Obfuscation funding failed: ${extractErrorMessage(error)}`, {
         id: "obfuscation",
       });
@@ -177,7 +134,6 @@ export const useObfuscationDeploy = () => {
    * Check if a route has an obfuscation session
    */
   const hasObfuscation = async (routeId: number): Promise<boolean> => {
-    console.log("\n Getting hasObfuscation for routeId:", routeId);
     try {
       const result = await utils.routes.getObfuscationSession.fetch({
         routeId,
@@ -191,18 +147,8 @@ export const useObfuscationDeploy = () => {
     }
   };
 
-  /**
-   * Get obfuscation session status
-   */
-  const getStatus = async (routeId: number) => {
-    const result = await utils.routes.getObfuscationStatus.fetch({ routeId });
-    return result;
-  };
-
   return {
     fundObfuscation,
     hasObfuscation,
-    getStatus,
-    pollObfuscationStatus,
   };
 };
