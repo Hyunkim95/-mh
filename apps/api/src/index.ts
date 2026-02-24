@@ -21,6 +21,7 @@ const start = async () => {
 };
 
 if (process.env.SCHEDULER_ENABLED === "true") {
+  console.log("Starting hops scheduler service");
   hopsSchedulerService.triggerHopJob.start();
   obfuscationSchedulerService.startObfuscationScheduler();
 }
