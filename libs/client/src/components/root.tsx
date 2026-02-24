@@ -17,7 +17,6 @@ import { useMemo } from 'react'
 import { Toaster } from 'react-hot-toast'
 const endpoint =
   import.meta.env.VITE_RPC_URL || clusterApiUrl(WalletAdapterNetwork.Devnet)
-
 interface RootProps {
   children: React.ReactNode;
 }
