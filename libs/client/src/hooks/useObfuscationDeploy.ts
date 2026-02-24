@@ -160,14 +160,8 @@ export const useObfuscationDeploy = () => {
         fundingResults,
       });
 
-      toast.loading("Waiting for aggregation to complete...", {
-        id: "obfuscation",
-      });
-
-      // 6. Poll until obfuscation completes (aggregation → executing)
-      await pollObfuscationStatus(routeId);
-
-      toast.success("Obfuscation complete! Route is now active.", {
+      // Aggregation happens in background - hop scheduler waits for it before executing hops
+      toast.success("Funding complete! Route will activate automatically.", {
         id: "obfuscation",
       });
     } catch (error) {
@@ -183,18 +177,16 @@ export const useObfuscationDeploy = () => {
    * Check if a route has an obfuscation session
    */
   const hasObfuscation = async (routeId: number): Promise<boolean> => {
+    console.log("\n Getting hasObfuscation for routeId:", routeId);
     try {
-      const result = await trpc.routes.getObfuscationSession
-        .useQuery({
-          routeId,
-        })
-        .refetch();
+      const result = await utils.routes.getObfuscationSession.fetch({
+        routeId,
+      });
       if (!result) {
         return false;
       }
-      console.log(`[hasObfuscation]: `, result);
-      return result.data !== null && !!result.data?.success;
-    } catch {
+      return result.success === true;
+    } catch (error) {
       return false;
     }
   };
@@ -203,10 +195,8 @@ export const useObfuscationDeploy = () => {
    * Get obfuscation session status
    */
   const getStatus = async (routeId: number) => {
-    const result = await trpc.routes.getObfuscationStatus
-      .useQuery({ routeId })
-      .refetch();
-    return result.data;
+    const result = await utils.routes.getObfuscationStatus.fetch({ routeId });
+    return result;
   };
 
   return {

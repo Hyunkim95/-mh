@@ -230,9 +230,11 @@ async function buildAggregationTransaction(
       ),
     );
   } else {
-    // SOL transfer - leave enough for fees
+    // SOL transfer - leave enough for rent-exemption + fees
+    const { BASE_TX_FEE_LAMPORTS, ESTIMATED_PRIORITY_FEE_LAMPORTS, RENT_EXEMPT_MINIMUM_LAMPORTS } = obfuscationService.constants;
+    const reservedAmount = RENT_EXEMPT_MINIMUM_LAMPORTS + BASE_TX_FEE_LAMPORTS + ESTIMATED_PRIORITY_FEE_LAMPORTS;
     const balance = await connection.getBalance(intermediatePublicKey);
-    const transferAmount = Math.max(0, balance - 5000); // Keep 5000 lamports for fees
+    const transferAmount = Math.max(0, balance - reservedAmount);
 
     if (transferAmount > 0) {
       transaction.add(
@@ -309,8 +311,9 @@ async function buildCleanupTransaction(
   }
 
   // Transfer remaining SOL dust to source
+  const { BASE_TX_FEE_LAMPORTS } = obfuscationService.constants;
   const balance = await connection.getBalance(intermediatePublicKey);
-  const rentExempt = 5000; // Minimum for transaction fee
+  const rentExempt = BASE_TX_FEE_LAMPORTS; // Minimum for transaction fee
   const dustAmount = balance - rentExempt;
 
   if (dustAmount > 0) {
@@ -379,8 +382,9 @@ async function buildWalletXCleanupTransaction(
   }
 
   // Transfer remaining SOL dust to source
+  const { BASE_TX_FEE_LAMPORTS } = obfuscationService.constants;
   const balance = await connection.getBalance(walletXPublicKey);
-  const rentExempt = 5000;
+  const rentExempt = BASE_TX_FEE_LAMPORTS;
   const dustAmount = balance - rentExempt;
 
   if (dustAmount > 0) {

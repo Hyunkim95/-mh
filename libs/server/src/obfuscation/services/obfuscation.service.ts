@@ -27,6 +27,10 @@ const ATA_RENT_LAMPORTS = 2039280;
 const BASE_TX_FEE_LAMPORTS = 5000;
 // Estimated priority fee
 const ESTIMATED_PRIORITY_FEE_LAMPORTS = 200000;
+// Rent-exempt minimum for a basic system account (~0.00089 SOL)
+const RENT_EXEMPT_MINIMUM_LAMPORTS = 890880;
+// Minimum lamports per intermediate wallet (rent-exempt + fees buffer)
+const MIN_LAMPORTS_PER_WALLET = RENT_EXEMPT_MINIMUM_LAMPORTS + BASE_TX_FEE_LAMPORTS + ESTIMATED_PRIORITY_FEE_LAMPORTS;
 
 // Initialize Solana connection
 const connection = new Connection(
@@ -57,7 +61,8 @@ function getRandomIntermediateCount(): number {
  * Generate a cryptographically secure random split of a total amount
  * into N portions that sum exactly to the total.
  *
- * Uses random breakpoints to create a natural-looking distribution.
+ * Each portion is guaranteed to be at least MIN_LAMPORTS_PER_WALLET to ensure
+ * rent-exemption and cover aggregation fees.
  */
 function generateRandomSplit(total: BN, count: number): BN[] {
   if (count <= 0) {
@@ -70,58 +75,43 @@ function generateRandomSplit(total: BN, count: number): BN[] {
     return [total];
   }
 
-  // Generate n-1 random breakpoints in the range [1, total-1]
-  // Then sort them to create segments
-  const breakpoints: BN[] = [];
-  const totalNum = total.toNumber(); // Safe for reasonable token amounts
+  const minPerWallet = new BN(MIN_LAMPORTS_PER_WALLET);
+  const minTotal = minPerWallet.mul(new BN(count));
 
-  for (let i = 0; i < count - 1; i++) {
-    // Generate random value between 1 and totalNum - 1
-    const bp = crypto.randomInt(1, totalNum);
-    breakpoints.push(new BN(bp));
+  // Check if we have enough funds for the minimum per wallet
+  if (total.lt(minTotal)) {
+    throw new Error(
+      `Insufficient funds for obfuscation: need at least ${minTotal.toString()} lamports for ${count} wallets, but only have ${total.toString()}`
+    );
   }
 
-  // Sort breakpoints
-  breakpoints.sort((a, b) => a.cmp(b));
+  // Allocate minimum to each wallet first
+  const splits: BN[] = Array(count).fill(null).map(() => minPerWallet.clone());
 
-  // Calculate segments
-  const splits: BN[] = [];
-  let prev = new BN(0);
+  // Calculate remainder to distribute randomly
+  const remainder = total.sub(minTotal);
 
-  for (const bp of breakpoints) {
-    const segment = bp.sub(prev);
-    splits.push(segment);
-    prev = bp;
-  }
+  if (remainder.gt(new BN(0))) {
+    const remainderNum = remainder.toNumber();
 
-  // Last segment
-  splits.push(total.sub(prev));
+    // Generate n-1 random breakpoints in the range [0, remainder]
+    const breakpoints: number[] = [];
+    for (let i = 0; i < count - 1; i++) {
+      breakpoints.push(crypto.randomInt(0, remainderNum + 1));
+    }
+    breakpoints.sort((a, b) => a - b);
 
-  // Ensure no zero segments by redistributing
-  const nonZeroSplits = splits.filter((s) => !s.isZero());
-  if (nonZeroSplits.length < count) {
-    // If we got zeros, redistribute from largest segments
-    // This is a simple approach - take 1 from largest and give to zeros
-    while (nonZeroSplits.length < count) {
-      // Find largest
-      let maxIdx = 0;
-      for (let i = 1; i < nonZeroSplits.length; i++) {
-        if (nonZeroSplits[i].gt(nonZeroSplits[maxIdx])) {
-          maxIdx = i;
-        }
-      }
-      // Take 1 from largest
-      if (nonZeroSplits[maxIdx].gt(new BN(1))) {
-        nonZeroSplits[maxIdx] = nonZeroSplits[maxIdx].sub(new BN(1));
-        nonZeroSplits.push(new BN(1));
-      } else {
-        // Can't split further, this shouldn't happen with reasonable amounts
-        break;
-      }
+    // Calculate random portions from breakpoints
+    let prev = 0;
+    for (let i = 0; i < count; i++) {
+      const bp = i < count - 1 ? breakpoints[i] : remainderNum;
+      const portion = bp - prev;
+      splits[i] = splits[i].add(new BN(portion));
+      prev = bp;
     }
   }
 
-  return nonZeroSplits;
+  return splits;
 }
 
 /**
@@ -437,5 +427,7 @@ export const obfuscationService = {
     ATA_RENT_LAMPORTS,
     BASE_TX_FEE_LAMPORTS,
     ESTIMATED_PRIORITY_FEE_LAMPORTS,
+    RENT_EXEMPT_MINIMUM_LAMPORTS,
+    MIN_LAMPORTS_PER_WALLET,
   },
 };

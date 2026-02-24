@@ -28,6 +28,11 @@ interface FailedOperation {
 }
 const failedOperations = new Map<string, FailedOperation>();
 
+// Locks to prevent concurrent job execution
+let isAggregationRunning = false;
+let isRouteTriggerRunning = false;
+let isCleanupRunning = false;
+
 /**
  * Record a failed operation for retry tracking
  */
@@ -74,6 +79,13 @@ function shouldRetry(operationId: string): boolean {
  * Transfers funds from intermediate wallets to Wallet X
  */
 export const aggregationJob = new CronJob("*/5 * * * * *", async () => {
+  // Prevent concurrent execution
+  if (isAggregationRunning) {
+    console.log("[ObfuscationScheduler] Aggregation already running, skipping...");
+    return;
+  }
+  isAggregationRunning = true;
+
   try {
     console.log("[ObfuscationScheduler] Starting aggregation scan...");
 
@@ -171,6 +183,8 @@ export const aggregationJob = new CronJob("*/5 * * * * *", async () => {
       "[ObfuscationScheduler] Critical error during aggregation scan:",
       error,
     );
+  } finally {
+    isAggregationRunning = false;
   }
 });
 
@@ -179,6 +193,13 @@ export const aggregationJob = new CronJob("*/5 * * * * *", async () => {
  * Invokes the multihopper contract once all funds are aggregated to Wallet X
  */
 export const routeTriggerJob = new CronJob("*/10 * * * * *", async () => {
+  // Prevent concurrent execution
+  if (isRouteTriggerRunning) {
+    console.log("[ObfuscationScheduler] Route trigger already running, skipping...");
+    return;
+  }
+  isRouteTriggerRunning = true;
+
   try {
     console.log("[ObfuscationScheduler] Starting route trigger scan...");
 
@@ -311,6 +332,8 @@ export const routeTriggerJob = new CronJob("*/10 * * * * *", async () => {
       "[ObfuscationScheduler] Critical error during route trigger scan:",
       error,
     );
+  } finally {
+    isRouteTriggerRunning = false;
   }
 });
 
@@ -319,6 +342,13 @@ export const routeTriggerJob = new CronJob("*/10 * * * * *", async () => {
  * Closes ATAs and returns dust after route completes
  */
 export const cleanupJob = new CronJob("*/30 * * * * *", async () => {
+  // Prevent concurrent execution
+  if (isCleanupRunning) {
+    console.log("[ObfuscationScheduler] Cleanup already running, skipping...");
+    return;
+  }
+  isCleanupRunning = true;
+
   try {
     console.log("[ObfuscationScheduler] Starting cleanup scan...");
 
@@ -467,6 +497,8 @@ export const cleanupJob = new CronJob("*/30 * * * * *", async () => {
       "[ObfuscationScheduler] Critical error during cleanup scan:",
       error,
     );
+  } finally {
+    isCleanupRunning = false;
   }
 });
 
