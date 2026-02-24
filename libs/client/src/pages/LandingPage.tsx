@@ -1776,14 +1776,22 @@ export const LandingPage: React.FC = () => {
             </div>
 
             {/* Bottom Bar */}
-            <div className="pt-3 border-t border-white/[0.06] flex items-center w-full">
+            <div className="pt-3 border-t border-white/[0.06] flex flex-col items-center w-full">
               <p
                 className="not-italic font-normal text-xs leading-[17px] text-white/[0.22] text-center w-full"
                 style={{
                   fontFamily: "Grotesk, sans-serif",
                 }}
               >
-                © 2025 Multihopper, All rights reserved.
+                © 2025 Multihopper by Strategic Super Reserve and EnigmaFund, All rights reserved.
+              </p>
+              <p
+                className="not-italic font-normal text-xs leading-[17px] text-white/[0.22] text-center w-full mt-1"
+                style={{
+                  fontFamily: "Grotesk, sans-serif",
+                }}
+              >
+                20A Tanjong Pagar Road, Singapore 088443
               </p>
             </div>
           </div>
