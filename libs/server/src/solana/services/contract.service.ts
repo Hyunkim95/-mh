@@ -29,7 +29,7 @@ const solToLamports = (sol: number) => {
 };
 // ComputeBudget Program ID
 const COMPUTE_BUDGET_PROGRAM_ID = new PublicKey(
-  "ComputeBudget111111111111111111111111111111"
+  "ComputeBudget111111111111111111111111111111",
 );
 
 /**
@@ -38,7 +38,7 @@ const COMPUTE_BUDGET_PROGRAM_ID = new PublicKey(
  * @returns TransactionInstruction for setting priority fee
  */
 export const createPriorityFeeInstruction = (
-  priorityFeeMicroLamports: number
+  priorityFeeMicroLamports: number,
 ) => {
   const data = Buffer.alloc(9);
   data.writeUInt8(3, 0); // SetComputeUnitPrice instruction discriminator
@@ -74,7 +74,7 @@ export const createComputeUnitLimitInstruction = (computeUnits: number) => {
  * @returns Priority fee in micro-lamports
  */
 export const solToPriorityFeeMicroLamports = (
-  priorityFeeSol: number
+  priorityFeeSol: number,
 ): number => {
   return Math.floor(priorityFeeSol * LAMPORTS_PER_SOL * 1_000_000);
 };
@@ -91,12 +91,12 @@ export const createDynamicPriorityInstructions = async (
   connection: Connection,
   computeUnits: number = 400_000,
   accounts?: PublicKey[],
-  percentile: number = 75
+  percentile: number = 75,
 ) => {
   const recommendedFee = await getRecommendedPriorityFee(
     connection,
     accounts,
-    percentile
+    percentile,
   );
 
   return [
@@ -115,7 +115,7 @@ export const createDynamicPriorityInstructions = async (
 export const getRecommendedPriorityFee = async (
   connection: Connection,
   accounts?: PublicKey[],
-  percentile: number = 75
+  percentile: number = 75,
 ): Promise<number> => {
   try {
     const recentFees = await connection.getRecentPrioritizationFees({
@@ -171,7 +171,7 @@ interface SolanaInstructionParams {
 export const getGuardPda = (tokenMint: PublicKey): [PublicKey, number] => {
   return PublicKey.findProgramAddressSync(
     [Buffer.from("guard"), tokenMint.toBuffer()],
-    TRANSFER_HOOK_GUARD_PROGRAM_ID
+    TRANSFER_HOOK_GUARD_PROGRAM_ID,
   );
 };
 
@@ -193,7 +193,7 @@ const buildProgram = (params: SolanaInstructionParams) => {
   if (!cachedProgram) {
     cachedProgram = new Program<MultiHopperProject>(
       IDL as any,
-      new AnchorProvider(params.connection, {} as any, {})
+      new AnchorProvider(params.connection, {} as any, {}),
     );
   }
   return cachedProgram;
@@ -203,7 +203,7 @@ const buildGuardProgram = (params: SolanaInstructionParams) => {
   if (!cachedGuardProgram) {
     cachedGuardProgram = new Program<TransferHookGuard>(
       GUARD_IDL as any,
-      new AnchorProvider(params.connection, {} as any, {})
+      new AnchorProvider(params.connection, {} as any, {}),
     );
   }
   return cachedGuardProgram;
@@ -212,14 +212,14 @@ const buildGuardProgram = (params: SolanaInstructionParams) => {
 export const getMintAuthority = async (routeId: BN) => {
   const [mintAuthority] = PublicKey.findProgramAddressSync(
     [Buffer.from("mint_authority"), routeId.toArrayLike(Buffer, "le", 8)],
-    params.programId
+    params.programId,
   );
   return mintAuthority;
 };
 
 const initializeTokenConfig = async (
   payer: PublicKey,
-  tokenConfig: TokenConfig
+  tokenConfig: TokenConfig,
 ) => {
   const program = buildProgram(params);
   const tokenConfigPda = await getTokenConfigPda();
@@ -232,7 +232,7 @@ const initializeTokenConfig = async (
       signer.publicKey,
       tokenConfig.feeTreasury,
       tokenConfig.maxHops,
-      tokenConfig.flatFeeLamports
+      tokenConfig.flatFeeLamports,
     )
     .accountsPartial({
       creator: payer,
@@ -245,13 +245,13 @@ const initializeTokenConfig = async (
 const initGuard = async (
   payer: PublicKey,
   tokenMint: PublicKey,
-  permanentDelegate: PublicKey
+  permanentDelegate: PublicKey,
 ) => {
   const guardProgram = buildGuardProgram(params);
 
   const [guardPda] = PublicKey.findProgramAddressSync(
     [Buffer.from("guard"), tokenMint.toBuffer()],
-    TRANSFER_HOOK_GUARD_PROGRAM_ID
+    TRANSFER_HOOK_GUARD_PROGRAM_ID,
   );
 
   return await guardProgram.methods
@@ -267,13 +267,13 @@ const initGuard = async (
 const initGuardSol = async (
   payer: PublicKey,
   wsolMint: PublicKey,
-  permanentDelegate: PublicKey
+  permanentDelegate: PublicKey,
 ) => {
   const guardProgram = buildGuardProgram(params);
 
   const [guardPda] = PublicKey.findProgramAddressSync(
     [Buffer.from("guard"), wsolMint.toBuffer()],
-    TRANSFER_HOOK_GUARD_PROGRAM_ID
+    TRANSFER_HOOK_GUARD_PROGRAM_ID,
   );
 
   return await guardProgram.methods
@@ -293,17 +293,15 @@ const wrap = async (
   tokenConfigPda: PublicKey,
   originalMint: PublicKey,
   pairMint: PublicKey,
-  amount: BN
+  amount: BN,
 ) => {
   const program = buildProgram(params);
 
   const [vaultAuthority] = PublicKey.findProgramAddressSync(
     [Buffer.from("vault_authority"), originalMint.toBuffer()],
-    params.programId
+    params.programId,
   );
-  const routeConfig = await getRouteConfigPda(
-    routeId
-  );
+  const routeConfig = await getRouteConfigPda(routeId);
 
   const mintAuthority = await getMintAuthority(routeId);
 
@@ -311,20 +309,17 @@ const wrap = async (
   const vault = await getAssociatedTokenAddress(
     originalMint,
     vaultAuthority,
-    true
+    true,
   );
   const pairTo = await getAssociatedTokenAddress(
     pairMint,
     payer,
     false,
-    TOKEN_2022_PROGRAM_ID
+    TOKEN_2022_PROGRAM_ID,
   );
 
   return await program.methods
-    .wrap(
-      routeId,
-      amount
-    )
+    .wrap(routeId, amount)
     .accountsPartial({
       payer: payer,
       tokenConfig: tokenConfigPda,
@@ -348,15 +343,12 @@ const wrapSol = async (
   routeId: BN,
   tokenConfigPda: PublicKey,
   wsolMint: PublicKey,
-  amount: BN
+  amount: BN,
 ) => {
   const program = buildProgram(params);
-  const tokenConfigAccount = await program.account.tokenConfig.fetch(
-    tokenConfigPda
-  );
-  const routeConfig = await getRouteConfigPda(
-    routeId
-  );
+  const tokenConfigAccount =
+    await program.account.tokenConfig.fetch(tokenConfigPda);
+  const routeConfig = await getRouteConfigPda(routeId);
 
   const mintAuthority = await getMintAuthority(routeId);
 
@@ -365,14 +357,11 @@ const wrapSol = async (
     wsolMint,
     payer,
     false,
-    TOKEN_2022_PROGRAM_ID
+    TOKEN_2022_PROGRAM_ID,
   );
 
   return await program.methods
-    .wrapSol(
-      routeId,
-      amount
-    )
+    .wrapSol(routeId, amount)
     .accountsPartial({
       payer: payer,
       tokenConfig: tokenConfigPda,
@@ -397,7 +386,7 @@ export const unwrap = async (
   originalMint: PublicKey,
   pairMint: PublicKey,
   amount: BN,
-  routeId: BN
+  routeId: BN,
 ) => {
   const program = buildProgram(params);
   const vaultAuthority = await getVaultAuthority(originalMint);
@@ -411,7 +400,7 @@ export const unwrap = async (
       TOKEN_2022_PROGRAM_ID.toBuffer(),
       pairMint.toBuffer(),
     ],
-    utils.token.ASSOCIATED_PROGRAM_ID
+    utils.token.ASSOCIATED_PROGRAM_ID,
   );
 
   const [originalTo] = PublicKey.findProgramAddressSync(
@@ -420,7 +409,7 @@ export const unwrap = async (
       TOKEN_PROGRAM_ID.toBuffer(),
       originalMint.toBuffer(),
     ],
-    utils.token.ASSOCIATED_PROGRAM_ID
+    utils.token.ASSOCIATED_PROGRAM_ID,
   );
 
   const [vault] = PublicKey.findProgramAddressSync(
@@ -429,14 +418,11 @@ export const unwrap = async (
       TOKEN_PROGRAM_ID.toBuffer(),
       originalMint.toBuffer(),
     ],
-    utils.token.ASSOCIATED_PROGRAM_ID
+    utils.token.ASSOCIATED_PROGRAM_ID,
   );
 
   return await program.methods
-    .unwrap(
-      routeId,
-      amount
-    )
+    .unwrap(routeId, amount)
     .accountsPartial({
       payer: payer,
       tokenConfig: tokenConfigPda,
@@ -464,27 +450,23 @@ export const unwrapSol = async (
   tokenConfigPda: PublicKey,
   wsolMint: PublicKey,
   amount: BN,
-  routeId: BN
+  routeId: BN,
 ) => {
   const program = buildProgram(params);
   const permanentDelegate = await getPermanentDelegate(routeId);
-  const tokenConfigAccount = await program.account.tokenConfig.fetch(
-    tokenConfigPda
-  );
+  const tokenConfigAccount =
+    await program.account.tokenConfig.fetch(tokenConfigPda);
   const solVault = await getSolVault(tokenConfigAccount.creator);
   const wsolFrom = await getAssociatedTokenAddress(
     wsolMint,
     recipient,
     false,
-    TOKEN_2022_PROGRAM_ID
+    TOKEN_2022_PROGRAM_ID,
   );
   const routeConfigPda = await getRouteConfigPda(routeId);
   const routeStatePda = await getRouteStatePda(routeId);
   return await program.methods
-    .unwrapSol(
-      routeId,
-      amount
-    )
+    .unwrapSol(routeId, amount)
     .accountsPartial({
       payer,
       tokenConfig: tokenConfigPda,
@@ -505,7 +487,7 @@ export const unwrapSol = async (
 export const getTokenConfigPda = async () => {
   const [tokenConfigPda] = PublicKey.findProgramAddressSync(
     [Buffer.from("token_config_global")],
-    params.programId
+    params.programId,
   );
   return tokenConfigPda;
 };
@@ -513,7 +495,7 @@ export const getTokenConfigPda = async () => {
 export const getRouteConfigPda = async (routeId: BN) => {
   const [routeConfigPda] = PublicKey.findProgramAddressSync(
     [Buffer.from("route"), routeId.toArrayLike(Buffer, "le", 8)],
-    params.programId
+    params.programId,
   );
   return routeConfigPda;
 };
@@ -521,7 +503,7 @@ export const getRouteConfigPda = async (routeId: BN) => {
 export const getRouteStatePda = async (routeId: BN) => {
   const [routeStatePda] = PublicKey.findProgramAddressSync(
     [Buffer.from("state"), routeId.toArrayLike(Buffer, "le", 8)],
-    params.programId
+    params.programId,
   );
   return routeStatePda;
 };
@@ -529,7 +511,7 @@ export const getRouteStatePda = async (routeId: BN) => {
 export const getPermanentDelegate = async (routeId: BN) => {
   const [permanentDelegate] = PublicKey.findProgramAddressSync(
     [Buffer.from("delegate"), routeId.toArrayLike(Buffer, "le", 8)],
-    params.programId
+    params.programId,
   );
   return permanentDelegate;
 };
@@ -537,7 +519,7 @@ export const getPermanentDelegate = async (routeId: BN) => {
 export const getVaultAuthority = async (originalMint: PublicKey) => {
   const [vaultAuthority] = PublicKey.findProgramAddressSync(
     [Buffer.from("vault_authority"), originalMint.toBuffer()],
-    params.programId
+    params.programId,
   );
   return vaultAuthority;
 };
@@ -545,14 +527,14 @@ export const getVaultAuthority = async (originalMint: PublicKey) => {
 export const getSolVault = async (creator: PublicKey) => {
   const [solVault] = PublicKey.findProgramAddressSync(
     [Buffer.from("sol_vault"), creator.toBuffer()],
-    params.programId
+    params.programId,
   );
   return solVault;
 };
 
 export const getVault = async (
   vaultAuthority: PublicKey,
-  originalMint: PublicKey
+  originalMint: PublicKey,
 ) => {
   const [vault] = PublicKey.findProgramAddressSync(
     [
@@ -560,7 +542,7 @@ export const getVault = async (
       TOKEN_PROGRAM_ID.toBuffer(),
       originalMint.toBuffer(),
     ],
-    utils.token.ASSOCIATED_PROGRAM_ID
+    utils.token.ASSOCIATED_PROGRAM_ID,
   );
   return vault;
 };
@@ -574,7 +556,7 @@ export const HOPS_PER_BATCH = 3;
 export const addHops = async (
   creator: PublicKey,
   routeId: BN,
-  hops: IHop[]
+  hops: IHop[],
 ) => {
   const program = buildProgram(params);
 
@@ -582,10 +564,7 @@ export const addHops = async (
   const routeState = await getRouteStatePda(routeId);
 
   const instruction = await program.methods
-    .addHops(
-      routeId,
-      hops
-    )
+    .addHops(routeId, hops)
     .accountsPartial({
       creator: creator,
       routeConfig: routeConfig,
@@ -594,17 +573,17 @@ export const addHops = async (
     .instruction();
 
   const transaction = new Transaction();
-  
+
   // Add dynamic priority fee instructions
   const priorityInstructions = await createDynamicPriorityInstructions(
-    params.connection
+    params.connection,
   );
   priorityInstructions.forEach((ix) => transaction.add(ix));
-  
+
   transaction.add(instruction);
 
   return transaction;
-}
+};
 
 /**
  * Creates multiple transactions to add hops in batches.
@@ -618,7 +597,7 @@ export const addHops = async (
 export const addHopsBatched = async (
   creator: PublicKey,
   routeId: BN,
-  hops: IHop[]
+  hops: IHop[],
 ): Promise<Transaction[]> => {
   const transactions: Transaction[] = [];
 
@@ -630,7 +609,7 @@ export const addHopsBatched = async (
   }
 
   return transactions;
-}
+};
 
 const initializeRoute = async (
   payer: PublicKey,
@@ -642,7 +621,7 @@ const initializeRoute = async (
   executor: PublicKey,
   hopAmount: BN,
   hops: IHop[],
-  originalTokenProgram: PublicKey
+  originalTokenProgram: PublicKey,
 ) => {
   const program = buildProgram(params);
   const routeConfigPda = await getRouteConfigPda(routeId);
@@ -652,22 +631,21 @@ const initializeRoute = async (
     originalMint,
     creator,
     false,
-    originalTokenProgram
+    originalTokenProgram,
   );
 
   // Get fee treasury from token config
-  const tokenConfigAccount = await program.account.tokenConfig.fetch(
-    tokenConfigPda
-  );
+  const tokenConfigAccount =
+    await program.account.tokenConfig.fetch(tokenConfigPda);
   const originalTreasuryAccount = await getAssociatedTokenAddress(
     originalMint,
-    tokenConfigAccount.feeTreasury as PublicKey
+    tokenConfigAccount.feeTreasury as PublicKey,
   );
   const mintAuthority = await getMintAuthority(routeId);
   const permanentDelegate = await getPermanentDelegate(routeId);
   const offchainMetadata = await fetchTokenMetadata(
     params.connection,
-    originalMint
+    originalMint,
   );
   const uri = offchainMetadata?.uri || "";
   const name = offchainMetadata?.name || "SPL Token";
@@ -675,13 +653,13 @@ const initializeRoute = async (
 
   return await program.methods
     .initializeRoute(
-      routeId, 
-      executor, 
-      hopAmount, 
-      hops.length, 
-      name, 
-      symbol, 
-      uri
+      routeId,
+      executor,
+      hopAmount,
+      hops.length,
+      name,
+      symbol,
+      uri,
     )
     .accountsPartial({
       creator: payer,
@@ -697,6 +675,8 @@ const initializeRoute = async (
       feeTreasury: tokenConfigAccount.feeTreasury as PublicKey,
       solTreasury: tokenConfigAccount.feeTreasury as PublicKey,
       originalTokenProgram,
+      token2022Program: TOKEN_2022_PROGRAM_ID,
+      transferHookGuardProgram: TRANSFER_HOOK_GUARD_PROGRAM_ID,
       associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
     })
@@ -709,16 +689,15 @@ const initializeRouteSol = async (
   executor: PublicKey,
   wSolMint: PublicKey,
   hopAmount: BN,
-  hops: IHop[]
+  hops: IHop[],
 ) => {
   const program = buildProgram(params);
   const routeConfigPda = await getRouteConfigPda(routeId);
   const routeStatePda = await getRouteStatePda(routeId);
 
   // Get fee treasury from token config
-  const tokenConfigAccount = await program.account.tokenConfig.fetch(
-    tokenConfigPda
-  );
+  const tokenConfigAccount =
+    await program.account.tokenConfig.fetch(tokenConfigPda);
 
   const name = "Wrapped SOL";
   const symbol = "wSOL";
@@ -729,14 +708,15 @@ const initializeRouteSol = async (
 
   return await program.methods
     .initializeRouteSol(
-      routeId, 
-      executor, 
-      hopAmount, 
-      hops.length, 
-      name, 
-      symbol, 
-      uri
+      routeId,
+      executor,
+      hopAmount,
+      hops.length,
+      name,
+      symbol,
+      uri,
     )
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .accountsPartial({
       creator: payer,
       tokenConfig: tokenConfigPda,
@@ -746,8 +726,10 @@ const initializeRouteSol = async (
       mintAuthority,
       permanentDelegate,
       solTreasury: tokenConfigAccount.feeTreasury as PublicKey,
+      token2022Program: TOKEN_2022_PROGRAM_ID,
+      transferHookGuardProgram: TRANSFER_HOOK_GUARD_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
-    })
+    } as any)
     .instruction();
 };
 
@@ -781,7 +763,7 @@ export const estimateDeploymentCost = (
   hopCount: number,
   amountLamports: number,
   feeBps: number = 100,
-  flatFeeLamports: number = 10000
+  flatFeeLamports: number = 10000,
 ): {
   executorFunding: number;
   transactionFees: number;
@@ -801,7 +783,9 @@ export const estimateDeploymentCost = (
   // Executor funding: 0.02 SOL base + 0.002 SOL per hop
   const perHopFunding = 0.002;
   const baseFunding = 0.02;
-  const executorFunding = Math.floor((hopCount * perHopFunding + baseFunding) * LAMPORTS_PER_SOL);
+  const executorFunding = Math.floor(
+    (hopCount * perHopFunding + baseFunding) * LAMPORTS_PER_SOL,
+  );
 
   // Transaction fees: ~5000 lamports per tx + priority fees (~200000 lamports per tx avg)
   // 1 init tx + ceil(hopCount / HOPS_PER_BATCH) add_hops txs
@@ -823,7 +807,7 @@ export const estimateDeploymentCost = (
 
   // 1. wSOL Token-2022 mint (with permanent delegate extension): ~300 bytes
   const wsolMintSize = 300;
-  const wsolMintRent = BASE_RENT + (wsolMintSize * LAMPORTS_PER_BYTE);
+  const wsolMintRent = BASE_RENT + wsolMintSize * LAMPORTS_PER_BYTE;
 
   // 2. wSOL token account (ATA): 165 bytes standard
   const wsolAccountRent = 2039280;
@@ -831,13 +815,13 @@ export const estimateDeploymentCost = (
   // 3. Route config PDA: 261 bytes base + 40 bytes per hop (32-byte pubkey + 8-byte i64)
   const routeConfigBaseSize = 261;
   const hopDataSize = 40;
-  const routeConfigSize = routeConfigBaseSize + (hopCount * hopDataSize);
-  const routeConfigRent = BASE_RENT + (routeConfigSize * LAMPORTS_PER_BYTE);
+  const routeConfigSize = routeConfigBaseSize + hopCount * hopDataSize;
+  const routeConfigRent = BASE_RENT + routeConfigSize * LAMPORTS_PER_BYTE;
 
   // 4. Route state PDA: 22 bytes base + 8 bytes per hop (i64 timestamps)
   const routeStateBaseSize = 22;
-  const routeStateSize = routeStateBaseSize + (hopCount * 8);
-  const routeStateRent = BASE_RENT + (routeStateSize * LAMPORTS_PER_BYTE);
+  const routeStateSize = routeStateBaseSize + hopCount * 8;
+  const routeStateRent = BASE_RENT + routeStateSize * LAMPORTS_PER_BYTE;
 
   // 5. SOL vault PDA: holds native SOL for route
   const solVaultRent = BASE_RENT;
@@ -847,11 +831,22 @@ export const estimateDeploymentCost = (
   const networkOverhead = hopCount * perHopNetworkOverhead;
 
   // 7. Buffer for additional fees and variance (10%)
-  const baseAccountRent = wsolMintRent + wsolAccountRent + routeConfigRent + routeStateRent + solVaultRent + networkOverhead;
-  const accountRent = Math.ceil(baseAccountRent * 1.10);
+  const baseAccountRent =
+    wsolMintRent +
+    wsolAccountRent +
+    routeConfigRent +
+    routeStateRent +
+    solVaultRent +
+    networkOverhead;
+  const accountRent = Math.ceil(baseAccountRent * 1.1);
 
   // Total cost
-  const totalCost = executorFunding + transactionFees + flatFeeLamports + percentageFee + accountRent;
+  const totalCost =
+    executorFunding +
+    transactionFees +
+    flatFeeLamports +
+    percentageFee +
+    accountRent;
 
   return {
     executorFunding,
@@ -882,7 +877,7 @@ export const estimateDeploymentCost = (
 const createExecutorFundingInstruction = (
   payer: PublicKey,
   executor: PublicKey,
-  amount: BN
+  amount: BN,
 ) => {
   return SystemProgram.transfer({
     fromPubkey: payer,
@@ -895,7 +890,7 @@ const initializeRouteSolWithWrap = async (
   payer: PublicKey,
   routeId: BN,
   hopAmount: BN,
-  hops: IHop[]
+  hops: IHop[],
 ) => {
   const tokenConfigPDA = await getTokenConfigPda();
   const wrappedToken = Keypair.generate();
@@ -905,29 +900,29 @@ const initializeRouteSolWithWrap = async (
     routeId,
     tokenConfigPDA,
     wrappedToken.publicKey,
-    hopAmount
+    hopAmount,
   );
   const transaction = new Transaction();
 
   // Add dynamic priority fee instructions
   const priorityInstructions = await createDynamicPriorityInstructions(
-    params.connection
+    params.connection,
   );
   priorityInstructions.forEach((ix) => transaction.add(ix));
 
   // Get deterministic executor for this route
   const executorWallet = executorService.getWalletByRouteId(routeId.toNumber());
-  const initGuardSolTx  = await initGuardSol(
+  const initGuardSolTx = await initGuardSol(
     payer,
     wrappedToken.publicKey,
-    await getPermanentDelegate(routeId)
+    await getPermanentDelegate(routeId),
   );
   // Calculate and add executor funding
   const executorFunding = calculateExecutorFunding(hops.length);
   const fundingIx = createExecutorFundingInstruction(
     payer,
     executorWallet.publicKey,
-    executorFunding
+    executorFunding,
   );
   transaction.add(fundingIx);
 
@@ -938,7 +933,7 @@ const initializeRouteSolWithWrap = async (
     executorWallet.publicKey,
     wrappedToken.publicKey,
     hopAmount,
-    hops
+    hops,
   );
   transaction.add(initializeRouteSolIx);
   transaction.add(initGuardSolTx);
@@ -946,7 +941,7 @@ const initializeRouteSolWithWrap = async (
 
   return {
     transaction,
-    wrappedToken
+    wrappedToken,
   };
 };
 
@@ -957,7 +952,7 @@ const initializeRouteWithWrap = async (
   hopAmount: BN,
   hops: IHop[],
   splMint: string,
-  originalTokenProgram: PublicKey
+  originalTokenProgram: PublicKey,
 ) => {
   const mint = new PublicKey(splMint);
   const tokenConfigPDA = await getTokenConfigPda();
@@ -968,13 +963,13 @@ const initializeRouteWithWrap = async (
     tokenConfigPDA,
     mint,
     wrappedToken.publicKey,
-    hopAmount
+    hopAmount,
   );
   const transaction = new Transaction();
 
   // Add dynamic priority fee instructions
   const priorityInstructions = await createDynamicPriorityInstructions(
-    params.connection
+    params.connection,
   );
   priorityInstructions.forEach((ix) => transaction.add(ix));
 
@@ -986,7 +981,7 @@ const initializeRouteWithWrap = async (
   const fundingIx = createExecutorFundingInstruction(
     payer,
     executorWallet.publicKey,
-    executorFunding
+    executorFunding,
   );
   transaction.add(fundingIx);
 
@@ -1000,12 +995,12 @@ const initializeRouteWithWrap = async (
     executorWallet.publicKey,
     hopAmount,
     hops,
-    originalTokenProgram
+    originalTokenProgram,
   );
   const initGuardTx = await initGuard(
     payer,
     wrappedToken.publicKey,
-    await getPermanentDelegate(routeId)
+    await getPermanentDelegate(routeId),
   );
   transaction.add(initializeRouteIx);
   transaction.add(initGuardTx);
@@ -1013,7 +1008,7 @@ const initializeRouteWithWrap = async (
 
   return {
     transaction,
-    wrappedToken
+    wrappedToken,
   };
 };
 
@@ -1029,7 +1024,7 @@ const initializeRouteSplWithoutWrap = async (
   hops: IHop[],
   splMint: string,
   originalTokenProgram: PublicKey,
-  wrappedTokenPubkey: PublicKey
+  wrappedTokenPubkey: PublicKey,
 ) => {
   const mint = new PublicKey(splMint);
   const tokenConfigPDA = await getTokenConfigPda();
@@ -1037,7 +1032,7 @@ const initializeRouteSplWithoutWrap = async (
 
   // Add dynamic priority fee instructions
   const priorityInstructions = await createDynamicPriorityInstructions(
-    params.connection
+    params.connection,
   );
   priorityInstructions.forEach((ix) => transaction.add(ix));
 
@@ -1049,7 +1044,7 @@ const initializeRouteSplWithoutWrap = async (
   const fundingIx = createExecutorFundingInstruction(
     payer,
     executorWallet.publicKey,
-    executorFunding
+    executorFunding,
   );
   transaction.add(fundingIx);
 
@@ -1063,12 +1058,12 @@ const initializeRouteSplWithoutWrap = async (
     executorWallet.publicKey,
     hopAmount,
     hops,
-    originalTokenProgram
+    originalTokenProgram,
   );
   const initGuardTx = await initGuard(
     payer,
     wrappedTokenPubkey,
-    await getPermanentDelegate(routeId)
+    await getPermanentDelegate(routeId),
   );
   transaction.add(initializeRouteIx);
   transaction.add(initGuardTx);
@@ -1085,7 +1080,7 @@ const wrapSplTokenTransaction = async (
   routeId: BN,
   splMint: string,
   wrappedTokenPubkey: PublicKey,
-  hopAmount: BN
+  hopAmount: BN,
 ) => {
   const mint = new PublicKey(splMint);
   const tokenConfigPDA = await getTokenConfigPda();
@@ -1093,7 +1088,7 @@ const wrapSplTokenTransaction = async (
 
   // Add dynamic priority fee instructions
   const priorityInstructions = await createDynamicPriorityInstructions(
-    params.connection
+    params.connection,
   );
   priorityInstructions.forEach((ix) => transaction.add(ix));
 
@@ -1103,7 +1098,7 @@ const wrapSplTokenTransaction = async (
     tokenConfigPDA,
     mint,
     wrappedTokenPubkey,
-    hopAmount
+    hopAmount,
   );
   transaction.add(wrapIx);
 
@@ -1116,7 +1111,7 @@ const triggerHop = async (
   executor: PublicKey,
   pairMint: PublicKey,
   fromOwner: PublicKey,
-  toOwner: PublicKey
+  toOwner: PublicKey,
 ) => {
   const program = buildProgram(params);
   const routeStatePda = await getRouteStatePda(routeId);
@@ -1127,19 +1122,20 @@ const triggerHop = async (
     pairMint,
     fromOwner,
     true,
-    TOKEN_2022_PROGRAM_ID
+    TOKEN_2022_PROGRAM_ID,
   );
   const pairTo = await getAssociatedTokenAddress(
     pairMint,
     toOwner,
     true,
-    TOKEN_2022_PROGRAM_ID
+    TOKEN_2022_PROGRAM_ID,
   );
 
+  // Get guard PDA for transfer hook
+  const [guardPda] = getGuardPda(pairMint);
+
   return await program.methods
-    .triggerHop(
-      routeId
-    )
+    .triggerHop(routeId)
     .accountsPartial({
       routeConfig: routeConfigPda,
       executor,
@@ -1155,18 +1151,22 @@ const triggerHop = async (
       originalTokenProgram: TOKEN_PROGRAM_ID,
       associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
-    })
+    } as any)
+    .remainingAccounts([
+      // Transfer hook extra accounts for Token2022
+      { pubkey: TRANSFER_HOOK_GUARD_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: guardPda, isSigner: false, isWritable: false },
+    ])
     .instruction();
 };
 
 export const serialize = async (
   transaction: Transaction,
   user: PublicKey,
-  provider: Connection
+  provider: Connection,
 ) => {
-  const { blockhash, lastValidBlockHeight } = await provider.getLatestBlockhash(
-    "finalized"
-  );
+  const { blockhash, lastValidBlockHeight } =
+    await provider.getLatestBlockhash("finalized");
   transaction.recentBlockhash = blockhash;
   transaction.lastValidBlockHeight = lastValidBlockHeight;
   transaction.feePayer = user;
@@ -1186,11 +1186,10 @@ export const signAndSerialize = async (
   transaction: Transaction,
   payer: PublicKey,
   signer: Keypair,
-  provider: Connection
+  provider: Connection,
 ) => {
-  const { blockhash, lastValidBlockHeight } = await provider.getLatestBlockhash(
-    "finalized"
-  );
+  const { blockhash, lastValidBlockHeight } =
+    await provider.getLatestBlockhash("finalized");
   transaction.recentBlockhash = blockhash;
   transaction.lastValidBlockHeight = lastValidBlockHeight;
   transaction.feePayer = payer;
@@ -1209,17 +1208,14 @@ export const signAndSerialize = async (
 // Convenience function to create a complete token configuration with guard
 export const initializeCompleteTokenConfig = async (
   payer: PublicKey,
-  tokenConfig: TokenConfig
+  tokenConfig: TokenConfig,
 ) => {
   const transaction = new Transaction();
   const priorityInstructions = await createDynamicPriorityInstructions(
-    params.connection
+    params.connection,
   );
   priorityInstructions.forEach((ix) => transaction.add(ix));
-  const tokenConfigIx = await initializeTokenConfig(
-    payer,
-    tokenConfig
-  );
+  const tokenConfigIx = await initializeTokenConfig(payer, tokenConfig);
   transaction.add(tokenConfigIx);
   return { transaction };
 };
@@ -1227,40 +1223,33 @@ export const initializeCompleteTokenConfig = async (
 // Convenience function for SOL token configuration with guard
 export const initializeCompleteSolTokenConfig = async (
   payer: PublicKey,
-  tokenConfig: TokenConfig
+  tokenConfig: TokenConfig,
 ) => {
   const transaction = new Transaction();
 
   // Add dynamic priority fee instructions
   const priorityInstructions = await createDynamicPriorityInstructions(
-    params.connection
+    params.connection,
   );
   priorityInstructions.forEach((ix) => transaction.add(ix));
 
   // First initialize the SOL token config with the wsolMint
-  const solConfigIx = await initializeTokenConfig(
-    payer,
-    tokenConfig
-  );
+  const solConfigIx = await initializeTokenConfig(payer, tokenConfig);
   transaction.add(solConfigIx);
 
   return { transaction };
 };
 
-const executeHop = async (
-  routeId: BN,
-): Promise<string | null> => {
+const executeHop = async (routeId: BN): Promise<string | null> => {
   let fromOwner;
   const tokenConfigPda = await getTokenConfigPda();
   const routeConfigPda = await getRouteConfigPda(routeId);
   const routeStatePda = await getRouteStatePda(routeId);
   const program = buildProgram(params);
-  const routeConfigAccount = await program.account.routeConfig.fetch(
-    routeConfigPda
-  );
-  const routeStateAccount = await program.account.routeState.fetch(
-    routeStatePda
-  );
+  const routeConfigAccount =
+    await program.account.routeConfig.fetch(routeConfigPda);
+  const routeStateAccount =
+    await program.account.routeState.fetch(routeStatePda);
 
   const previousHop =
     routeConfigAccount.hops[routeStateAccount.currentHopIndex - 1];
@@ -1268,7 +1257,8 @@ const executeHop = async (
   const isFirstHop = routeStateAccount.currentHopIndex === 0;
   const isLastHop =
     routeStateAccount.currentHopIndex === routeConfigAccount.hops.length - 1;
-  const hasEnded = routeStateAccount.currentHopIndex >= routeConfigAccount.hops.length;
+  const hasEnded =
+    routeStateAccount.currentHopIndex >= routeConfigAccount.hops.length;
 
   if (hasEnded) {
     return null;
@@ -1289,7 +1279,7 @@ const executeHop = async (
 
   // Add dynamic priority fee instructions
   const priorityInstructions = await createDynamicPriorityInstructions(
-    params.connection
+    params.connection,
   );
   priorityInstructions.forEach((ix) => transaction.add(ix));
 
@@ -1299,7 +1289,7 @@ const executeHop = async (
     executorWallet.publicKey,
     routeConfigAccount.routeTokenMint,
     fromOwner,
-    currentHop.recipient
+    currentHop.recipient,
   );
   transaction.add(triggerIx);
 
@@ -1312,7 +1302,7 @@ const executeHop = async (
         tokenConfigPda,
         routeConfigAccount.routeTokenMint,
         routeConfigAccount.hopAmount,
-        routeId
+        routeId,
       );
       transaction.add(unwrapIx);
     } else {
@@ -1323,7 +1313,7 @@ const executeHop = async (
         routeConfigAccount.originalMint,
         routeConfigAccount.routeTokenMint,
         routeConfigAccount.hopAmount,
-        routeId
+        routeId,
       );
       transaction.add(unwrapIx);
     }
@@ -1338,14 +1328,13 @@ export const getTokenConfigSPL = async () => {
   try {
     const program = buildProgram(params);
     const tokenConfigPda = await getTokenConfigPda();
-    const tokenConfigAccount = await program.account.tokenConfig.fetch(
-      tokenConfigPda
-    );
+    const tokenConfigAccount =
+      await program.account.tokenConfig.fetch(tokenConfigPda);
     return {
       minTransfer: tokenConfigAccount.minTransfer.toString(),
-      feeBps: (Number(
-        tokenConfigAccount.feeBps.toString()
-      ) / 10_000).toString(),
+      feeBps: (
+        Number(tokenConfigAccount.feeBps.toString()) / 10_000
+      ).toString(),
       feeTreasury: tokenConfigAccount.feeTreasury.toBase58(),
       maxHops: tokenConfigAccount.maxHops.toString(),
       flatFeeLamports: tokenConfigAccount.flatFeeLamports.toString(),
@@ -1358,11 +1347,9 @@ export const getTokenConfigSPL = async () => {
 export const getTokenConfigSOL = async () => {
   try {
     const program = buildProgram(params);
-    const tokenConfigPda = await getTokenConfigPda(
-    );
-    const tokenConfigAccount = await program.account.tokenConfig.fetch(
-      tokenConfigPda
-    );
+    const tokenConfigPda = await getTokenConfigPda();
+    const tokenConfigAccount =
+      await program.account.tokenConfig.fetch(tokenConfigPda);
     return {
       minTransfer: tokenConfigAccount.minTransfer.toString(),
       feeBps: tokenConfigAccount.feeBps.toString(),
@@ -1375,7 +1362,6 @@ export const getTokenConfigSOL = async () => {
   }
 };
 
-
 const updateTokenConfig = async (
   payer: PublicKey,
   tokenConfigParams: {
@@ -1386,7 +1372,7 @@ const updateTokenConfig = async (
     maxDelaySeconds?: BN;
     timelockSeconds?: BN;
     flatFeeLamports?: BN;
-  }
+  },
 ) => {
   const program = buildProgram(params);
   const tokenConfigPda = await getTokenConfigPda();
@@ -1399,7 +1385,7 @@ const updateTokenConfig = async (
       signer.publicKey,
       tokenConfigParams.feeTreasury || null,
       tokenConfigParams.maxHops || null,
-      tokenConfigParams.flatFeeLamports || null
+      tokenConfigParams.flatFeeLamports || null,
     )
     .accountsPartial({
       tokenConfig: tokenConfigPda,
@@ -1419,13 +1405,13 @@ const updateSolTokenConfigWithTransaction = async (
     maxDelaySeconds?: BN;
     timelockSeconds?: BN;
     flatFeeLamports?: BN;
-  }
+  },
 ) => {
   const transaction = new Transaction();
 
   // Add dynamic priority fee instructions
   const priorityInstructions = await createDynamicPriorityInstructions(
-    params.connection
+    params.connection,
   );
   priorityInstructions.forEach((ix) => transaction.add(ix));
 
@@ -1445,13 +1431,13 @@ const updateTokenConfigWithTransaction = async (
     maxDelaySeconds?: BN;
     timelockSeconds?: BN;
     flatFeeLamports?: BN;
-  }
+  },
 ) => {
   const transaction = new Transaction();
 
   // Add dynamic priority fee instructions
   const priorityInstructions = await createDynamicPriorityInstructions(
-    params.connection
+    params.connection,
   );
   priorityInstructions.forEach((ix) => transaction.add(ix));
 
@@ -1478,22 +1464,25 @@ export const initializeRouteFromWalletX = async (
   routeId: BN,
   hopAmount: BN,
   hops: IHop[],
-  tokenType: 'SOL' | 'SPL',
-  tokenMint?: string
+  tokenType: "SOL" | "SPL",
+  tokenMint?: string,
 ): Promise<string> => {
-  if (tokenType === 'SOL') {
+  if (tokenType === "SOL") {
     // SOL routes fit in a single transaction
+    console.log("[ContractService] Initializing SOL Route,,,");
     const result = await initializeRouteSolWithWrap(
       walletXKeypair.publicKey,
       routeId,
       hopAmount,
-      hops
+      hops,
     );
+    console.log("Result from initialization!!!");
     const transaction = result.transaction;
     const wrappedToken = result.wrappedToken;
 
     // Set blockhash
-    const { blockhash, lastValidBlockHeight } = await params.connection.getLatestBlockhash('finalized');
+    const { blockhash, lastValidBlockHeight } =
+      await params.connection.getLatestBlockhash("finalized");
     transaction.recentBlockhash = blockhash;
     transaction.lastValidBlockHeight = lastValidBlockHeight;
     transaction.feePayer = walletXKeypair.publicKey;
@@ -1508,15 +1497,15 @@ export const initializeRouteFromWalletX = async (
       [walletXKeypair, wrappedToken],
       {
         skipPreflight: false,
-        commitment: 'confirmed',
-      }
+        commitment: "confirmed",
+      },
     );
 
     return signature;
   } else {
     // SPL routes need to be split into two transactions to stay under 1232 byte limit
     if (!tokenMint) {
-      throw new Error('Token mint is required for SPL routes');
+      throw new Error("Token mint is required for SPL routes");
     }
 
     // IMPORTANT: initializeRoute deducts a percentage fee from the tokens.
@@ -1530,7 +1519,8 @@ export const initializeRouteFromWalletX = async (
     // Fetch token config to get the fee percentage
     const tokenConfigPda = await getTokenConfigPda();
     const program = buildProgram(params);
-    const tokenConfigAccount = await program.account.tokenConfig.fetch(tokenConfigPda);
+    const tokenConfigAccount =
+      await program.account.tokenConfig.fetch(tokenConfigPda);
     const feeBps = Number(tokenConfigAccount.feeBps.toString());
 
     // Calculate the fee and post-fee amount
@@ -1547,16 +1537,18 @@ export const initializeRouteFromWalletX = async (
       walletXKeypair.publicKey,
       walletXKeypair.publicKey,
       routeId,
-      postFeeAmount,  // Use post-fee amount so route config matches wrapped amount
+      postFeeAmount, // Use post-fee amount so route config matches wrapped amount
       hops,
       tokenMint,
       TOKEN_PROGRAM_ID,
-      wrappedToken.publicKey
+      wrappedToken.publicKey,
     );
 
     // Set blockhash for transaction 1
-    const { blockhash: blockhash1, lastValidBlockHeight: lastValidBlockHeight1 } =
-      await params.connection.getLatestBlockhash('finalized');
+    const {
+      blockhash: blockhash1,
+      lastValidBlockHeight: lastValidBlockHeight1,
+    } = await params.connection.getLatestBlockhash("finalized");
 
     initTransaction.recentBlockhash = blockhash1;
     initTransaction.lastValidBlockHeight = lastValidBlockHeight1;
@@ -1571,8 +1563,8 @@ export const initializeRouteFromWalletX = async (
       [walletXKeypair, wrappedToken],
       {
         skipPreflight: false,
-        commitment: 'confirmed',
-      }
+        commitment: "confirmed",
+      },
     );
 
     // Transaction 2: Wrap
@@ -1581,12 +1573,14 @@ export const initializeRouteFromWalletX = async (
       routeId,
       tokenMint,
       wrappedToken.publicKey,
-      postFeeAmount  // Use post-fee amount (same as stored in route config)
+      postFeeAmount, // Use post-fee amount (same as stored in route config)
     );
 
     // Set blockhash for transaction 2
-    const { blockhash: blockhash2, lastValidBlockHeight: lastValidBlockHeight2 } =
-      await params.connection.getLatestBlockhash('finalized');
+    const {
+      blockhash: blockhash2,
+      lastValidBlockHeight: lastValidBlockHeight2,
+    } = await params.connection.getLatestBlockhash("finalized");
 
     wrapTransaction.recentBlockhash = blockhash2;
     wrapTransaction.lastValidBlockHeight = lastValidBlockHeight2;
@@ -1601,8 +1595,8 @@ export const initializeRouteFromWalletX = async (
       [walletXKeypair],
       {
         skipPreflight: false,
-        commitment: 'confirmed',
-      }
+        commitment: "confirmed",
+      },
     );
 
     // Return the final signature (wrap transaction)
@@ -1622,23 +1616,24 @@ export const initializeRouteFromWalletX = async (
 export const addHopsFromWalletX = async (
   walletXKeypair: Keypair,
   routeId: BN,
-  hops: IHop[]
+  hops: IHop[],
 ): Promise<string> => {
   // Create batched transactions for adding hops
   const transactions = await addHopsBatched(
     walletXKeypair.publicKey,
     routeId,
-    hops
+    hops,
   );
 
-  let lastSignature = '';
+  let lastSignature = "";
 
   // Execute each batch sequentially
   for (let i = 0; i < transactions.length; i++) {
     const transaction = transactions[i];
 
     // Set blockhash
-    const { blockhash, lastValidBlockHeight } = await params.connection.getLatestBlockhash('finalized');
+    const { blockhash, lastValidBlockHeight } =
+      await params.connection.getLatestBlockhash("finalized");
     transaction.recentBlockhash = blockhash;
     transaction.lastValidBlockHeight = lastValidBlockHeight;
     transaction.feePayer = walletXKeypair.publicKey;
@@ -1652,8 +1647,8 @@ export const addHopsFromWalletX = async (
       [walletXKeypair],
       {
         skipPreflight: false,
-        commitment: 'confirmed',
-      }
+        commitment: "confirmed",
+      },
     );
 
     lastSignature = signature;
@@ -1682,36 +1677,36 @@ const contractService = {
   HOPS_PER_BATCH,
 };
 
-export const routeHasHops = async (routeId: number): Promise<{
-  hasHops: boolean,
-  isDeployed: boolean
+export const routeHasHops = async (
+  routeId: number,
+): Promise<{
+  hasHops: boolean;
+  isDeployed: boolean;
 }> => {
   try {
     const program = buildProgram(params);
     const routeConfigPda = await getRouteConfigPda(new BN(routeId));
-    const routeConfigAccount = await program.account.routeConfig.fetch(
-      routeConfigPda
-    );
+    const routeConfigAccount =
+      await program.account.routeConfig.fetch(routeConfigPda);
     return {
-      hasHops: routeConfigAccount.hops.length > 0, 
-      isDeployed: true
+      hasHops: routeConfigAccount.hops.length > 0,
+      isDeployed: true,
     };
   } catch (error) {
     return {
       hasHops: false,
-      isDeployed: false
+      isDeployed: false,
     };
   }
-}
+};
 
 // Functions to get route configuration and state
 export const getRouteConfiguration = async (routeId: number) => {
   try {
     const program = buildProgram(params);
     const routeConfigPda = await getRouteConfigPda(new BN(routeId));
-    const routeConfigAccount = await program.account.routeConfig.fetch(
-      routeConfigPda
-    );
+    const routeConfigAccount =
+      await program.account.routeConfig.fetch(routeConfigPda);
 
     return {
       creator: routeConfigAccount.creator.toBase58(),
@@ -1735,15 +1730,14 @@ export const getRouteStateAccount = async (routeId: number) => {
   try {
     const program = buildProgram(params);
     const routeStatePda = await getRouteStatePda(new BN(routeId));
-    const routeStateAccount = await program.account.routeState.fetch(
-      routeStatePda
-    );
+    const routeStateAccount =
+      await program.account.routeState.fetch(routeStatePda);
 
     return {
       currentHopIndex: routeStateAccount.currentHopIndex,
       startedAt: routeStateAccount.startedAt.toString(),
       lastHopAt: routeStateAccount.lastHopAt.map((timestamp: BN) =>
-        timestamp.toString()
+        timestamp.toString(),
       ),
       hopsCount: routeStateAccount.hopsCount,
     };
@@ -1754,7 +1748,7 @@ export const getRouteStateAccount = async (routeId: number) => {
 
 // Check if a route is actually deployed on-chain by verifying the route config PDA exists
 export const isRouteDeployedOnChain = async (
-  routeId: number
+  routeId: number,
 ): Promise<boolean> => {
   try {
     const routeConfigPda = await getRouteConfigPda(new BN(routeId));
@@ -1772,7 +1766,7 @@ export const isRouteDeployedOnChain = async (
 
 // Check if a specific route config PDA exists on-chain
 export const isRouteConfigPdaDeployed = async (
-  routeConfigPda: string
+  routeConfigPda: string,
 ): Promise<boolean> => {
   try {
     const pda = new PublicKey(routeConfigPda);

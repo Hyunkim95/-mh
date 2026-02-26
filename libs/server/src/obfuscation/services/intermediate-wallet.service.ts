@@ -1,4 +1,4 @@
-import { eq, and, lte } from "drizzle-orm";
+import { eq, and, lte, or } from "drizzle-orm";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { db } from "../../db";
 import {
@@ -238,6 +238,7 @@ async function getWalletsReadyForAggregation(
 
 /**
  * Get wallets pending cleanup (for a specific session)
+ * Includes both pending wallets AND failed wallets that are ready for retry
  */
 async function getWalletsPendingCleanup(
   sessionId: number,
@@ -245,7 +246,11 @@ async function getWalletsPendingCleanup(
   const wallets = await db.query.intermediateWalletsSchema.findMany({
     where: and(
       eq(intermediateWalletsSchema.sessionId, sessionId),
-      eq(intermediateWalletsSchema.cleanupStatus, "pending"),
+      or(
+        // Pending wallets
+        eq(intermediateWalletsSchema.cleanupStatus, "pending"),
+        // Failed wallets ready for retry (nextRetryAt has passed or not set)
+        eq(intermediateWalletsSchema.cleanupStatus, "failed"),      ),
     ),
     with: {
       custodialWallet: true,
