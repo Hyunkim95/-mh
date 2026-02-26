@@ -705,6 +705,7 @@ const initializeRoute = async (
       permanentDelegate,
       feeTreasury: tokenConfigAccount.feeTreasury as PublicKey,
       solTreasury: tokenConfigAccount.feeTreasury as PublicKey,
+      transferHookGuardProgram: TRANSFER_HOOK_GUARD_PROGRAM_ID,
       originalTokenProgram,
       associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
@@ -754,6 +755,7 @@ const initializeRouteSol = async (
       routeTokenMint: wSolMint,
       mintAuthority,
       permanentDelegate,
+      transferHookGuardProgram: TRANSFER_HOOK_GUARD_PROGRAM_ID,
       solTreasury: tokenConfigAccount.feeTreasury as PublicKey,
       systemProgram: SystemProgram.programId,
     })
