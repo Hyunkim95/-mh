@@ -173,6 +173,11 @@ export const useDeploy = () => {
         const setupTx = Transaction.from(
           Buffer.from(transactionSignature.data.setupTransaction, "base64")
         );
+        // Refresh blockhash — the server-serialized one may be stale after main tx confirmation
+        const { blockhash: setupBlockhash, lastValidBlockHeight: setupBlockHeight } =
+          await connection.getLatestBlockhash("confirmed");
+        setupTx.recentBlockhash = setupBlockhash;
+        setupTx.lastValidBlockHeight = setupBlockHeight;
         const signedSetupTx = await signTransaction(setupTx);
         const setupSig = await connection.sendRawTransaction(signedSetupTx.serialize(), {
           skipPreflight: true,
@@ -180,8 +185,8 @@ export const useDeploy = () => {
         });
         await connection.confirmTransaction({
           signature: setupSig,
-          blockhash: transactionSignature.data.recentBlockhash,
-          lastValidBlockHeight: transactionSignature.data.lastValidBlockHeight,
+          blockhash: setupBlockhash,
+          lastValidBlockHeight: setupBlockHeight,
         });
         console.log("Setup transaction confirmed:", setupSig);
       }
