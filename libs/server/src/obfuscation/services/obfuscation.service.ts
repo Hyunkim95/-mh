@@ -14,6 +14,10 @@ import {
 } from "../schema/obfuscation.schema";
 // custodialWalletsSchema is used implicitly through SolanaWalletManager
 import { SolanaWalletManager } from "@libs/solana-node";
+import {
+  estimateDeploymentCost,
+  getRecommendedPriorityFee,
+} from "../../solana/services/contract.service";
 
 // Configuration constants
 const MIN_INTERMEDIATE_WALLETS = 5;
@@ -21,27 +25,23 @@ const MAX_INTERMEDIATE_WALLETS = 8;
 const MIN_AGGREGATION_DELAY_MS = 1 * 1000; // 1 second min delay (fast for user experience)
 const MAX_AGGREGATION_DELAY_MS = 3 * 1000; // 3 seconds max delay (must complete before first hop)
 
-// ATA rent in lamports (approximately 0.00203 SOL)
-const ATA_RENT_LAMPORTS = 2039280;
 // Base transaction fee
 const BASE_TX_FEE_LAMPORTS = 5000;
-// Estimated priority fee
-const ESTIMATED_PRIORITY_FEE_LAMPORTS = 200000;
-// Rent-exempt minimum for a basic system account (~0.00089 SOL)
-const RENT_EXEMPT_MINIMUM_LAMPORTS = 890880;
-// Minimum lamports per intermediate wallet (rent-exempt + fees buffer)
-const MIN_LAMPORTS_PER_WALLET = RENT_EXEMPT_MINIMUM_LAMPORTS + BASE_TX_FEE_LAMPORTS + ESTIMATED_PRIORITY_FEE_LAMPORTS;
-// TOTAL SOL needed for Wallet X to deploy route on-chain
-// This covers: route_config PDA (~6M), route_state PDA (~3M), route_token_mint Token-2022 (~50M), ATA creation, tx fees
-// The actual deployment cost is ~63M lamports, we add buffer for safety
-const TOTAL_DEPLOYMENT_COST_LAMPORTS = 80_000_000; // 0.08 SOL total for deployment
+// Fallback values used when RPC calls fail
+const FALLBACK_ATA_RENT_LAMPORTS = 2039280;
+const FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS = 890880;
+const FALLBACK_PRIORITY_FEE_LAMPORTS = 200000;
 
-// Per-wallet fees for aggregation phase
-// This must cover:
-// 1. Aggregation tx fee: BASE_TX_FEE (5K) + priority (~200K) + buffer (5K) = ~210K
-// 2. Cleanup reserve kept in wallet: RENT_EXEMPT_MINIMUM (~890K) + cleanup tx fee (~210K) = ~1.1M
-// Total per wallet: ~1.3M, using 1.5M for safety margin
-const AGGREGATION_FEE_PER_WALLET = 1_500_000; // 0.0015 SOL per wallet
+// Cache for dynamic values (refreshed periodically)
+interface DynamicFeeCache {
+  ataRentLamports: number;
+  rentExemptMinimumLamports: number;
+  priorityFeeLamports: number;
+  lastUpdated: Date;
+}
+
+let feeCache: DynamicFeeCache | null = null;
+const FEE_CACHE_TTL_MS = 60 * 1000; // 1 minute cache TTL
 
 // Initialize Solana connection
 const connection = new Connection(
@@ -55,6 +55,79 @@ const walletManager = new SolanaWalletManager({
   database: db,
   connection,
 });
+
+/**
+ * Get dynamic fee values from RPC, with caching to reduce RPC calls.
+ * Falls back to hardcoded values if RPC fails.
+ */
+async function getDynamicFees(): Promise<DynamicFeeCache> {
+  const now = new Date();
+
+  // Return cached values if still valid
+  if (
+    feeCache &&
+    now.getTime() - feeCache.lastUpdated.getTime() < FEE_CACHE_TTL_MS
+  ) {
+    return feeCache;
+  }
+
+  try {
+    // Fetch all dynamic values in parallel
+    const [ataRentLamports, rentExemptMinimumLamports, priorityFeeLamports] =
+      await Promise.all([
+        // ATA size is 165 bytes for Token accounts
+        connection.getMinimumBalanceForRentExemption(165),
+        // System account (0 bytes of data)
+        connection.getMinimumBalanceForRentExemption(0),
+        // Get recommended priority fee with 1.2x buffer for safety
+        getRecommendedPriorityFee(connection).then((fee) =>
+          Math.ceil(fee * 1.2),
+        ),
+      ]);
+
+    feeCache = {
+      ataRentLamports,
+      rentExemptMinimumLamports,
+      priorityFeeLamports,
+      lastUpdated: now,
+    };
+
+    return feeCache;
+  } catch (error) {
+    console.warn(
+      "[ObfuscationService] Failed to fetch dynamic fees, using fallbacks:",
+      error,
+    );
+    // Return fallback values
+    return {
+      ataRentLamports: FALLBACK_ATA_RENT_LAMPORTS,
+      rentExemptMinimumLamports: FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS,
+      priorityFeeLamports: FALLBACK_PRIORITY_FEE_LAMPORTS,
+      lastUpdated: now,
+    };
+  }
+}
+
+/**
+ * Get minimum lamports per wallet (rent-exempt + fees buffer)
+ */
+async function getMinLamportsPerWallet(): Promise<number> {
+  const fees = await getDynamicFees();
+  return (
+    fees.rentExemptMinimumLamports +
+    BASE_TX_FEE_LAMPORTS +
+    fees.priorityFeeLamports
+  );
+}
+
+/**
+ * Get deployment cost for a route using dynamic calculation
+ */
+function getDeploymentCost(hopCount: number, amountLamports: number): number {
+  const costEstimate = estimateDeploymentCost(hopCount, amountLamports);
+  // Add 10% buffer for safety
+  return Math.ceil(costEstimate.totalCost * 1.1);
+}
 
 /**
  * Generate a random number of intermediate wallets (between 5 and 8)
@@ -72,10 +145,12 @@ function getRandomIntermediateCount(): number {
  * Generate a cryptographically secure random split of a total amount
  * into N portions that sum exactly to the total.
  *
- * Each portion is guaranteed to be at least MIN_LAMPORTS_PER_WALLET to ensure
+ * Each portion is guaranteed to be at least minPerWallet to ensure
  * rent-exemption and cover aggregation fees.
+ *
+ * Uses BN arithmetic throughout to avoid JavaScript Number overflow.
  */
-function generateRandomSplit(total: BN, count: number): BN[] {
+async function generateRandomSplit(total: BN, count: number): Promise<BN[]> {
   if (count <= 0) {
     throw new Error("Count must be positive");
   }
@@ -86,39 +161,66 @@ function generateRandomSplit(total: BN, count: number): BN[] {
     return [total];
   }
 
-  const minPerWallet = new BN(MIN_LAMPORTS_PER_WALLET);
+  const minLamportsPerWallet = await getMinLamportsPerWallet();
+  const minPerWallet = new BN(minLamportsPerWallet);
   const minTotal = minPerWallet.mul(new BN(count));
 
   // Check if we have enough funds for the minimum per wallet
   if (total.lt(minTotal)) {
     throw new Error(
-      `Insufficient funds for obfuscation: need at least ${minTotal.toString()} lamports for ${count} wallets, but only have ${total.toString()}`
+      `Insufficient funds for obfuscation: need at least ${minTotal.toString()} lamports for ${count} wallets, but only have ${total.toString()}`,
     );
   }
 
   // Allocate minimum to each wallet first
-  const splits: BN[] = Array(count).fill(null).map(() => minPerWallet.clone());
+  const splits: BN[] = Array(count)
+    .fill(null)
+    .map(() => minPerWallet.clone());
 
   // Calculate remainder to distribute randomly
   const remainder = total.sub(minTotal);
 
   if (remainder.gt(new BN(0))) {
-    const remainderNum = remainder.toNumber();
+    // Use BN division to distribute remainder evenly across wallets
+    // This avoids JavaScript Number overflow for large values
+    const countBN = new BN(count);
+    const baseShare = remainder.div(countBN);
+    const extraLamports = remainder.mod(countBN).toNumber(); // mod is always < count, safe to convert
 
-    // Generate n-1 random breakpoints in the range [0, remainder]
-    const breakpoints: number[] = [];
-    for (let i = 0; i < count - 1; i++) {
-      breakpoints.push(crypto.randomInt(0, remainderNum + 1));
-    }
-    breakpoints.sort((a, b) => a - b);
-
-    // Calculate random portions from breakpoints
-    let prev = 0;
+    // Add base share to each wallet
     for (let i = 0; i < count; i++) {
-      const bp = i < count - 1 ? breakpoints[i] : remainderNum;
-      const portion = bp - prev;
-      splits[i] = splits[i].add(new BN(portion));
-      prev = bp;
+      splits[i] = splits[i].add(baseShare);
+    }
+
+    // Distribute the extra lamports randomly to some wallets
+    if (extraLamports > 0) {
+      // Generate random indices to receive extra lamports
+      const indices = new Set<number>();
+      while (indices.size < extraLamports) {
+        indices.add(crypto.randomInt(0, count));
+      }
+      for (const idx of indices) {
+        splits[idx] = splits[idx].add(new BN(1));
+      }
+    }
+
+    // Add some random variance by shuffling small amounts between wallets
+    // This provides obfuscation without using unsafe Number conversions
+    const varianceAmount = baseShare.divn(10); // 10% of base share for variance
+    if (varianceAmount.gtn(0)) {
+      for (let i = 0; i < count - 1; i++) {
+        const transferAmount = varianceAmount
+          .muln(crypto.randomInt(0, 11))
+          .divn(10); // 0-100% of variance
+        if (
+          crypto.randomInt(0, 2) === 0 &&
+          splits[i].gt(minPerWallet.add(transferAmount))
+        ) {
+          // Transfer from wallet i to wallet i+1
+          splits[i] = splits[i].sub(transferAmount);
+          splits[i + 1] = splits[i + 1].add(transferAmount);
+        }
+      }
     }
   }
 
@@ -160,16 +262,20 @@ export interface ObfuscationFeeEstimate {
   dustRefund: number; // SOL dust returned from intermediate wallets after cleanup
   netObfuscationCost: number;
   totalFeesLamports: number;
+  deploymentCost: number; // Cost for route deployment from Wallet X
 }
 
-function estimateObfuscationFees(
+async function estimateObfuscationFees(
   intermediateCount: number,
   tokenType: "SOL" | "SPL",
-): ObfuscationFeeEstimate {
-  const txFee = BASE_TX_FEE_LAMPORTS + ESTIMATED_PRIORITY_FEE_LAMPORTS;
+  hopCount: number,
+  amountLamports: number,
+): Promise<ObfuscationFeeEstimate> {
+  const fees = await getDynamicFees();
+  const txFee = BASE_TX_FEE_LAMPORTS + fees.priorityFeeLamports;
 
   // ATA creation is only needed for SPL tokens
-  const ataCreationCost = tokenType === "SPL" ? ATA_RENT_LAMPORTS : 0;
+  const ataCreationCost = tokenType === "SPL" ? fees.ataRentLamports : 0;
 
   const intermediateAtaCreation = intermediateCount * ataCreationCost;
   const walletXAtaCreation = ataCreationCost;
@@ -180,20 +286,26 @@ function estimateObfuscationFees(
   // Rent recovery when closing ATAs (only for SPL)
   const rentRecovery =
     tokenType === "SPL"
-      ? (intermediateCount + 1) * (ATA_RENT_LAMPORTS - BASE_TX_FEE_LAMPORTS)
+      ? (intermediateCount + 1) * (fees.ataRentLamports - BASE_TX_FEE_LAMPORTS)
       : 0;
 
   // Dust refund: rent-exempt minimum from each wallet gets returned during cleanup
   // This is the SOL that was kept in each wallet to avoid rent errors during aggregation
   // After cleanup, this dust is transferred back to the user
-  const dustRefund = (intermediateCount + 1) * (RENT_EXEMPT_MINIMUM_LAMPORTS - BASE_TX_FEE_LAMPORTS);
+  const dustRefund =
+    (intermediateCount + 1) *
+    (fees.rentExemptMinimumLamports - BASE_TX_FEE_LAMPORTS);
+
+  // Get dynamic deployment cost based on hop count
+  const deploymentCost = getDeploymentCost(hopCount, amountLamports);
 
   const netObfuscationCost =
     intermediateAtaCreation +
     walletXAtaCreation +
     fundingTxFees +
     aggregationTxFees +
-    cleanupTxFees -
+    cleanupTxFees +
+    deploymentCost -
     rentRecovery -
     dustRefund;
 
@@ -206,64 +318,113 @@ function estimateObfuscationFees(
     rentRecovery,
     dustRefund,
     netObfuscationCost,
+    deploymentCost,
     totalFeesLamports: Math.max(0, netObfuscationCost),
   };
 }
 
 /**
- * Create a new obfuscation session for a route
+ * Create a new obfuscation session for a route.
+ *
+ * This function is idempotent - if a session already exists for the route,
+ * it returns the existing session instead of creating a duplicate.
+ *
+ * Uses database transactions to ensure atomicity of session and wallet creation.
  */
 async function createSession(
-  input: CreateObfuscationSessionInput,
+  input: CreateObfuscationSessionInput & { hopCount?: number },
 ): Promise<ObfuscationSession> {
-  const intermediateCount = getRandomIntermediateCount();
-
-  // Generate Wallet X first
-  const walletXIdentifier = `obfuscation_wallet_x_route_${input.routeId}_${Date.now()}`;
-  const walletX = await walletManager.getOrCreateWallet(walletXIdentifier);
-
-  // Calculate fee estimate
-  const feeEstimate = estimateObfuscationFees(
-    intermediateCount,
-    input.tokenType,
-  );
-
-  // Create the session
-  const [session] = await db
-    .insert(obfuscationSessionsSchema)
-    .values({
-      routeId: input.routeId,
-      status: "pending",
-      walletXId: walletX.id,
-      intermediateCount,
-      tokenMint: input.tokenMint,
-      tokenType: input.tokenType,
-      totalAmount: input.totalAmount,
-      estimatedFeesLamports: feeEstimate.totalFeesLamports.toString(),
-    })
-    .returning();
-
-  // Generate intermediate wallets
-  const totalAmount = new BN(input.totalAmount);
-  const splitAmounts = generateRandomSplit(totalAmount, intermediateCount);
-
-  // Generate intermediate wallets
-  for (let i = 0; i < intermediateCount; i++) {
-    const walletIdentifier = `obfuscation_intermediate_${session.id}_${i}_${Date.now()}`;
-    const wallet = await walletManager.getOrCreateWallet(walletIdentifier);
-
-    await db.insert(intermediateWalletsSchema).values({
-      sessionId: session.id,
-      custodialWalletId: wallet.id,
-      walletIndex: i,
-      allocatedAmount: splitAmounts[i].toString(),
-      fundingStatus: "pending",
-      aggregationStatus: "pending",
-      cleanupStatus: "pending",
-    });
+  // Check for existing session first (idempotency)
+  const existingSession = await getSessionByRouteId(input.routeId);
+  if (existingSession) {
+    // If session exists and is not failed, return it
+    if (existingSession.status !== "failed") {
+      return existingSession;
+    }
+    // For failed sessions, we could reset or create new - for now, return existing
+    // The caller can decide to handle failed sessions differently
+    return existingSession;
   }
 
-  return session;
+  const intermediateCount = getRandomIntermediateCount();
+  const hopCount = input.hopCount || 1; // Default to 1 hop if not provided
+  const amountLamports = parseInt(input.totalAmount, 10);
+
+  // Generate Wallet X first (outside transaction since it involves external wallet creation)
+  const walletXIdentifier = `obfuscation_wallet_x_route_${input.routeId}`;
+  const walletX = await walletManager.getOrCreateWallet(walletXIdentifier);
+
+  // Calculate fee estimate with dynamic values
+  const feeEstimate = await estimateObfuscationFees(
+    intermediateCount,
+    input.tokenType,
+    hopCount,
+    amountLamports,
+  );
+
+  // Generate intermediate wallets in parallel
+  const walletPromises = Array.from({ length: intermediateCount }, (_, i) => {
+    const walletIdentifier = `obfuscation_intermediate_route_${input.routeId}_${i}`;
+    return walletManager.getOrCreateWallet(walletIdentifier);
+  });
+  const intermediateWallets = await Promise.all(walletPromises);
+
+  // Generate split amounts
+  const totalAmount = new BN(input.totalAmount);
+  const splitAmounts = await generateRandomSplit(
+    totalAmount,
+    intermediateCount,
+  );
+
+  // Use database transaction for atomicity
+  try {
+    const session = await db.transaction(async (tx) => {
+      // Create the session
+      const [newSession] = await tx
+        .insert(obfuscationSessionsSchema)
+        .values({
+          routeId: input.routeId,
+          status: "pending",
+          walletXId: walletX.id,
+          intermediateCount,
+          tokenMint: input.tokenMint,
+          tokenType: input.tokenType,
+          totalAmount: input.totalAmount,
+          estimatedFeesLamports: feeEstimate.totalFeesLamports.toString(),
+        })
+        .returning();
+
+      // Create all intermediate wallet records in a batch
+      const walletRecords = intermediateWallets.map((wallet, i) => ({
+        sessionId: newSession.id,
+        custodialWalletId: wallet.id,
+        walletIndex: i,
+        allocatedAmount: splitAmounts[i].toString(),
+        fundingStatus: "pending" as const,
+        aggregationStatus: "pending" as const,
+        cleanupStatus: "pending" as const,
+      }));
+
+      await tx.insert(intermediateWalletsSchema).values(walletRecords);
+
+      return newSession;
+    });
+
+    return session;
+  } catch (error: any) {
+    // Handle unique constraint violation (race condition)
+    if (
+      error.code === "23505" ||
+      error.message?.includes("unique constraint")
+    ) {
+      // Another request created the session, fetch and return it
+      const racedSession = await getSessionByRouteId(input.routeId);
+      if (racedSession) {
+        return racedSession;
+      }
+    }
+    throw error;
+  }
 }
 
 /**
@@ -323,7 +484,8 @@ async function updateSessionStatus(
 
   if (error) {
     updates.lastError = error;
-    updates.retryCount = (await getSession(sessionId))?.retryCount || 0 + 1;
+    // Fix operator precedence: wrap in parentheses to ensure correct addition
+    updates.retryCount = ((await getSession(sessionId))?.retryCount || 0) + 1;
   }
 
   if (status === "funding") {
@@ -437,6 +599,9 @@ export const obfuscationService = {
   estimateObfuscationFees,
   getWalletManager,
   getConnection,
+  getDynamicFees,
+  getMinLamportsPerWallet,
+  getDeploymentCost,
 
   // Constants (exported for use by other services)
   constants: {
@@ -444,12 +609,18 @@ export const obfuscationService = {
     MAX_INTERMEDIATE_WALLETS,
     MIN_AGGREGATION_DELAY_MS,
     MAX_AGGREGATION_DELAY_MS,
-    ATA_RENT_LAMPORTS,
     BASE_TX_FEE_LAMPORTS,
-    ESTIMATED_PRIORITY_FEE_LAMPORTS,
-    RENT_EXEMPT_MINIMUM_LAMPORTS,
-    MIN_LAMPORTS_PER_WALLET,
-    TOTAL_DEPLOYMENT_COST_LAMPORTS,
-    AGGREGATION_FEE_PER_WALLET,
+    // Fallback values (prefer using getDynamicFees() for accurate values)
+    FALLBACK_ATA_RENT_LAMPORTS,
+    FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS,
+    FALLBACK_PRIORITY_FEE_LAMPORTS,
+    // Legacy aliases for backward compatibility
+    ATA_RENT_LAMPORTS: FALLBACK_ATA_RENT_LAMPORTS,
+    RENT_EXEMPT_MINIMUM_LAMPORTS: FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS,
+    ESTIMATED_PRIORITY_FEE_LAMPORTS: FALLBACK_PRIORITY_FEE_LAMPORTS,
+    // Deployment cost - use getDeploymentCost() for dynamic calculation
+    TOTAL_DEPLOYMENT_COST_LAMPORTS: 80_000_000, // 0.08 SOL fallback
+    // Per-wallet aggregation fee
+    AGGREGATION_FEE_PER_WALLET: 1_500_000, // 0.0015 SOL per wallet
   },
 };
