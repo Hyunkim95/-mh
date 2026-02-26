@@ -67,7 +67,8 @@ const recalculateHopTimes = (
 };
 
 export const useDeploy = () => {
-  const { publicKey, sendTransaction, signTransaction, signAllTransactions } = useWallet();
+  const { publicKey, sendTransaction, signTransaction, signAllTransactions } =
+    useWallet();
   const { connection } = useConnection();
   const utils = trpc.useUtils();
   const initializeRoute = trpc.contract.initializeRoute.useMutation();
@@ -87,7 +88,7 @@ export const useDeploy = () => {
       hopAmount: string;
       splMint?: string;
     },
-    type: "SPL" | "SOL"
+    type: "SPL" | "SOL",
   ) => {
     // Wallet validation
     if (!publicKey || !sendTransaction) {
@@ -128,7 +129,7 @@ export const useDeploy = () => {
 
       // Deserialize the unsigned transaction
       const transaction = Transaction.from(
-        Buffer.from(transactionSignature.data.transaction, "base64")
+        Buffer.from(transactionSignature.data.transaction, "base64"),
       );
 
       // Phantom wallet signs FIRST (required by Phantom's Lighthouse security)
@@ -140,16 +141,19 @@ export const useDeploy = () => {
       // Then additional signer signs AFTER Phantom (correct order for Lighthouse)
       if (transactionSignature.data.additionalSignerSecret) {
         const additionalSigner = Keypair.fromSecretKey(
-          bs58.decode(transactionSignature.data.additionalSignerSecret)
+          bs58.decode(transactionSignature.data.additionalSignerSecret),
         );
         signedTx.partialSign(additionalSigner);
       }
 
       // Send the fully-signed transaction
-      const signature = await connection.sendRawTransaction(signedTx.serialize(), {
-        skipPreflight: true,
-        preflightCommitment: "confirmed",
-      });
+      const signature = await connection.sendRawTransaction(
+        signedTx.serialize(),
+        {
+          skipPreflight: true,
+          preflightCommitment: "confirmed",
+        },
+      );
       toast.loading("Confirming transaction...", { id: "deploy" });
 
       // Wait for confirmation
@@ -161,23 +165,23 @@ export const useDeploy = () => {
 
       if (confirmation.value.err) {
         throw new Error(
-          `Transaction failed: ${JSON.stringify(confirmation.value.err)}`
+          `Transaction failed: ${JSON.stringify(confirmation.value.err)}`,
         );
       }
 
       toast.success(
         `${type} Route deployed successfully! Signature: ${signature.slice(
           0,
-          8
+          8,
         )}...`,
-        { id: "deploy" }
+        { id: "deploy" },
       );
 
       return signature;
     } catch (error) {
       toast.error(
         `${type} Route deployment failed: ${extractErrorMessage(error)}`,
-        { id: "deploy" }
+        { id: "deploy" },
       );
       throw error;
     }
@@ -186,7 +190,7 @@ export const useDeploy = () => {
   const addHopsMutation = async (
     routeId: number,
     creator: string,
-    hops: { recipient: string; scheduledAt: number }[]
+    hops: { recipient: string; scheduledAt: number }[],
   ) => {
     if (!sendTransaction) {
       throw new Error("Wallet not connected");
@@ -200,7 +204,7 @@ export const useDeploy = () => {
         hops,
       });
 
-      const { transactions, totalBatches, totalHops } = result.data;
+      const { transactions, totalBatches } = result.data;
 
       // Check if wallet supports batch signing
       if (!signAllTransactions) {
@@ -209,7 +213,7 @@ export const useDeploy = () => {
 
       // Deserialize all transactions upfront
       const deserializedTxs = transactions.map((batchData) =>
-        Transaction.from(Buffer.from(batchData.transaction, "base64"))
+        Transaction.from(Buffer.from(batchData.transaction, "base64")),
       );
 
       // Show loading message
@@ -217,7 +221,7 @@ export const useDeploy = () => {
         `Please sign ${totalBatches} ${
           totalBatches === 1 ? "transaction" : "transactions"
         } in your wallet...`,
-        { id: "deploy" }
+        { id: "deploy" },
       );
 
       // USER SIGNS ALL TRANSACTIONS AT ONCE - SINGLE WALLET POPUP
@@ -227,7 +231,7 @@ export const useDeploy = () => {
         `Submitting ${totalBatches} ${
           totalBatches === 1 ? "batch" : "batches"
         }...`,
-        { id: "deploy" }
+        { id: "deploy" },
       );
 
       // Send each signed transaction sequentially
@@ -236,8 +240,7 @@ export const useDeploy = () => {
         const batchNum = i + 1;
         const batchData = transactions[i];
         const signedTx = signedTransactions[i];
-        const batchStartHop = i * HOPS_PER_BATCH;
-        const batchEndHop = Math.min(batchStartHop + HOPS_PER_BATCH, hops.length);
+      
 
         toast.loading(`Sending batch ${batchNum}/${totalBatches}...`, {
           id: "deploy",
@@ -249,7 +252,7 @@ export const useDeploy = () => {
           {
             skipPreflight: true,
             preflightCommitment: "confirmed",
-          }
+          },
         );
 
         toast.loading(`Confirming batch ${batchNum}/${totalBatches}...`, {
@@ -266,8 +269,8 @@ export const useDeploy = () => {
         if (confirmation.value.err) {
           throw new Error(
             `Batch ${batchNum} transaction failed: ${JSON.stringify(
-              confirmation.value.err
-            )}`
+              confirmation.value.err,
+            )}`,
           );
         }
       }
@@ -290,7 +293,7 @@ export const useDeploy = () => {
       hopAmount: string;
       splMint?: string;
     },
-    type: "SPL" | "SOL"
+    type: "SPL" | "SOL",
   ) => {
     // Wallet validation
     if (!publicKey || !sendTransaction) {
@@ -339,7 +342,7 @@ export const useDeploy = () => {
 
         const initSignature = await initializeRouteMutation(
           { ...data, hops: freshHops },
-          type
+          type,
         );
 
         // Step 2: Add hops (may require multiple batches)
@@ -347,7 +350,7 @@ export const useDeploy = () => {
           `Deploying route: Adding ${freshHops.length} hops${
             hopBatches > 1 ? ` in ${hopBatches} batches` : ""
           }...`,
-          { id: "deploy" }
+          { id: "deploy" },
         );
 
         await addHopsMutation(data.routeId, publicKey.toBase58(), freshHops);
@@ -367,7 +370,7 @@ export const useDeploy = () => {
                 ? ` (attempt ${verifyAttempts}/${maxAttempts})`
                 : ""
             }...`,
-            { id: "deploy" }
+            { id: "deploy" },
           );
 
           if (verifyAttempts > 1) {
@@ -401,7 +404,7 @@ export const useDeploy = () => {
 
         toast.success(
           `Route deployed successfully with ${freshHops.length} hops!`,
-          { id: "deploy" }
+          { id: "deploy" },
         );
         return initSignature;
       } else if (!hasHops) {
@@ -410,7 +413,7 @@ export const useDeploy = () => {
           `Adding ${freshHops.length} hops${
             hopBatches > 1 ? ` in ${hopBatches} batches` : ""
           }...`,
-          { id: "deploy" }
+          { id: "deploy" },
         );
 
         await addHopsMutation(data.routeId, publicKey.toBase58(), freshHops);
@@ -429,7 +432,7 @@ export const useDeploy = () => {
                 ? ` (attempt ${verifyAttempts}/${maxAttempts})`
                 : ""
             }...`,
-            { id: "deploy" }
+            { id: "deploy" },
           );
 
           if (verifyAttempts > 1) {

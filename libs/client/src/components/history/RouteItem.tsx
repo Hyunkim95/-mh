@@ -55,10 +55,12 @@ export const RouteItem = ({ route }: RouteItemProps) => {
   const isDraft = route.deploymentStatus === "draft" && route.status !== "completed";
   const isDeployed = !isDraft;
 
-  // Check if route has an active obfuscation session (not completed or failed)
+  // Check if route has an active obfuscation session that is actually deploying
+  // Only show "Deploying" for active states: funding, aggregating, deploying
+  // NOT for "pending" (session created but user hasn't started deployment)
   const isObfuscating = route.hasObfuscation &&
     route.obfuscationStatus &&
-    !['completed', 'failed'].includes(route.obfuscationStatus);
+    ['funding', 'aggregating', 'deploying'].includes(route.obfuscationStatus);
   const hopsCount = route.hops?.length ?? 0;
   const { isMobile } = useMobileDevice();
 

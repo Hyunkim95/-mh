@@ -662,14 +662,12 @@ walletC,10`
           ? 9
           : 6
 
-      // Deduct fee from the user's selected amount so that hopAmount + fee = selectedAmount
+      // For obfuscation routes, Wallet X handles fee deduction during deployment
+      // No client-side pre-deduction needed - pass full user amount
       const userAmount = selectedAmount || 0
-      const actualHopAmount = feePercentage > 0
-        ? Math.floor((userAmount / (1 + feePercentage)) * 1e6) / 1e6
-        : userAmount
 
       const timestampRoute: TimestampRouteInput = {
-        hopAmountTokens: String(actualHopAmount),
+        hopAmountTokens: String(userAmount),
         splMint:
           selectedAsset.tokenType === 'SPL' ? selectedAsset.address : undefined,
         hops: scheduledHops,
@@ -787,14 +785,12 @@ walletC,10`
           ? 9
           : 6
 
-      // Deduct fee from the user's selected amount so that hopAmount + fee = selectedAmount
+      // For obfuscation routes, Wallet X handles fee deduction during deployment
+      // No client-side pre-deduction needed - pass full user amount
       const userAmount = selectedAmount || 0
-      const actualHopAmount = feePercentage > 0
-        ? Math.floor((userAmount / (1 + feePercentage)) * 1e6) / 1e6
-        : userAmount
 
       // Calculate raw amount (amount * 10^decimals)
-      const hopAmountRaw = String(Math.round(actualHopAmount * Math.pow(10, decimals)))
+      const hopAmountRaw = String(Math.round(userAmount * Math.pow(10, decimals)))
 
       // Prepare the Easy Route data for the backend
       const easyRouteData = {
@@ -808,7 +804,7 @@ walletC,10`
           selectedAsset.tokenType === 'SPL' ? selectedAsset.address : undefined,
         tokenSymbol: selectedAsset.symbol,
         tokenDecimals: decimals,
-        hopAmountTokens: String(actualHopAmount),
+        hopAmountTokens: String(userAmount),
         hopAmountRaw,
         totalSpendTokens: String(userAmount),
         creator: publicKey.toBase58(),

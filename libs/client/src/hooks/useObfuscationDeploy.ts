@@ -10,10 +10,10 @@ import { extractErrorMessage } from "../utils/extractErrorMessage";
  * Hook for handling obfuscation funding transactions
  *
  * This hook manages the flow of:
- * 1. Getting funding transactions for intermediate wallets
+ * 1. Getting funding transactions for intermediate wallets (only returns un-funded wallets)
  * 2. Batch signing all transactions (single wallet popup)
- * 3. Sending each transaction individually
- * 4. Confirming funding to backend
+ * 3. Sending each transaction individually with per-transaction confirmation
+ * 4. Confirming each successful funding to backend immediately (partial failure safe)
  */
 export const useObfuscationDeploy = () => {
   const { publicKey, signAllTransactions } = useWallet();
@@ -22,13 +22,19 @@ export const useObfuscationDeploy = () => {
 
   const getObfuscationFundingTxs =
     trpc.routes.getObfuscationFundingTransactions.useMutation();
-  const confirmFunding = trpc.routes.confirmAllObfuscationFunding.useMutation();
+  const confirmFunding = trpc.routes.confirmObfuscationFunding.useMutation();
 
   /**
    * Fund obfuscation intermediate wallets
    *
+   * Uses per-transaction confirmation to prevent re-funding already-funded wallets
+   * on retry. If a transaction fails mid-way, previous successful transactions
+   * are already confirmed in the database.
+   *
    * @param routeId - The route ID (database ID)
-   * @returns Promise that resolves when obfuscation reaches 'executing' status
+   * @returns Promise that resolves when all funding is confirmed and aggregation begins
+   *
+   * Status flow: pending -> funding -> aggregating -> deploying -> completed
    */
   const fundObfuscation = async (routeId: number): Promise<void> => {
     if (!publicKey || !signAllTransactions) {
@@ -39,7 +45,7 @@ export const useObfuscationDeploy = () => {
     try {
       toast.loading("Preparing funding transactions...", { id: "obfuscation" });
 
-      // 1. Get funding transactions from backend (one per intermediate wallet)
+      // 1. Get funding transactions from backend (only returns un-funded wallets)
       const result = await getObfuscationFundingTxs.mutateAsync({
         routeId,
         creator: publicKey.toBase58(),
@@ -67,8 +73,9 @@ export const useObfuscationDeploy = () => {
 
       toast.loading("Sending funding transactions...", { id: "obfuscation" });
 
-      // 4. Send each transaction individually and collect signatures
-      const fundingResults: Array<{ walletIndex: number; txHash: string }> = [];
+      // 4. Send each transaction individually with per-transaction confirmation
+      // This ensures partial failures don't require re-funding already-funded wallets
+      let successCount = 0;
 
       for (let i = 0; i < signedTxs.length; i++) {
         const txData = transactions[i];
@@ -99,29 +106,43 @@ export const useObfuscationDeploy = () => {
         );
 
         if (confirmation.value.err) {
-          throw new Error(
-            `Transaction ${i + 1} failed: ${JSON.stringify(confirmation.value.err)}`,
+          // Log the error but continue trying remaining transactions
+          console.error(`Transaction ${i + 1} failed:`, confirmation.value.err);
+          toast.error(
+            `Transaction ${i + 1} failed, but continuing with remaining...`,
+            { id: `obfuscation-error-${i}`, duration: 3000 },
           );
+          continue; // Don't throw - try remaining transactions
         }
 
-        fundingResults.push({
-          walletIndex: txData.walletIndex,
-          txHash: signature,
-        });
+        // 5. Confirm this single funding to backend IMMEDIATELY
+        // This prevents re-funding on retry if later transactions fail
+        try {
+          await confirmFunding.mutateAsync({
+            routeId,
+            walletIndex: txData.walletIndex,
+            txHash: signature,
+          });
+          successCount++;
+        } catch (confirmError) {
+          console.error(`Failed to confirm wallet ${txData.walletIndex}:`, confirmError);
+          // Transaction is on-chain but not confirmed in DB - server will handle on retry
+        }
       }
 
-      toast.loading("Confirming funding to server...", { id: "obfuscation" });
-
-      // 5. Confirm all funding to backend
-      await confirmFunding.mutateAsync({
-        routeId,
-        fundingResults,
-      });
-
-      // Aggregation happens in background - hop scheduler waits for it before executing hops
-      toast.success("Funding complete! Route will activate automatically.", {
-        id: "obfuscation",
-      });
+      if (successCount === totalTransactions) {
+        // Aggregation happens in background - hop scheduler waits for it before executing hops
+        toast.success("Funding complete! Route will activate automatically.", {
+          id: "obfuscation",
+        });
+      } else if (successCount > 0) {
+        toast.success(
+          `Funded ${successCount}/${totalTransactions} wallets. Retry to complete remaining.`,
+          { id: "obfuscation" },
+        );
+      } else {
+        throw new Error("All funding transactions failed");
+      }
     } catch (error) {
       toast.error(`Obfuscation funding failed: ${extractErrorMessage(error)}`, {
         id: "obfuscation",
