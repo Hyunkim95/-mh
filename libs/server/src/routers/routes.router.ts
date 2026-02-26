@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { PublicKey } from '@solana/web3.js';
+import { eq } from 'drizzle-orm';
 import { publicProcedure, router } from '../trpc';
 import routesService from '../routes/services/routes.service';
 import { validateRoute } from '../routes/services/route-validation.service';
@@ -8,6 +9,8 @@ import {
   intermediateWalletService,
   obfuscationTxBuilder,
 } from '../obfuscation';
+import { db } from '../db';
+import { routesSchema } from '../db/schema';
 
 // Validation schemas
 const routeHopSchema = z.object({
@@ -346,10 +349,29 @@ export const routesRouter = router({
           };
         }
 
+        // Fetch route with hops to get hopCount and amount
+        const route = await db.query.routesSchema.findFirst({
+          where: eq(routesSchema.id, input.routeId),
+          with: { hops: true },
+        });
+
+        if (!route) {
+          return {
+            success: false,
+            data: null,
+            message: 'Route not found'
+          };
+        }
+
+        const hopCount = route.hops?.length ?? 0;
+        const amountLamports = BigInt(route.hopAmountRaw);
+
         // Calculate fee estimate
-        const feeEstimate = obfuscationService.estimateObfuscationFees(
+        const feeEstimate = await obfuscationService.estimateObfuscationFees(
           session.intermediateCount,
-          session.tokenType as 'SOL' | 'SPL'
+          session.tokenType as 'SOL' | 'SPL',
+          hopCount,
+          Number(amountLamports)
         );
 
         // Convert lamports to SOL for display
@@ -389,6 +411,19 @@ export const routesRouter = router({
           throw new Error('No obfuscation session found for this route');
         }
 
+        // Fetch route with hops to get hopCount and amount
+        const route = await db.query.routesSchema.findFirst({
+          where: eq(routesSchema.id, input.routeId),
+          with: { hops: true },
+        });
+
+        if (!route) {
+          throw new Error('Route not found');
+        }
+
+        const hopCount = route.hops?.length ?? 0;
+        const amountLamports = BigInt(route.hopAmountRaw);
+
         // Build all funding transactions
         const sourceWallet = new PublicKey(input.creator);
         const transactions = await obfuscationTxBuilder.buildAllFundingTransactions(
@@ -400,9 +435,11 @@ export const routesRouter = router({
         await obfuscationService.updateSessionStatus(session.id, 'funding');
 
         // Get fee estimate
-        const feeEstimate = obfuscationService.estimateObfuscationFees(
+        const feeEstimate = await obfuscationService.estimateObfuscationFees(
           session.intermediateCount,
-          session.tokenType as 'SOL' | 'SPL'
+          session.tokenType as 'SOL' | 'SPL',
+          hopCount,
+          Number(amountLamports)
         );
 
         return {
@@ -549,7 +586,7 @@ export const routesRouter = router({
             fundedCount,
             aggregatedCount,
             cleanedUpCount,
-            isReady: session.status === 'executing',
+            isReady: session.status === 'completed',
           },
         };
       } catch (error) {
