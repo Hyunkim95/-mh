@@ -55,9 +55,16 @@ export const obfuscationSessionsSchema = pgTable('obfuscation_sessions', {
   startedAt: timestamp('started_at', { withTimezone: true }), // When funding began
   completedAt: timestamp('completed_at', { withTimezone: true }),
 
-  // Error handling
+  // Error handling and failure tracking (persisted for multi-server support)
   lastError: text('last_error'),
   retryCount: integer('retry_count').default(0),
+  failureCount: integer('failure_count').default(0),
+  lastFailureAt: timestamp('last_failure_at', { withTimezone: true }),
+  nextRetryAt: timestamp('next_retry_at', { withTimezone: true }),
+
+  // Multi-server locking
+  lockedBy: varchar('locked_by', { length: 255 }),
+  lockedAt: timestamp('locked_at', { withTimezone: true }),
 });
 
 /**
@@ -98,8 +105,11 @@ export const intermediateWalletsSchema = pgTable('intermediate_wallets', {
   ataCloseTxHash: varchar('ata_close_tx_hash'),
   cleanedUpAt: timestamp('cleaned_up_at', { withTimezone: true }),
 
-  // Error tracking
+  // Error tracking and failure tracking (persisted for multi-server support)
   lastError: text('last_error'),
+  failureCount: integer('failure_count').default(0),
+  lastFailureAt: timestamp('last_failure_at', { withTimezone: true }),
+  nextRetryAt: timestamp('next_retry_at', { withTimezone: true }),
 
   // Timestamps
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
