@@ -167,6 +167,25 @@ export const useDeploy = () => {
         );
       }
 
+      // Send setup transaction (initializeExtraAccountMetaList) after main tx confirms
+      if (transactionSignature.data.setupTransaction) {
+        toast.loading("Signing setup transaction...", { id: "deploy" });
+        const setupTx = Transaction.from(
+          Buffer.from(transactionSignature.data.setupTransaction, "base64")
+        );
+        const signedSetupTx = await signTransaction(setupTx);
+        const setupSig = await connection.sendRawTransaction(signedSetupTx.serialize(), {
+          skipPreflight: true,
+          preflightCommitment: "confirmed",
+        });
+        await connection.confirmTransaction({
+          signature: setupSig,
+          blockhash: transactionSignature.data.recentBlockhash,
+          lastValidBlockHeight: transactionSignature.data.lastValidBlockHeight,
+        });
+        console.log("Setup transaction confirmed:", setupSig);
+      }
+
       toast.success(
         `${type} Route deployed successfully! Signature: ${signature.slice(
           0,

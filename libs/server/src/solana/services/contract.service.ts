@@ -983,11 +983,14 @@ const initializeRouteSolWithWrap = async (
 
   transaction.add(initializeRouteSolIx);
   transaction.add(initGuardSolTx);
-  transaction.add(initExtraMetasIx);
   transaction.add(wrapIx);
+
+  const setupTransaction = new Transaction();
+  setupTransaction.add(initExtraMetasIx);
 
   return {
     transaction,
+    setupTransaction,
     wrappedToken
   };
 };
@@ -1055,11 +1058,14 @@ const initializeRouteWithWrap = async (
   );
   transaction.add(initializeRouteIx);
   transaction.add(initGuardTx);
-  transaction.add(initExtraMetasIx);
   transaction.add(wrapIx);
+
+  const setupTransaction = new Transaction();
+  setupTransaction.add(initExtraMetasIx);
 
   return {
     transaction,
+    setupTransaction,
     wrappedToken
   };
 };
