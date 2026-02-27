@@ -373,6 +373,7 @@ export const contractRouter = router({
 
         const {
           transaction,
+          setupTransaction,
           wrappedToken
         } = await initializeRouteWithWrap(
           creatorKey,
@@ -392,10 +393,17 @@ export const contractRouter = router({
           params.connection
         );
 
+        const serializedSetupTransaction = await serialize(
+          setupTransaction,
+          creatorKey,
+          params.connection
+        );
+
         return {
           success: true,
           data: {
             ...serializedTransaction,
+            setupTransaction: serializedSetupTransaction.transaction,
             routeId: routeId.toString(),
             executorPublicKey: executorService.getExecutorPublicKey(routeId),
             // Return keypair for client to partialSign AFTER Phantom signs
@@ -427,6 +435,7 @@ export const contractRouter = router({
 
         const {
           transaction,
+          setupTransaction,
           wrappedToken
         } = await initializeRouteSolWithWrap(
           creatorKey,
@@ -443,10 +452,17 @@ export const contractRouter = router({
           params.connection
         );
 
+        const serializedSetupTransaction = await serialize(
+          setupTransaction,
+          creatorKey,
+          params.connection
+        );
+
         return {
           success: true,
           data: {
             ...serializedTransaction,
+            setupTransaction: serializedSetupTransaction.transaction,
             routeId: routeId.toString(),
             executorPublicKey: executorService.getExecutorPublicKey(routeId),
             // Return keypair for client to partialSign AFTER Phantom signs

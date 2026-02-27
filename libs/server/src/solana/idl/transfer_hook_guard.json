@@ -8,42 +8,6 @@
   },
   "instructions": [
     {
-      "name": "execute",
-      "discriminator": [
-        130,
-        221,
-        242,
-        154,
-        13,
-        193,
-        189,
-        29
-      ],
-      "accounts": [
-        {
-          "name": "source"
-        },
-        {
-          "name": "mint"
-        },
-        {
-          "name": "destination"
-        },
-        {
-          "name": "authority"
-        },
-        {
-          "name": "guard"
-        }
-      ],
-      "args": [
-        {
-          "name": "_amount",
-          "type": "u64"
-        }
-      ]
-    },
-    {
       "name": "init_guard",
       "discriminator": [
         80,
@@ -95,6 +59,141 @@
         {
           "name": "permanent_delegate",
           "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "initialize_extra_account_meta_list",
+      "discriminator": [
+        92,
+        197,
+        174,
+        197,
+        41,
+        124,
+        19,
+        3
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "extra_account_metas",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  120,
+                  116,
+                  114,
+                  97,
+                  45,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116,
+                  45,
+                  109,
+                  101,
+                  116,
+                  97,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "transfer_hook",
+      "discriminator": [
+        220,
+        57,
+        220,
+        152,
+        126,
+        125,
+        97,
+        168
+      ],
+      "accounts": [
+        {
+          "name": "source"
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "destination"
+        },
+        {
+          "name": "authority"
+        },
+        {
+          "name": "extra_account_metas",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  120,
+                  116,
+                  114,
+                  97,
+                  45,
+                  97,
+                  99,
+                  99,
+                  111,
+                  117,
+                  110,
+                  116,
+                  45,
+                  109,
+                  101,
+                  116,
+                  97,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "guard"
+        }
+      ],
+      "args": [
+        {
+          "name": "_amount",
+          "type": "u64"
         }
       ]
     }

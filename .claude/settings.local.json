@@ -32,7 +32,8 @@
       "Bash(solana program show:*)",
       "Bash(pkill:*)",
       "Bash(jq:*)",
-      "Bash(xargs cat:*)"
+      "Bash(xargs cat:*)",
+      "Bash(npx tsc:*)"
     ],
     "deny": []
   }

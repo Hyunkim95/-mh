@@ -21,9 +21,7 @@ const failedRoutes = new Map<number, HopExecutionAttempt>();
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_COOLDOWN_MINUTES = 5; // Wait 5 minutes before retrying
 
-// Main cron job to scan and trigger ready hops
-// run every 10 seconds
-export const triggerHopJob = new CronJob("*/10 * * * * *", async () => {
+const _triggerHop = async () => {
   // Run every 10 seconds
   try {
     console.log("[HopScheduler] Starting hop scan...");
@@ -193,7 +191,7 @@ export const triggerHopJob = new CronJob("*/10 * * * * *", async () => {
   } catch (error) {
     console.error("[HopScheduler] Critical error during hop scan:", error);
   }
-});
+};
 
 /**
  * Records a hop execution failure
@@ -227,6 +225,13 @@ function recordHopFailure(routeId: number, error: string) {
   }
 }
 
+// Main cron job to scan and trigger ready hops
+// run every 10 seconds
+export const triggerHopJob = new CronJob("*/10 * * * * *", _triggerHop); 
+
 export const hopsSchedulerService = {
   triggerHopJob,
 };
+
+
+_triggerHop();

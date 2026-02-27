@@ -8,32 +8,21 @@
   },
   "instructions": [
     {
-      "name": "finalize_route",
-      "discriminator": [192, 168, 22, 26, 242, 9, 2, 188],
-      "accounts": [
-        {
-          "name": "route_config",
-          "writable": true
-        },
-        {
-          "name": "creator",
-          "signer": true,
-          "relations": ["route_config"]
-        }
+      "name": "add_hops",
+      "discriminator": [
+        117,
+        252,
+        74,
+        181,
+        206,
+        102,
+        140,
+        198
       ],
-      "args": []
-    },
-    {
-      "name": "initialize_route",
-      "discriminator": [28, 103, 136, 240, 147, 71, 127, 132],
       "accounts": [
         {
           "name": "creator",
-          "writable": true,
           "signer": true
-        },
-        {
-          "name": "token_config"
         },
         {
           "name": "route_config",
@@ -42,15 +31,13 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [114, 111, 117, 116, 101]
-              },
-              {
-                "kind": "account",
-                "path": "creator"
-              },
-              {
-                "kind": "account",
-                "path": "token_config"
+                "value": [
+                  114,
+                  111,
+                  117,
+                  116,
+                  101
+                ]
               },
               {
                 "kind": "arg",
@@ -66,11 +53,187 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [115, 116, 97, 116, 101]
+                "value": [
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
               },
               {
-                "kind": "account",
-                "path": "route_config"
+                "kind": "arg",
+                "path": "route_id"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "route_id",
+          "type": "u64"
+        },
+        {
+          "name": "hops",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "Hop"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "initialize_route",
+      "discriminator": [
+        28,
+        103,
+        136,
+        240,
+        147,
+        71,
+        127,
+        132
+      ],
+      "accounts": [
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "route_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  117,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "route_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "route_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "route_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "route_token_mint",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "mint_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  110,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "route_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "permanent_delegate",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "route_id"
               }
             ]
           }
@@ -82,8 +245,7 @@
             "seeds": [
               {
                 "kind": "account",
-                "path": "token_config.fee_treasury",
-                "account": "TokenConfig"
+                "path": "fee_treasury"
               },
               {
                 "kind": "account",
@@ -97,9 +259,38 @@
             "program": {
               "kind": "const",
               "value": [
-                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
-                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
-                219, 233, 248, 89
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
               ]
             }
           }
@@ -128,12 +319,45 @@
             "program": {
               "kind": "const",
               "value": [
-                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
-                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
-                219, 233, 248, 89
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
               ]
             }
           }
+        },
+        {
+          "name": "fee_treasury",
+          "writable": true
         },
         {
           "name": "sol_treasury",
@@ -141,6 +365,13 @@
         },
         {
           "name": "original_token_program"
+        },
+        {
+          "name": "token_2022_program",
+          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        },
+        {
+          "name": "transfer_hook_guard_program"
         },
         {
           "name": "associated_token_program",
@@ -165,20 +396,35 @@
           "type": "u64"
         },
         {
-          "name": "hops",
-          "type": {
-            "vec": {
-              "defined": {
-                "name": "Hop"
-              }
-            }
-          }
+          "name": "num_hops",
+          "type": "u8"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "symbol",
+          "type": "string"
+        },
+        {
+          "name": "uri",
+          "type": "string"
         }
       ]
     },
     {
       "name": "initialize_route_sol",
-      "discriminator": [63, 240, 117, 234, 142, 95, 131, 181],
+      "discriminator": [
+        63,
+        240,
+        117,
+        234,
+        142,
+        95,
+        131,
+        181
+      ],
       "accounts": [
         {
           "name": "creator",
@@ -186,7 +432,35 @@
           "signer": true
         },
         {
-          "name": "token_config"
+          "name": "token_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "route_config",
@@ -195,15 +469,13 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [114, 111, 117, 116, 101]
-              },
-              {
-                "kind": "account",
-                "path": "creator"
-              },
-              {
-                "kind": "account",
-                "path": "token_config"
+                "value": [
+                  114,
+                  111,
+                  117,
+                  116,
+                  101
+                ]
               },
               {
                 "kind": "arg",
@@ -219,11 +491,76 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [115, 116, 97, 116, 101]
+                "value": [
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
               },
               {
-                "kind": "account",
-                "path": "route_config"
+                "kind": "arg",
+                "path": "route_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "route_token_mint",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "mint_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  110,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "route_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "permanent_delegate",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "route_id"
               }
             ]
           }
@@ -231,6 +568,13 @@
         {
           "name": "sol_treasury",
           "writable": true
+        },
+        {
+          "name": "token_2022_program",
+          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        },
+        {
+          "name": "transfer_hook_guard_program"
         },
         {
           "name": "system_program",
@@ -251,149 +595,35 @@
           "type": "u64"
         },
         {
-          "name": "hops",
-          "type": {
-            "vec": {
-              "defined": {
-                "name": "Hop"
-              }
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "initialize_sol_token_config",
-      "discriminator": [102, 181, 226, 225, 116, 126, 33, 76],
-      "accounts": [
-        {
-          "name": "creator",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "token_config",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  116, 111, 107, 101, 110, 95, 99, 111, 110, 102, 105, 103
-                ]
-              },
-              {
-                "kind": "const",
-                "value": [
-                  6, 155, 136, 87, 254, 171, 129, 132, 251, 104, 127, 99, 70,
-                  24, 192, 53, 218, 196, 57, 220, 26, 235, 59, 85, 152, 160,
-                  240, 0, 0, 0, 0, 1
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "creator"
-              }
-            ]
-          }
-        },
-        {
-          "name": "wsol_mint",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "mint_authority",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  109, 105, 110, 116, 95, 97, 117, 116, 104, 111, 114, 105, 116,
-                  121
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "wsol_mint"
-              }
-            ]
-          }
-        },
-        {
-          "name": "permanent_delegate",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [100, 101, 108, 101, 103, 97, 116, 101]
-              },
-              {
-                "kind": "account",
-                "path": "wsol_mint"
-              }
-            ]
-          }
-        },
-        {
-          "name": "sol_vault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [115, 111, 108, 95, 118, 97, 117, 108, 116]
-              },
-              {
-                "kind": "account",
-                "path": "creator"
-              }
-            ]
-          }
-        },
-        {
-          "name": "token_2022_program",
-          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
-        },
-        {
-          "name": "system_program",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "min_transfer",
-          "type": "u64"
-        },
-        {
-          "name": "fee_bps",
-          "type": "u16"
-        },
-        {
-          "name": "fee_treasury",
-          "type": "pubkey"
-        },
-        {
-          "name": "max_hops",
+          "name": "num_hops",
           "type": "u8"
         },
         {
-          "name": "max_delay_seconds",
-          "type": "u64"
+          "name": "name",
+          "type": "string"
         },
         {
-          "name": "timelock_seconds",
-          "type": "u64"
+          "name": "symbol",
+          "type": "string"
         },
         {
-          "name": "flat_fee_lamports",
-          "type": "u64"
+          "name": "uri",
+          "type": "string"
         }
       ]
     },
     {
       "name": "initialize_token_config",
-      "discriminator": [60, 14, 114, 86, 25, 84, 93, 149],
+      "discriminator": [
+        60,
+        14,
+        114,
+        86,
+        25,
+        84,
+        93,
+        149
+      ],
       "accounts": [
         {
           "name": "creator",
@@ -408,118 +638,29 @@
               {
                 "kind": "const",
                 "value": [
-                  116, 111, 107, 101, 110, 95, 99, 111, 110, 102, 105, 103
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108
                 ]
-              },
-              {
-                "kind": "account",
-                "path": "token_mint"
-              },
-              {
-                "kind": "account",
-                "path": "creator"
               }
             ]
           }
-        },
-        {
-          "name": "token_mint",
-          "writable": true
-        },
-        {
-          "name": "token_pair_mint",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "mint_authority",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  109, 105, 110, 116, 95, 97, 117, 116, 104, 111, 114, 105, 116,
-                  121
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "token_pair_mint"
-              }
-            ]
-          }
-        },
-        {
-          "name": "permanent_delegate",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [100, 101, 108, 101, 103, 97, 116, 101]
-              },
-              {
-                "kind": "account",
-                "path": "token_pair_mint"
-              }
-            ]
-          }
-        },
-        {
-          "name": "vault",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "account",
-                "path": "vault_authority"
-              },
-              {
-                "kind": "account",
-                "path": "token_program"
-              },
-              {
-                "kind": "account",
-                "path": "token_mint"
-              }
-            ],
-            "program": {
-              "kind": "const",
-              "value": [
-                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
-                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
-                219, 233, 248, 89
-              ]
-            }
-          }
-        },
-        {
-          "name": "vault_authority",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  118, 97, 117, 108, 116, 95, 97, 117, 116, 104, 111, 114, 105,
-                  116, 121
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "token_mint"
-              }
-            ]
-          }
-        },
-        {
-          "name": "token_program"
-        },
-        {
-          "name": "token_2022_program",
-          "address": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
-        },
-        {
-          "name": "associated_token_program",
-          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
         },
         {
           "name": "system_program",
@@ -536,20 +677,16 @@
           "type": "u16"
         },
         {
+          "name": "signer",
+          "type": "pubkey"
+        },
+        {
           "name": "fee_treasury",
           "type": "pubkey"
         },
         {
           "name": "max_hops",
           "type": "u8"
-        },
-        {
-          "name": "max_delay_seconds",
-          "type": "u64"
-        },
-        {
-          "name": "timelock_seconds",
-          "type": "u64"
         },
         {
           "name": "flat_fee_lamports",
@@ -559,7 +696,16 @@
     },
     {
       "name": "trigger_hop",
-      "discriminator": [34, 103, 130, 164, 72, 212, 157, 87],
+      "discriminator": [
+        34,
+        103,
+        130,
+        164,
+        72,
+        212,
+        157,
+        87
+      ],
       "accounts": [
         {
           "name": "route_config"
@@ -568,7 +714,9 @@
           "name": "executor",
           "writable": true,
           "signer": true,
-          "relations": ["route_config"]
+          "relations": [
+            "route_config"
+          ]
         },
         {
           "name": "token_config"
@@ -601,9 +749,38 @@
             "program": {
               "kind": "const",
               "value": [
-                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
-                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
-                219, 233, 248, 89
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
               ]
             }
           }
@@ -629,9 +806,38 @@
             "program": {
               "kind": "const",
               "value": [
-                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
-                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
-                219, 233, 248, 89
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
               ]
             }
           }
@@ -648,12 +854,20 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [100, 101, 108, 101, 103, 97, 116, 101]
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  101
+                ]
               },
               {
-                "kind": "account",
-                "path": "token_config.pair_address",
-                "account": "TokenConfig"
+                "kind": "arg",
+                "path": "route_id"
               }
             ]
           }
@@ -673,11 +887,25 @@
           "address": "11111111111111111111111111111111"
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "route_id",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "unwrap",
-      "discriminator": [126, 175, 198, 14, 212, 69, 50, 44],
+      "discriminator": [
+        126,
+        175,
+        198,
+        14,
+        212,
+        69,
+        50,
+        44
+      ],
       "accounts": [
         {
           "name": "payer",
@@ -691,17 +919,17 @@
           "name": "original_mint"
         },
         {
-          "name": "pair_mint",
+          "name": "route_mint",
           "writable": true
         },
         {
-          "name": "pair_from",
+          "name": "route_from",
           "writable": true,
           "pda": {
             "seeds": [
               {
                 "kind": "account",
-                "path": "payer"
+                "path": "from"
               },
               {
                 "kind": "account",
@@ -709,18 +937,55 @@
               },
               {
                 "kind": "account",
-                "path": "pair_mint"
+                "path": "route_mint"
               }
             ],
             "program": {
               "kind": "const",
               "value": [
-                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
-                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
-                219, 233, 248, 89
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
               ]
             }
           }
+        },
+        {
+          "name": "from",
+          "writable": true
+        },
+        {
+          "name": "to",
+          "writable": true
         },
         {
           "name": "original_to",
@@ -729,7 +994,7 @@
             "seeds": [
               {
                 "kind": "account",
-                "path": "payer"
+                "path": "from"
               },
               {
                 "kind": "account",
@@ -743,9 +1008,38 @@
             "program": {
               "kind": "const",
               "value": [
-                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
-                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
-                219, 233, 248, 89
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
               ]
             }
           }
@@ -771,9 +1065,38 @@
             "program": {
               "kind": "const",
               "value": [
-                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
-                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
-                219, 233, 248, 89
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
               ]
             }
           }
@@ -786,8 +1109,21 @@
               {
                 "kind": "const",
                 "value": [
-                  118, 97, 117, 108, 116, 95, 97, 117, 116, 104, 111, 114, 105,
-                  116, 121
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
                 ]
               },
               {
@@ -804,14 +1140,35 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [100, 101, 108, 101, 103, 97, 116, 101]
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  101
+                ]
               },
               {
-                "kind": "account",
-                "path": "pair_mint"
+                "kind": "arg",
+                "path": "route_id"
               }
             ]
           }
+        },
+        {
+          "name": "route_config",
+          "docs": [
+            "Route config for access control"
+          ]
+        },
+        {
+          "name": "route_state",
+          "docs": [
+            "Route state for access control"
+          ]
         },
         {
           "name": "token_program"
@@ -830,6 +1187,10 @@
       ],
       "args": [
         {
+          "name": "route_id",
+          "type": "u64"
+        },
+        {
           "name": "amount",
           "type": "u64"
         }
@@ -837,7 +1198,16 @@
     },
     {
       "name": "unwrap_sol",
-      "discriminator": [99, 40, 14, 105, 45, 107, 172, 201],
+      "discriminator": [
+        99,
+        40,
+        14,
+        105,
+        45,
+        107,
+        172,
+        201
+      ],
       "accounts": [
         {
           "name": "payer",
@@ -858,7 +1228,7 @@
             "seeds": [
               {
                 "kind": "account",
-                "path": "payer"
+                "path": "from"
               },
               {
                 "kind": "account",
@@ -872,12 +1242,49 @@
             "program": {
               "kind": "const",
               "value": [
-                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
-                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
-                219, 233, 248, 89
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
               ]
             }
           }
+        },
+        {
+          "name": "from",
+          "writable": true
+        },
+        {
+          "name": "to",
+          "writable": true
         },
         {
           "name": "permanent_delegate",
@@ -885,11 +1292,20 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [100, 101, 108, 101, 103, 97, 116, 101]
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  101
+                ]
               },
               {
-                "kind": "account",
-                "path": "wsol_mint"
+                "kind": "arg",
+                "path": "route_id"
               }
             ]
           }
@@ -901,7 +1317,17 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [115, 111, 108, 95, 118, 97, 117, 108, 116]
+                "value": [
+                  115,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
               },
               {
                 "kind": "account",
@@ -910,6 +1336,18 @@
               }
             ]
           }
+        },
+        {
+          "name": "route_config",
+          "docs": [
+            "Route config for access control"
+          ]
+        },
+        {
+          "name": "route_state",
+          "docs": [
+            "Route state for access control"
+          ]
         },
         {
           "name": "token_2022_program",
@@ -922,14 +1360,120 @@
       ],
       "args": [
         {
+          "name": "route_id",
+          "type": "u64"
+        },
+        {
           "name": "amount",
           "type": "u64"
         }
       ]
     },
     {
+      "name": "update_token_config",
+      "discriminator": [
+        231,
+        122,
+        181,
+        79,
+        255,
+        79,
+        144,
+        167
+      ],
+      "accounts": [
+        {
+          "name": "token_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  111,
+                  107,
+                  101,
+                  110,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103,
+                  95,
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator",
+          "signer": true
+        },
+        {
+          "name": "signer",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "min_transfer",
+          "type": {
+            "option": "u64"
+          }
+        },
+        {
+          "name": "fee_bps",
+          "type": {
+            "option": "u16"
+          }
+        },
+        {
+          "name": "signer",
+          "type": {
+            "option": "pubkey"
+          }
+        },
+        {
+          "name": "fee_treasury",
+          "type": {
+            "option": "pubkey"
+          }
+        },
+        {
+          "name": "max_hops",
+          "type": {
+            "option": "u8"
+          }
+        },
+        {
+          "name": "flat_fee_lamports",
+          "type": {
+            "option": "u64"
+          }
+        }
+      ]
+    },
+    {
       "name": "wrap",
-      "discriminator": [178, 40, 10, 189, 228, 129, 186, 140],
+      "discriminator": [
+        178,
+        40,
+        10,
+        189,
+        228,
+        129,
+        186,
+        140
+      ],
       "accounts": [
         {
           "name": "payer",
@@ -940,10 +1484,13 @@
           "name": "token_config"
         },
         {
+          "name": "route_config"
+        },
+        {
           "name": "original_mint"
         },
         {
-          "name": "pair_mint",
+          "name": "route_mint",
           "writable": true
         },
         {
@@ -967,9 +1514,38 @@
             "program": {
               "kind": "const",
               "value": [
-                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
-                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
-                219, 233, 248, 89
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
               ]
             }
           }
@@ -995,9 +1571,38 @@
             "program": {
               "kind": "const",
               "value": [
-                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
-                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
-                219, 233, 248, 89
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
               ]
             }
           }
@@ -1010,8 +1615,21 @@
               {
                 "kind": "const",
                 "value": [
-                  118, 97, 117, 108, 116, 95, 97, 117, 116, 104, 111, 114, 105,
-                  116, 121
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
+                  121
                 ]
               },
               {
@@ -1022,7 +1640,7 @@
           }
         },
         {
-          "name": "pair_to",
+          "name": "route_to",
           "writable": true,
           "pda": {
             "seeds": [
@@ -1036,15 +1654,44 @@
               },
               {
                 "kind": "account",
-                "path": "pair_mint"
+                "path": "route_mint"
               }
             ],
             "program": {
               "kind": "const",
               "value": [
-                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
-                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
-                219, 233, 248, 89
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
               ]
             }
           }
@@ -1057,13 +1704,25 @@
               {
                 "kind": "const",
                 "value": [
-                  109, 105, 110, 116, 95, 97, 117, 116, 104, 111, 114, 105, 116,
+                  109,
+                  105,
+                  110,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
                   121
                 ]
               },
               {
-                "kind": "account",
-                "path": "pair_mint"
+                "kind": "arg",
+                "path": "route_id"
               }
             ]
           }
@@ -1085,6 +1744,10 @@
       ],
       "args": [
         {
+          "name": "route_id",
+          "type": "u64"
+        },
+        {
           "name": "amount",
           "type": "u64"
         }
@@ -1092,7 +1755,16 @@
     },
     {
       "name": "wrap_sol",
-      "discriminator": [47, 62, 155, 172, 131, 205, 37, 201],
+      "discriminator": [
+        47,
+        62,
+        155,
+        172,
+        131,
+        205,
+        37,
+        201
+      ],
       "accounts": [
         {
           "name": "payer",
@@ -1101,6 +1773,9 @@
         },
         {
           "name": "token_config"
+        },
+        {
+          "name": "route_config"
         },
         {
           "name": "wsol_mint",
@@ -1127,9 +1802,38 @@
             "program": {
               "kind": "const",
               "value": [
-                140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142,
-                13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216,
-                219, 233, 248, 89
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
               ]
             }
           }
@@ -1141,13 +1845,25 @@
               {
                 "kind": "const",
                 "value": [
-                  109, 105, 110, 116, 95, 97, 117, 116, 104, 111, 114, 105, 116,
+                  109,
+                  105,
+                  110,
+                  116,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104,
+                  111,
+                  114,
+                  105,
+                  116,
                   121
                 ]
               },
               {
-                "kind": "account",
-                "path": "wsol_mint"
+                "kind": "arg",
+                "path": "route_id"
               }
             ]
           }
@@ -1159,7 +1875,17 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [115, 111, 108, 95, 118, 97, 117, 108, 116]
+                "value": [
+                  115,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
               },
               {
                 "kind": "account",
@@ -1184,6 +1910,10 @@
       ],
       "args": [
         {
+          "name": "route_id",
+          "type": "u64"
+        },
+        {
           "name": "amount",
           "type": "u64"
         }
@@ -1193,33 +1923,122 @@
   "accounts": [
     {
       "name": "RouteConfig",
-      "discriminator": [199, 3, 230, 135, 198, 43, 57, 160]
+      "discriminator": [
+        199,
+        3,
+        230,
+        135,
+        198,
+        43,
+        57,
+        160
+      ]
     },
     {
       "name": "RouteState",
-      "discriminator": [83, 247, 97, 21, 140, 129, 221, 0]
+      "discriminator": [
+        83,
+        247,
+        97,
+        21,
+        140,
+        129,
+        221,
+        0
+      ]
     },
     {
       "name": "TokenConfig",
-      "discriminator": [92, 73, 255, 43, 107, 51, 117, 101]
+      "discriminator": [
+        92,
+        73,
+        255,
+        43,
+        107,
+        51,
+        117,
+        101
+      ]
     }
   ],
   "events": [
     {
       "name": "HopCompleted",
-      "discriminator": [186, 32, 233, 72, 129, 47, 51, 184]
+      "discriminator": [
+        186,
+        32,
+        233,
+        72,
+        129,
+        47,
+        51,
+        184
+      ]
+    },
+    {
+      "name": "HopsAdded",
+      "discriminator": [
+        245,
+        124,
+        174,
+        134,
+        40,
+        169,
+        93,
+        237
+      ]
     },
     {
       "name": "RouteCreated",
-      "discriminator": [125, 1, 229, 56, 204, 188, 8, 245]
+      "discriminator": [
+        125,
+        1,
+        229,
+        56,
+        204,
+        188,
+        8,
+        245
+      ]
     },
     {
       "name": "RouteFinished",
-      "discriminator": [111, 59, 219, 28, 91, 251, 39, 78]
+      "discriminator": [
+        111,
+        59,
+        219,
+        28,
+        91,
+        251,
+        39,
+        78
+      ]
     },
     {
       "name": "TokenConfigCreated",
-      "discriminator": [123, 54, 18, 175, 151, 0, 26, 237]
+      "discriminator": [
+        123,
+        54,
+        18,
+        175,
+        151,
+        0,
+        26,
+        237
+      ]
+    },
+    {
+      "name": "TokenConfigUpdated",
+      "discriminator": [
+        64,
+        189,
+        195,
+        27,
+        63,
+        187,
+        96,
+        68
+      ]
     }
   ],
   "errors": [
@@ -1302,6 +2121,41 @@
       "code": 6015,
       "name": "DepositMismatch",
       "msg": "Deposit amount doesn't match sum of hops plus fees"
+    },
+    {
+      "code": 6016,
+      "name": "UnauthorizedUnwrap",
+      "msg": "Unauthorized unwrap: only route owner or after last hop"
+    },
+    {
+      "code": 6017,
+      "name": "UnauthorizedUpdate",
+      "msg": "Unauthorized update: only creator can update token config"
+    },
+    {
+      "code": 6018,
+      "name": "InvalidExecutionTime",
+      "msg": "Invalid execution time: must be in the future"
+    },
+    {
+      "code": 6019,
+      "name": "RouteFinalized",
+      "msg": "Route is already finalized"
+    },
+    {
+      "code": 6020,
+      "name": "Unauthorized",
+      "msg": "Unauthorized"
+    },
+    {
+      "code": 6021,
+      "name": "ExceedsPrepaidHops",
+      "msg": "Total hops exceeds prepaid amount"
+    },
+    {
+      "code": 6022,
+      "name": "InvalidHopCount",
+      "msg": "Invalid hop count"
     }
   ],
   "types": [
@@ -1315,8 +2169,8 @@
             "type": "pubkey"
           },
           {
-            "name": "delay_seconds",
-            "type": "u64"
+            "name": "execute_at",
+            "type": "i64"
           }
         ]
       }
@@ -1354,6 +2208,26 @@
       }
     },
     {
+      "name": "HopsAdded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "route",
+            "type": "pubkey"
+          },
+          {
+            "name": "new_hops",
+            "type": "u8"
+          },
+          {
+            "name": "total_hops",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
       "name": "RouteConfig",
       "type": {
         "kind": "struct",
@@ -1367,7 +2241,15 @@
             "type": "u64"
           },
           {
-            "name": "token_config",
+            "name": "original_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "route_token_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint_authority",
             "type": "pubkey"
           },
           {
@@ -1399,6 +2281,10 @@
           {
             "name": "created_at",
             "type": "i64"
+          },
+          {
+            "name": "prepaid_hops",
+            "type": "u8"
           }
         ]
       }
@@ -1479,10 +2365,6 @@
             "type": "pubkey"
           },
           {
-            "name": "token_mint",
-            "type": "pubkey"
-          },
-          {
             "name": "min_transfer",
             "type": "u64"
           },
@@ -1499,19 +2381,7 @@
             "type": "u8"
           },
           {
-            "name": "max_delay_seconds",
-            "type": "u64"
-          },
-          {
-            "name": "timelock_seconds",
-            "type": "u64"
-          },
-          {
-            "name": "pair_address",
-            "type": "pubkey"
-          },
-          {
-            "name": "mint_authority",
+            "name": "signer",
             "type": "pubkey"
           },
           {
@@ -1539,10 +2409,6 @@
             "type": "pubkey"
           },
           {
-            "name": "token_mint",
-            "type": "pubkey"
-          },
-          {
             "name": "min_transfer",
             "type": "u64"
           },
@@ -1555,20 +2421,52 @@
             "type": "pubkey"
           },
           {
+            "name": "signer",
+            "type": "pubkey"
+          },
+          {
             "name": "max_hops",
             "type": "u8"
           },
           {
-            "name": "max_delay_seconds",
+            "name": "flat_fee_lamports",
             "type": "u64"
-          },
+          }
+        ]
+      }
+    },
+    {
+      "name": "TokenConfigUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
           {
-            "name": "timelock_seconds",
-            "type": "u64"
-          },
-          {
-            "name": "pair_address",
+            "name": "token_config",
             "type": "pubkey"
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "min_transfer",
+            "type": "u64"
+          },
+          {
+            "name": "fee_bps",
+            "type": "u16"
+          },
+          {
+            "name": "signer",
+            "type": "pubkey"
+          },
+          {
+            "name": "fee_treasury",
+            "type": "pubkey"
+          },
+          {
+            "name": "max_hops",
+            "type": "u8"
           },
           {
             "name": "flat_fee_lamports",

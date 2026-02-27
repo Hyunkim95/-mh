@@ -264,6 +264,25 @@ const initGuard = async (
     })
     .instruction();
 };
+const initializeExtraAccountMetaList = async (
+  payer: PublicKey,
+  tokenMint: PublicKey
+) => {
+  const guardProgram = buildGuardProgram(params);
+
+  const extraAccountMetasPda = getExtraAccountMetasPda(tokenMint);
+
+  return await guardProgram.methods
+    .initializeExtraAccountMetaList()
+    .accountsPartial({
+      payer,
+      extraAccountMetas: extraAccountMetasPda,
+      mint: tokenMint,
+      systemProgram: SystemProgram.programId,
+    })
+    .instruction();
+};
+
 const initGuardSol = async (
   payer: PublicKey,
   wsolMint: PublicKey,
@@ -661,7 +680,7 @@ const initializeRoute = async (
       symbol,
       uri,
     )
-    .accountsPartial({
+    .accountsStrict({
       creator: payer,
       tokenConfig: tokenConfigPda,
       routeConfig: routeConfigPda,
@@ -716,8 +735,7 @@ const initializeRouteSol = async (
       symbol,
       uri,
     )
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .accountsPartial({
+    .accountsStrict({
       creator: payer,
       tokenConfig: tokenConfigPda,
       routeConfig: routeConfigPda,
@@ -725,6 +743,8 @@ const initializeRouteSol = async (
       routeTokenMint: wSolMint,
       mintAuthority,
       permanentDelegate,
+      token2022Program: TOKEN_2022_PROGRAM_ID,
+      transferHookGuardProgram: TRANSFER_HOOK_GUARD_PROGRAM_ID,
       solTreasury: tokenConfigAccount.feeTreasury as PublicKey,
       token2022Program: TOKEN_2022_PROGRAM_ID,
       transferHookGuardProgram: TRANSFER_HOOK_GUARD_PROGRAM_ID,
@@ -935,12 +955,21 @@ const initializeRouteSolWithWrap = async (
     hopAmount,
     hops,
   );
+  const initExtraMetasIx = await initializeExtraAccountMetaList(
+    payer,
+    wrappedToken.publicKey
+  );
+
   transaction.add(initializeRouteSolIx);
   transaction.add(initGuardSolTx);
   transaction.add(wrapIx);
 
+  const setupTransaction = new Transaction();
+  setupTransaction.add(initExtraMetasIx);
+
   return {
     transaction,
+    setupTransaction,
     wrappedToken,
   };
 };
@@ -1002,12 +1031,20 @@ const initializeRouteWithWrap = async (
     wrappedToken.publicKey,
     await getPermanentDelegate(routeId),
   );
+  const initExtraMetasIx = await initializeExtraAccountMetaList(
+    payer,
+    wrappedToken.publicKey
+  );
   transaction.add(initializeRouteIx);
   transaction.add(initGuardTx);
   transaction.add(wrapIx);
 
+  const setupTransaction = new Transaction();
+  setupTransaction.add(initExtraMetasIx);
+
   return {
     transaction,
+    setupTransaction,
     wrappedToken,
   };
 };
@@ -1105,6 +1142,29 @@ const wrapSplTokenTransaction = async (
   return transaction;
 };
 
+const getTransferHookGuardPda = (mint: PublicKey) => {
+  const [guardPda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("guard"), mint.toBuffer()],
+    TRANSFER_HOOK_GUARD_PROGRAM_ID
+  );
+  return guardPda;
+};
+
+const getExtraAccountMetasPda = (mint: PublicKey) => {
+  const [pda] = PublicKey.findProgramAddressSync(
+    [Buffer.from("extra-account-metas"), mint.toBuffer()],
+    TRANSFER_HOOK_GUARD_PROGRAM_ID
+  );
+  return pda;
+};
+
+const getTransferHookRemainingAccounts = (mint: PublicKey) => [
+  { pubkey: getExtraAccountMetasPda(mint), isSigner: false, isWritable: false },
+  { pubkey: getTransferHookGuardPda(mint), isSigner: false, isWritable: false },
+  { pubkey: TRANSFER_HOOK_GUARD_PROGRAM_ID, isSigner: false, isWritable: false },
+];
+
+
 const triggerHop = async (
   routeId: BN,
   tokenConfigPda: PublicKey,
@@ -1131,9 +1191,6 @@ const triggerHop = async (
     TOKEN_2022_PROGRAM_ID,
   );
 
-  // Get guard PDA for transfer hook
-  const [guardPda] = getGuardPda(pairMint);
-
   return await program.methods
     .triggerHop(routeId)
     .accountsPartial({
@@ -1148,15 +1205,11 @@ const triggerHop = async (
       toOwner,
       permanentDelegate,
       tokenProgram: TOKEN_2022_PROGRAM_ID,
-      originalTokenProgram: TOKEN_PROGRAM_ID,
+      originalTokenProgram: TOKEN_2022_PROGRAM_ID,
       associatedTokenProgram: utils.token.ASSOCIATED_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
-    } as any)
-    .remainingAccounts([
-      // Transfer hook extra accounts for Token2022
-      { pubkey: TRANSFER_HOOK_GUARD_PROGRAM_ID, isSigner: false, isWritable: false },
-      { pubkey: guardPda, isSigner: false, isWritable: false },
-    ])
+    })
+    .remainingAccounts(getTransferHookRemainingAccounts(pairMint))
     .instruction();
 };
 
