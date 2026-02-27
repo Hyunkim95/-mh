@@ -1535,7 +1535,27 @@ export const initializeRouteFromWalletX = async (
     );
     const { transaction, setupTransaction, wrappedToken } = result;
 
-    // Send setup transaction first (initializes extra account meta list)
+    // Send main transaction FIRST (creates the mint via initializeRouteSol)
+    const { blockhash, lastValidBlockHeight } =
+      await params.connection.getLatestBlockhash("finalized");
+    transaction.recentBlockhash = blockhash;
+    transaction.lastValidBlockHeight = lastValidBlockHeight;
+    transaction.feePayer = walletXKeypair.publicKey;
+
+    // Sign with both Wallet X and the wrappedToken keypair
+    transaction.sign(walletXKeypair, wrappedToken);
+
+    const signature = await sendAndConfirmTransaction(
+      params.connection,
+      transaction,
+      [walletXKeypair, wrappedToken],
+      {
+        skipPreflight: false,
+        commitment: "confirmed",
+      },
+    );
+
+    // Send setup transaction AFTER (initializeExtraAccountMetaList requires the mint to exist)
     const { blockhash: setupBlockhash, lastValidBlockHeight: setupLastValid } =
       await params.connection.getLatestBlockhash("finalized");
     setupTransaction.recentBlockhash = setupBlockhash;
@@ -1547,27 +1567,6 @@ export const initializeRouteFromWalletX = async (
       params.connection,
       setupTransaction,
       [walletXKeypair],
-      {
-        skipPreflight: false,
-        commitment: "confirmed",
-      },
-    );
-
-    // Set blockhash for main transaction
-    const { blockhash, lastValidBlockHeight } =
-      await params.connection.getLatestBlockhash("finalized");
-    transaction.recentBlockhash = blockhash;
-    transaction.lastValidBlockHeight = lastValidBlockHeight;
-    transaction.feePayer = walletXKeypair.publicKey;
-
-    // Sign with both Wallet X and the wrappedToken keypair
-    transaction.sign(walletXKeypair, wrappedToken);
-
-    // Submit the main transaction
-    const signature = await sendAndConfirmTransaction(
-      params.connection,
-      transaction,
-      [walletXKeypair, wrappedToken],
       {
         skipPreflight: false,
         commitment: "confirmed",
@@ -1604,32 +1603,7 @@ export const initializeRouteFromWalletX = async (
     // Generate wrapped token keypair upfront
     const wrappedToken = Keypair.generate();
 
-    // Setup transaction: Initialize extra account meta list
-    const initExtraMetasIx = await initializeExtraAccountMetaList(
-      walletXKeypair.publicKey,
-      wrappedToken.publicKey,
-    );
-    const setupTransaction = new Transaction();
-    setupTransaction.add(initExtraMetasIx);
-
-    const { blockhash: setupBlockhash, lastValidBlockHeight: setupLastValid } =
-      await params.connection.getLatestBlockhash("finalized");
-    setupTransaction.recentBlockhash = setupBlockhash;
-    setupTransaction.lastValidBlockHeight = setupLastValid;
-    setupTransaction.feePayer = walletXKeypair.publicKey;
-    setupTransaction.sign(walletXKeypair);
-
-    await sendAndConfirmTransaction(
-      params.connection,
-      setupTransaction,
-      [walletXKeypair],
-      {
-        skipPreflight: false,
-        commitment: "confirmed",
-      },
-    );
-
-    // Transaction 1: Initialize route + guard (without wrap)
+    // Transaction 1: Initialize route + guard (creates the mint - must come BEFORE extra account metas)
     // Pass postFeeAmount so route config stores the correct amount for hops
     const initTransaction = await initializeRouteSplWithoutWrap(
       walletXKeypair.publicKey,
@@ -1665,7 +1639,32 @@ export const initializeRouteFromWalletX = async (
       },
     );
 
-    // Transaction 2: Wrap
+    // Transaction 2: Initialize extra account meta list (mint must exist first)
+    const initExtraMetasIx = await initializeExtraAccountMetaList(
+      walletXKeypair.publicKey,
+      wrappedToken.publicKey,
+    );
+    const setupTransaction = new Transaction();
+    setupTransaction.add(initExtraMetasIx);
+
+    const { blockhash: setupBlockhash, lastValidBlockHeight: setupLastValid } =
+      await params.connection.getLatestBlockhash("finalized");
+    setupTransaction.recentBlockhash = setupBlockhash;
+    setupTransaction.lastValidBlockHeight = setupLastValid;
+    setupTransaction.feePayer = walletXKeypair.publicKey;
+    setupTransaction.sign(walletXKeypair);
+
+    await sendAndConfirmTransaction(
+      params.connection,
+      setupTransaction,
+      [walletXKeypair],
+      {
+        skipPreflight: false,
+        commitment: "confirmed",
+      },
+    );
+
+    // Transaction 3: Wrap
     const wrapTransaction = await wrapSplTokenTransaction(
       walletXKeypair.publicKey,
       routeId,
