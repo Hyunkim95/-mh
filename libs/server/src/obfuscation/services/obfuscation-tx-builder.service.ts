@@ -29,13 +29,10 @@ const getConnection = () => obfuscationService.getConnection();
  * Build common cleanup transaction logic
  * Used by both intermediate wallet and Wallet X cleanup
  *
- * IMPORTANT: Solana accounts must have either:
- * - 0 lamports (will be garbage collected)
- * - OR >= rent-exempt minimum (~890,880 lamports)
- * Any balance between 1 and rent-exempt causes "insufficient funds for rent" error.
- *
- * Since we cannot reliably estimate the exact transaction fee (priority fees vary
- * between RPC calls), we always leave rent-exempt minimum in the account.
+ * Drains the account to exactly 0 lamports so Solana garbage collects it.
+ * Since we set the priority fee ourselves, the tx fee is deterministic:
+ *   exactFee = 5000 (base) + ceil(computeUnits * priorityFee / 1_000_000)
+ * We transfer balance - exactFee, and after fee deduction the account hits 0.
  */
 async function buildCleanupTxCore(
   connection: Connection,
@@ -43,27 +40,22 @@ async function buildCleanupTxCore(
   destinationWallet: PublicKey,
   tokenMint: string | null,
 ): Promise<Transaction | null> {
-  const { BASE_TX_FEE_LAMPORTS, RENT_EXEMPT_MINIMUM_LAMPORTS } =
-    obfuscationService.constants;
+  const { BASE_TX_FEE_LAMPORTS } = obfuscationService.constants;
 
   const balance = await connection.getBalance(ownerPublicKey);
 
-  // Add a generous fee buffer to handle estimation variance between RPC calls
-  const FEE_BUFFER = 10_000; // 10k lamports buffer for safety
-
-  // Calculate tx fee with buffer FIRST, before doing anything
+  // Calculate the exact tx fee — this is deterministic since we set the priority fee
+  const CLEANUP_COMPUTE_UNITS = 50_000;
   const recommendedPriorityFee = await getRecommendedPriorityFee(connection);
   const priorityFeeLamports = Math.ceil(
-    (50_000 * recommendedPriorityFee) / 1_000_000,
+    (CLEANUP_COMPUTE_UNITS * recommendedPriorityFee) / 1_000_000,
   );
-  const estimatedTxFee = BASE_TX_FEE_LAMPORTS + priorityFeeLamports + FEE_BUFFER;
+  const exactTxFee = BASE_TX_FEE_LAMPORTS + priorityFeeLamports;
 
-  // Check if we can afford to do ANY cleanup operation
-  // After paying the fee, we must have >= rent-exempt remaining
-  const balanceAfterFee = balance - estimatedTxFee;
-  if (balanceAfterFee < RENT_EXEMPT_MINIMUM_LAMPORTS) {
+  // Need at least the tx fee + 1 lamport to transfer
+  if (balance <= exactTxFee) {
     console.log(
-      `[CleanupTxBuilder] Skipping cleanup for ${ownerPublicKey.toBase58()} - balance ${balance} after fee ${estimatedTxFee} = ${balanceAfterFee} < rent-exempt ${RENT_EXEMPT_MINIMUM_LAMPORTS}`,
+      `[CleanupTxBuilder] Skipping cleanup for ${ownerPublicKey.toBase58()} - balance ${balance} <= tx fee ${exactTxFee}`,
     );
     return null;
   }
@@ -73,7 +65,7 @@ async function buildCleanupTxCore(
   // Add priority fee instructions with lower compute units for cleanup
   const priorityInstructions = await createDynamicPriorityInstructions(
     connection,
-    50_000,
+    CLEANUP_COMPUTE_UNITS,
   );
   priorityInstructions.forEach((ix) => transaction.add(ix));
 
@@ -94,29 +86,20 @@ async function buildCleanupTxCore(
     }
   }
 
-  // Calculate available balance after paying fee and keeping rent-exempt
-  // We MUST leave >= rent-exempt to avoid the "insufficient funds for rent" error
-  const minRemainingBalance = RENT_EXEMPT_MINIMUM_LAMPORTS;
-  const maxTransferable = balance - estimatedTxFee - minRemainingBalance;
+  // Transfer entire remaining balance minus the exact tx fee
+  // Account ends at 0 lamports after fee deduction → garbage collected
+  const transferAmount = balance - exactTxFee;
 
-  if (maxTransferable > 0) {
-    // We can transfer some dust while leaving rent-exempt behind
-    console.log(
-      `[CleanupTxBuilder] ${ownerPublicKey.toBase58()} - transferring ${maxTransferable} lamports, leaving ${minRemainingBalance} rent-exempt`,
-    );
-    transaction.add(
-      SystemProgram.transfer({
-        fromPubkey: ownerPublicKey,
-        toPubkey: destinationWallet,
-        lamports: maxTransferable,
-      }),
-    );
-  } else {
-    // Just closing ATA (no dust to transfer)
-    console.log(
-      `[CleanupTxBuilder] ${ownerPublicKey.toBase58()} - closing ATA only, no dust to transfer (balance=${balance}, fee=${estimatedTxFee})`,
-    );
-  }
+  console.log(
+    `[CleanupTxBuilder] ${ownerPublicKey.toBase58()} - draining ${transferAmount} lamports (balance=${balance}, fee=${exactTxFee}), account will be closed`,
+  );
+  transaction.add(
+    SystemProgram.transfer({
+      fromPubkey: ownerPublicKey,
+      toPubkey: destinationWallet,
+      lamports: transferAmount,
+    }),
+  );
 
   return transaction;
 }
@@ -329,8 +312,7 @@ async function buildAggregationTransaction(
   const walletXPublicKey = new PublicKey(walletX.address);
   const amount = new BN(intermediateWallet.allocatedAmount);
 
-  const { BASE_TX_FEE_LAMPORTS, RENT_EXEMPT_MINIMUM_LAMPORTS } =
-    obfuscationService.constants;
+  const { BASE_TX_FEE_LAMPORTS } = obfuscationService.constants;
 
   // Calculate actual transaction fee dynamically based on priority fee
   const computeUnits = 100_000; // Same as what we set in priority instructions
@@ -338,9 +320,13 @@ async function buildAggregationTransaction(
   const priorityFeeLamports = Math.ceil(
     (computeUnits * recommendedPriorityFee) / 1_000_000,
   );
-  // Use a larger buffer (20k) to ensure enough is reserved for cleanup tx fee
-  // Cleanup uses 10k buffer + priority fee may vary between aggregation and cleanup
-  const actualTxFee = BASE_TX_FEE_LAMPORTS + priorityFeeLamports + 20_000;
+  // Reserve enough for this aggregation tx fee + cleanup tx fee
+  // Cleanup uses 50k compute units and drains the account to 0
+  const cleanupPriorityFee = Math.ceil(
+    (50_000 * recommendedPriorityFee) / 1_000_000,
+  );
+  const cleanupTxFee = BASE_TX_FEE_LAMPORTS + cleanupPriorityFee;
+  const actualTxFee = BASE_TX_FEE_LAMPORTS + priorityFeeLamports + cleanupTxFee;
 
   const solBalance = await connection.getBalance(intermediatePublicKey);
 
@@ -386,17 +372,17 @@ async function buildAggregationTransaction(
       ),
     );
 
-    // SPL route: Keep rent-exempt + cleanup tx fee in intermediate wallet
-    // Also subtract ATA creation cost since it's deducted before SOL transfer executes
-    const reserveForCleanup = RENT_EXEMPT_MINIMUM_LAMPORTS + actualTxFee;
+    // SPL route: Reserve only the cleanup tx fee in intermediate wallet
+    // Cleanup will drain the account to 0 (no need to keep rent-exempt)
+    const reserveForCleanup = actualTxFee;
     solTransferAmount = Math.max(
       0,
       solBalance - reserveForCleanup - ataCreationCost,
     );
   } else {
-    // SOL route: Keep rent-exempt + cleanup tx fee in intermediate wallet
-    // The cleanup phase will return this dust to the user
-    const reserveForCleanup = RENT_EXEMPT_MINIMUM_LAMPORTS + actualTxFee;
+    // SOL route: Reserve only the cleanup tx fee in intermediate wallet
+    // Cleanup will drain the account to 0 (no need to keep rent-exempt)
+    const reserveForCleanup = actualTxFee;
     solTransferAmount = Math.max(0, solBalance - reserveForCleanup);
   }
 
@@ -471,8 +457,7 @@ async function buildCleanupTransaction(
 /**
  * Build a cleanup transaction for Wallet X
  * - Close ATA (to recover rent if SPL route)
- * - Return SOL dust to user
- * - Do NOT fully close the account (just empty it)
+ * - Drain all SOL to user (account will be garbage collected)
  */
 async function buildWalletXCleanupTransaction(
   sessionId: number,

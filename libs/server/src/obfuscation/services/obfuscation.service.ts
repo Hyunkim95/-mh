@@ -281,7 +281,8 @@ async function estimateObfuscationFees(
   const walletXAtaCreation = ataCreationCost;
   const fundingTxFees = intermediateCount * txFee;
   const aggregationTxFees = intermediateCount * txFee;
-  const cleanupTxFees = (intermediateCount + 1) * BASE_TX_FEE_LAMPORTS; // Cheaper, no priority needed
+  const cleanupTxFeePerWallet = BASE_TX_FEE_LAMPORTS + fees.priorityFeeLamports;
+  const cleanupTxFees = (intermediateCount + 1) * cleanupTxFeePerWallet;
 
   // Rent recovery when closing ATAs (only for SPL)
   const rentRecovery =
@@ -289,12 +290,11 @@ async function estimateObfuscationFees(
       ? (intermediateCount + 1) * (fees.ataRentLamports - BASE_TX_FEE_LAMPORTS)
       : 0;
 
-  // Dust refund: rent-exempt minimum from each wallet gets returned during cleanup
-  // This is the SOL that was kept in each wallet to avoid rent errors during aggregation
-  // After cleanup, this dust is transferred back to the user
+  // Dust refund: cleanup drains each wallet to 0 (garbage collected)
+  // Each wallet's full balance (minus its cleanup tx fee) is returned to the user
   const dustRefund =
     (intermediateCount + 1) *
-    (fees.rentExemptMinimumLamports - BASE_TX_FEE_LAMPORTS);
+    (fees.rentExemptMinimumLamports - cleanupTxFeePerWallet);
 
   // Get dynamic deployment cost based on hop count
   const deploymentCost = getDeploymentCost(hopCount, amountLamports);
