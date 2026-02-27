@@ -331,6 +331,10 @@ async function buildAggregationTransaction(
 
   const solBalance = await connection.getBalance(intermediatePublicKey);
 
+  console.log(
+    `[AggregationTxBuilder] ${intermediatePublicKey.toBase58()} - solBalance=${solBalance}, actualTxFee=${actualTxFee}, RENT_EXEMPT=${RENT_EXEMPT_MINIMUM_LAMPORTS}, cleanupTxFee=${cleanupTxFee}, priorityFee=${priorityFeeLamports}`,
+  );
+
   let solTransferAmount: number;
 
   if (session.tokenMint) {
@@ -380,6 +384,9 @@ async function buildAggregationTransaction(
     solTransferAmount = Math.max(
       0,
       solBalance - reserveForCleanup - ataCreationCost,
+    );
+    console.log(
+      `[AggregationTxBuilder] SPL route - ataCreationCost=${ataCreationCost}, reserveForCleanup=${reserveForCleanup}, solTransferAmount=${solTransferAmount}, expectedRemaining=${solBalance - (BASE_TX_FEE_LAMPORTS + priorityFeeLamports) - ataCreationCost - solTransferAmount}`,
     );
   } else {
     // SOL route: Reserve cleanup tx fee + rent-exempt minimum

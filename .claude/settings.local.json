@@ -38,7 +38,8 @@
       "Bash(npx jest:*)",
       "Bash(ls:*)",
       "Bash(npx vitest:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(solana balance:*)"
     ],
     "deny": []
   }
