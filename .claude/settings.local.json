@@ -33,7 +33,8 @@
       "Bash(pkill:*)",
       "Bash(jq:*)",
       "Bash(xargs cat:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(git push:*)"
     ],
     "deny": []
   }

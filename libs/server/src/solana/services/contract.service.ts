@@ -746,8 +746,6 @@ const initializeRouteSol = async (
       token2022Program: TOKEN_2022_PROGRAM_ID,
       transferHookGuardProgram: TRANSFER_HOOK_GUARD_PROGRAM_ID,
       solTreasury: tokenConfigAccount.feeTreasury as PublicKey,
-      token2022Program: TOKEN_2022_PROGRAM_ID,
-      transferHookGuardProgram: TRANSFER_HOOK_GUARD_PROGRAM_ID,
       systemProgram: SystemProgram.programId,
     } as any)
     .instruction();
