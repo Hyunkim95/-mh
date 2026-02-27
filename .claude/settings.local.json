@@ -34,7 +34,11 @@
       "Bash(jq:*)",
       "Bash(xargs cat:*)",
       "Bash(npx tsc:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(npx jest:*)",
+      "Bash(ls:*)",
+      "Bash(npx vitest:*)",
+      "Bash(git stash:*)"
     ],
     "deny": []
   }

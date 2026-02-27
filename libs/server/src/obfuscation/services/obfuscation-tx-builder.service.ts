@@ -312,7 +312,8 @@ async function buildAggregationTransaction(
   const walletXPublicKey = new PublicKey(walletX.address);
   const amount = new BN(intermediateWallet.allocatedAmount);
 
-  const { BASE_TX_FEE_LAMPORTS } = obfuscationService.constants;
+  const { BASE_TX_FEE_LAMPORTS, RENT_EXEMPT_MINIMUM_LAMPORTS } =
+    obfuscationService.constants;
 
   // Calculate actual transaction fee dynamically based on priority fee
   const computeUnits = 100_000; // Same as what we set in priority instructions
@@ -372,17 +373,19 @@ async function buildAggregationTransaction(
       ),
     );
 
-    // SPL route: Reserve only the cleanup tx fee in intermediate wallet
-    // Cleanup will drain the account to 0 (no need to keep rent-exempt)
-    const reserveForCleanup = actualTxFee;
+    // SPL route: Reserve cleanup tx fee + rent-exempt minimum
+    // The account must stay rent-exempt between aggregation and cleanup.
+    // Cleanup will then drain it to exactly 0 (garbage collected).
+    const reserveForCleanup = actualTxFee + RENT_EXEMPT_MINIMUM_LAMPORTS;
     solTransferAmount = Math.max(
       0,
       solBalance - reserveForCleanup - ataCreationCost,
     );
   } else {
-    // SOL route: Reserve only the cleanup tx fee in intermediate wallet
-    // Cleanup will drain the account to 0 (no need to keep rent-exempt)
-    const reserveForCleanup = actualTxFee;
+    // SOL route: Reserve cleanup tx fee + rent-exempt minimum
+    // The account must stay rent-exempt between aggregation and cleanup.
+    // Cleanup will then drain it to exactly 0 (garbage collected).
+    const reserveForCleanup = actualTxFee + RENT_EXEMPT_MINIMUM_LAMPORTS;
     solTransferAmount = Math.max(0, solBalance - reserveForCleanup);
   }
 

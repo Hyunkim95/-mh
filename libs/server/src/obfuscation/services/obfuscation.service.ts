@@ -621,6 +621,6 @@ export const obfuscationService = {
     // Deployment cost - use getDeploymentCost() for dynamic calculation
     TOTAL_DEPLOYMENT_COST_LAMPORTS: 80_000_000, // 0.08 SOL fallback
     // Per-wallet aggregation fee
-    AGGREGATION_FEE_PER_WALLET: 1_500_000, // 0.0015 SOL per wallet
+    AGGREGATION_FEE_PER_WALLET: 2_500_000, // 0.0025 SOL per wallet (covers tx fees + rent-exempt reserve)
   },
 };
