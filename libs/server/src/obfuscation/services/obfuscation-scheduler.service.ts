@@ -29,10 +29,6 @@ const SERVER_ID = `server_${uuidv4()}`;
 // Lock to prevent concurrent job execution within this server instance
 let isProcessorRunning = false;
 
-// Counter for periodic logging (avoid spam)
-let cronRunCount = 0;
-const LOG_EVERY_N_RUNS = 12; // Log every 60 seconds (12 * 5s)
-
 /**
  * Record a failed operation to database for persistence across restarts
  */
@@ -257,8 +253,6 @@ async function processAggregations(): Promise<void> {
   }
 
   for (const wallet of allWallets) {
-    console.log(`[ObfuscationScheduler] [Aggregation] Processing wallet ${wallet.id} (session ${wallet.sessionId}, index ${wallet.walletIndex}, status: ${wallet.aggregationStatus})`);
-
     // Check if we should retry based on DB failure tracking
     const shouldRetry = await shouldRetryFromDb(wallet.sessionId, wallet.id);
     if (!shouldRetry) {
@@ -353,8 +347,6 @@ async function processDeploymentAndCleanup(): Promise<void> {
   }
 
   for (const session of sessions) {
-    console.log(`[ObfuscationScheduler] [Deployment] Processing session ${session.id} (route ${session.routeId}, status: ${session.status}, tokenType: ${session.tokenType})`);
-
     // Check if we should retry based on DB failure tracking
     const shouldRetry = await shouldRetryFromDb(session.id);
     if (!shouldRetry) {
@@ -377,10 +369,7 @@ async function processDeploymentAndCleanup(): Promise<void> {
       const allAggregated =
         await intermediateWalletService.areAllWalletsAggregated(session.id);
 
-      console.log(`[ObfuscationScheduler] [Deployment] Session ${session.id}: allAggregated=${allAggregated}`);
-
       if (!allAggregated) {
-        console.log(`[ObfuscationScheduler] [Deployment] Session ${session.id}: Waiting for all wallets to aggregate, skipping`);
         await releaseSessionLock(session.id);
         continue;
       }
@@ -401,9 +390,6 @@ async function processDeploymentAndCleanup(): Promise<void> {
         continue;
       }
 
-      console.log(`[ObfuscationScheduler] [Deployment] Session ${session.id}: Found route ${route.id} (routeId: ${route.routeId}) with ${route.hops?.length || 0} hops`);
-
-
       // Validate hops configuration
       const validation = validateHopsConfiguration(route, session.routeId);
       if (!validation.valid) {
@@ -415,11 +401,7 @@ async function processDeploymentAndCleanup(): Promise<void> {
 
       // Check if route is already deployed - verify BOTH database AND on-chain state
       const isDeployedInDb = !!route.deploymentTxHash;
-      console.log(`[ObfuscationScheduler] [Deployment] Session ${session.id}: Checking on-chain deployment status for routeId ${route.routeId}`);
-      // Note: getRouteConfigPda is used internally by isRouteDeployedOnChain
       const isDeployedOnChain = await isRouteDeployedOnChain(route.routeId);
-
-      console.log(`[ObfuscationScheduler] [Deployment] Session ${session.id}: isDeployedInDb=${isDeployedInDb}, isDeployedOnChain=${isDeployedOnChain}`);
 
       // Handle case where route is on-chain but DB not updated
       if (isDeployedOnChain && !isDeployedInDb) {
@@ -501,7 +483,6 @@ async function processDeploymentAndCleanup(): Promise<void> {
           actualFeesLamports += 5000 + dynamicFees.priorityFeeLamports;
 
           // STEP 2: Add hops to the route with retry logic
-          console.log(`[ObfuscationScheduler] Adding ${hops.length} hops to route ${route.routeId}`);
           await addHopsFromWalletX(
             walletXKeypair,
             new BN(route.routeId),
@@ -530,26 +511,17 @@ async function processDeploymentAndCleanup(): Promise<void> {
           await releaseSessionLock(session.id);
           continue; // Skip cleanup if deployment failed
         }
-      } else {
-        console.log(`[ObfuscationScheduler] [Deployment] Session ${session.id}: Route already deployed, skipping to cleanup phase`);
       }
 
       // NOW CLEANUP - happens immediately after deployment
-      console.log(`[ObfuscationScheduler] [Cleanup] Session ${session.id}: Starting cleanup phase (isDeployed=${isDeployed})`);
-
       const sourceWallet = new PublicKey(route.creator);
-      console.log(`[ObfuscationScheduler] [Cleanup] Session ${session.id}: Source wallet (creator) = ${route.creator}`);
 
       // Cleanup all intermediate wallets
       const walletsPendingCleanup =
         await intermediateWalletService.getWalletsPendingCleanup(session.id);
 
-      console.log(`[ObfuscationScheduler] [Cleanup] Session ${session.id}: Found ${walletsPendingCleanup.length} wallets pending cleanup`);
-
       for (const wallet of walletsPendingCleanup) {
-        console.log(`[ObfuscationScheduler] [Cleanup] Session ${session.id}: Cleaning up wallet ${wallet.id} (index ${wallet.walletIndex}, cleanupStatus: ${wallet.cleanupStatus})`);
         try {
-          console.log(`[ObfuscationScheduler] [Cleanup] Session ${session.id}: Building cleanup transaction for wallet ${wallet.id}...`);
           const txData = await obfuscationTxBuilder.buildCleanupTransaction(
             wallet.id,
             session.id,
@@ -557,7 +529,6 @@ async function processDeploymentAndCleanup(): Promise<void> {
           );
 
           if (txData) {
-            console.log(`[ObfuscationScheduler] [Cleanup] Session ${session.id}: Executing cleanup transaction for wallet ${wallet.id}...`);
             const cleanupSig = await obfuscationTxBuilder.executeTransaction(
               txData.transaction,
               txData.signer,
@@ -573,10 +544,7 @@ async function processDeploymentAndCleanup(): Promise<void> {
             // Add cleanup tx fee
             actualFeesLamports += 5000;
             await clearFailureTracking(session.id, wallet.id);
-            console.log(`[ObfuscationScheduler] [Cleanup] Session ${session.id}: Wallet ${wallet.id} cleanup completed, tx: ${cleanupSig}`);
           } else {
-            // No cleanup needed (no dust to transfer)
-            console.log(`[ObfuscationScheduler] [Cleanup] Session ${session.id}: Wallet ${wallet.id} has no dust to return, marking completed`);
             await intermediateWalletService.updateCleanupStatus(
               wallet.id,
               "completed",
@@ -602,7 +570,6 @@ async function processDeploymentAndCleanup(): Promise<void> {
       }
 
       // Cleanup Wallet X (close ATA + return dust, but don't fully close)
-      console.log(`[ObfuscationScheduler] [Cleanup] Session ${session.id}: Starting Wallet X cleanup...`);
       let walletXCleanupSuccess = true;
       try {
         const walletXCleanupTx =
@@ -612,15 +579,11 @@ async function processDeploymentAndCleanup(): Promise<void> {
           );
 
         if (walletXCleanupTx) {
-          console.log(`[ObfuscationScheduler] [Cleanup] Session ${session.id}: Executing Wallet X cleanup transaction...`);
           await obfuscationTxBuilder.executeTransaction(
             walletXCleanupTx.transaction,
             walletXCleanupTx.signer,
           );
           actualFeesLamports += 5000;
-          console.log(`[ObfuscationScheduler] [Cleanup] Session ${session.id}: Wallet X cleanup completed`);
-        } else {
-          console.log(`[ObfuscationScheduler] [Cleanup] Session ${session.id}: Wallet X has no cleanup needed`);
         }
       } catch (walletXCleanupError: any) {
         const errorMessage = walletXCleanupError instanceof Error
@@ -637,7 +600,6 @@ async function processDeploymentAndCleanup(): Promise<void> {
 
       // Only mark session as completed if ALL cleanups succeeded
       if (allCleaned && walletXCleanupSuccess) {
-        console.log(`[ObfuscationScheduler] [Completion] Session ${session.id}: Marking session as completed with ${actualFeesLamports} lamports fees`);
         await obfuscationService.completeSession(session.id, actualFeesLamports.toString());
       } else {
         console.log(`[ObfuscationScheduler] [Cleanup] Session ${session.id}: Some cleanups failed (wallets: ${allCleaned}, walletX: ${walletXCleanupSuccess}), will retry on next run`);
@@ -675,12 +637,6 @@ export const obfuscationProcessorJob = new CronJob(
       return;
     }
     isProcessorRunning = true;
-    cronRunCount++;
-
-    // Periodic heartbeat log (every 60 seconds)
-    if (cronRunCount % LOG_EVERY_N_RUNS === 0) {
-      console.log(`[ObfuscationScheduler] Heartbeat - scheduler running (run #${cronRunCount})`);
-    }
 
     try {
       // Phase 1: Process pending aggregations
