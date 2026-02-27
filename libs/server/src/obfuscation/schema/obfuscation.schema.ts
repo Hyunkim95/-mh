@@ -31,7 +31,7 @@ export const obfuscationSessionsSchema = pgTable('obfuscation_sessions', {
   id: serial('id').primaryKey(),
 
   // Link to route (one-to-one)
-  routeId: integer('route_id').references(() => routesSchema.id, { onDelete: 'cascade' }).notNull().unique(),
+  routeId: integer('route_id').notNull().unique(),
 
   // Session state
   status: varchar('status', { length: 20 }).notNull().default('pending'),
