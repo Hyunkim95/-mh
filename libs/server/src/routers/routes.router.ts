@@ -1,7 +1,16 @@
 import { z } from 'zod';
+import { PublicKey } from '@solana/web3.js';
+import { eq } from 'drizzle-orm';
 import { publicProcedure, router } from '../trpc';
 import routesService from '../routes/services/routes.service';
 import { validateRoute } from '../routes/services/route-validation.service';
+import {
+  obfuscationService,
+  intermediateWalletService,
+  obfuscationTxBuilder,
+} from '../obfuscation';
+import { db } from '../db';
+import { routesSchema } from '../db/schema';
 
 // Validation schemas
 const routeHopSchema = z.object({
@@ -290,6 +299,299 @@ export const routesRouter = router({
       } catch (error) {
         console.error('Error marking route as deployed:', error);
         throw new Error('Failed to mark route as deployed');
+      }
+    }),
+
+  // ==================== OBFUSCATION ENDPOINTS ====================
+
+  // Get obfuscation session for a route
+  getObfuscationSession: publicProcedure
+    .input(z.object({
+      routeId: z.number(),
+    }))
+    .query(async ({ input }) => {
+      try {
+        const session = await obfuscationService.getSessionByRouteId(input.routeId);
+        if (!session) {
+          return {
+            success: false,
+            data: null,
+            message: 'No obfuscation session found for this route'
+          };
+        }
+
+        // Get session with wallet details
+        const sessionWithWallets = await obfuscationService.getSessionWithWallets(session.id);
+
+        return {
+          success: true,
+          data: sessionWithWallets,
+        };
+      } catch (error) {
+        console.error('Error fetching obfuscation session:', error);
+        throw new Error('Failed to fetch obfuscation session');
+      }
+    }),
+
+  // Get obfuscation cost estimate for a route
+  getObfuscationCostEstimate: publicProcedure
+    .input(z.object({
+      routeId: z.number(),
+    }))
+    .query(async ({ input }) => {
+      try {
+        const session = await obfuscationService.getSessionByRouteId(input.routeId);
+        if (!session) {
+          return {
+            success: false,
+            data: null,
+            message: 'No obfuscation session found for this route'
+          };
+        }
+
+        // Fetch route with hops to get hopCount and amount
+        const route = await db.query.routesSchema.findFirst({
+          where: eq(routesSchema.id, input.routeId),
+          with: { hops: true },
+        });
+
+        if (!route) {
+          return {
+            success: false,
+            data: null,
+            message: 'Route not found'
+          };
+        }
+
+        const hopCount = route.hops?.length ?? 0;
+        const amountLamports = BigInt(route.hopAmountRaw);
+
+        // Calculate fee estimate
+        const feeEstimate = await obfuscationService.estimateObfuscationFees(
+          session.intermediateCount,
+          session.tokenType as 'SOL' | 'SPL',
+          hopCount,
+          Number(amountLamports)
+        );
+
+        // Convert lamports to SOL for display
+        const lamportsToSol = (lamports: number) => (lamports / 1_000_000_000).toFixed(6);
+
+        return {
+          success: true,
+          data: {
+            ...feeEstimate,
+            intermediateCount: session.intermediateCount,
+            tokenType: session.tokenType,
+            breakdown: {
+              transactionFeesSOL: lamportsToSol(feeEstimate.fundingTxFees + feeEstimate.aggregationTxFees + feeEstimate.cleanupTxFees),
+              accountDepositsSOL: lamportsToSol(feeEstimate.intermediateAtaCreation + feeEstimate.walletXAtaCreation),
+              refundableSOL: lamportsToSol(feeEstimate.rentRecovery),
+              dustRefundSOL: lamportsToSol(feeEstimate.dustRefund),
+              netCostSOL: lamportsToSol(feeEstimate.totalFeesLamports),
+            },
+          },
+        };
+      } catch (error) {
+        throw new Error('Failed to fetch obfuscation cost estimate');
+      }
+    }),
+
+  // Get funding transactions for obfuscated route (for batch signing)
+  getObfuscationFundingTransactions: publicProcedure
+    .input(z.object({
+      routeId: z.number(),
+      creator: z.string(),
+    }))
+    .mutation(async ({ input }) => {
+      try {
+        // Get the obfuscation session
+        const session = await obfuscationService.getSessionByRouteId(input.routeId);
+        if (!session) {
+          throw new Error('No obfuscation session found for this route');
+        }
+
+        // Fetch route with hops to get hopCount and amount
+        const route = await db.query.routesSchema.findFirst({
+          where: eq(routesSchema.id, input.routeId),
+          with: { hops: true },
+        });
+
+        if (!route) {
+          throw new Error('Route not found');
+        }
+
+        const hopCount = route.hops?.length ?? 0;
+        const amountLamports = BigInt(route.hopAmountRaw);
+
+        // Build all funding transactions
+        const sourceWallet = new PublicKey(input.creator);
+        const transactions = await obfuscationTxBuilder.buildAllFundingTransactions(
+          session.id,
+          sourceWallet
+        );
+
+        // Update session status to funding
+        await obfuscationService.updateSessionStatus(session.id, 'funding');
+
+        // Get fee estimate
+        const feeEstimate = await obfuscationService.estimateObfuscationFees(
+          session.intermediateCount,
+          session.tokenType as 'SOL' | 'SPL',
+          hopCount,
+          Number(amountLamports)
+        );
+
+        return {
+          success: true,
+          data: {
+            sessionId: session.id,
+            transactions, // Array of { walletIndex, serialized, destinationAddress, amount }
+            feeEstimate,
+            totalTransactions: transactions.length,
+          },
+        };
+      } catch (error) {
+        console.error('Error building funding transactions:', error);
+        throw new Error(
+          error instanceof Error ? error.message : 'Failed to build funding transactions'
+        );
+      }
+    }),
+
+  // Confirm funding for an intermediate wallet
+  confirmObfuscationFunding: publicProcedure
+    .input(z.object({
+      routeId: z.number(),
+      walletIndex: z.number(),
+      txHash: z.string(),
+    }))
+    .mutation(async ({ input }) => {
+      try {
+        const session = await obfuscationService.getSessionByRouteId(input.routeId);
+        if (!session) {
+          throw new Error('No obfuscation session found');
+        }
+
+        // Update wallet funding status
+        await intermediateWalletService.updateFundingStatusByIndex(
+          session.id,
+          input.walletIndex,
+          'funded',
+          input.txHash
+        );
+
+        // Check if all wallets are now funded
+        const allFunded = await intermediateWalletService.areAllWalletsFunded(session.id);
+
+        if (allFunded) {
+          // Schedule aggregations with random delays
+          await obfuscationService.scheduleAggregations(session.id);
+        }
+
+        return {
+          success: true,
+          data: {
+            allFunded,
+            sessionId: session.id,
+          },
+          message: allFunded
+            ? 'All wallets funded, aggregation scheduled'
+            : 'Funding confirmed',
+        };
+      } catch (error) {
+        console.error('Error confirming funding:', error);
+        throw new Error('Failed to confirm funding');
+      }
+    }),
+
+  // Batch confirm all funding transactions
+  confirmAllObfuscationFunding: publicProcedure
+    .input(z.object({
+      routeId: z.number(),
+      fundingResults: z.array(z.object({
+        walletIndex: z.number(),
+        txHash: z.string(),
+      })),
+    }))
+    .mutation(async ({ input }) => {
+      try {
+        const session = await obfuscationService.getSessionByRouteId(input.routeId);
+        if (!session) {
+          throw new Error('No obfuscation session found');
+        }
+
+        // Update all wallet funding statuses
+        for (const result of input.fundingResults) {
+          await intermediateWalletService.updateFundingStatusByIndex(
+            session.id,
+            result.walletIndex,
+            'funded',
+            result.txHash
+          );
+        }
+
+        // Check if all wallets are now funded
+        const allFunded = await intermediateWalletService.areAllWalletsFunded(session.id);
+
+        if (allFunded) {
+          // Schedule aggregations with random delays
+          await obfuscationService.scheduleAggregations(session.id);
+        }
+
+        return {
+          success: true,
+          data: {
+            allFunded,
+            sessionId: session.id,
+            confirmedCount: input.fundingResults.length,
+          },
+          message: allFunded
+            ? 'All wallets funded, aggregation scheduled'
+            : `Confirmed ${input.fundingResults.length} funding transactions`,
+        };
+      } catch (error) {
+        console.error('Error confirming funding:', error);
+        throw new Error('Failed to confirm funding');
+      }
+    }),
+
+  // Get obfuscation status for a route
+  getObfuscationStatus: publicProcedure
+    .input(z.object({
+      routeId: z.number(),
+    }))
+    .query(async ({ input }) => {
+      try {
+        const session = await obfuscationService.getSessionByRouteId(input.routeId);
+        if (!session) {
+          return {
+            success: false,
+            data: null,
+            message: 'No obfuscation session found',
+          };
+        }
+
+        const intermediateWallets = await obfuscationService.getIntermediateWallets(session.id);
+        const fundedCount = intermediateWallets.filter(w => w.fundingStatus === 'funded').length;
+        const aggregatedCount = intermediateWallets.filter(w => w.aggregationStatus === 'confirmed').length;
+        const cleanedUpCount = intermediateWallets.filter(w => w.cleanupStatus === 'completed').length;
+
+        return {
+          success: true,
+          data: {
+            sessionId: session.id,
+            status: session.status,
+            intermediateCount: session.intermediateCount,
+            fundedCount,
+            aggregatedCount,
+            cleanedUpCount,
+            isReady: session.status === 'completed',
+          },
+        };
+      } catch (error) {
+        console.error('Error fetching obfuscation status:', error);
+        throw new Error('Failed to fetch obfuscation status');
       }
     }),
 });

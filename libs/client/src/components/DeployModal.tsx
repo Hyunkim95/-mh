@@ -16,6 +16,7 @@ export interface DeployModalRoute {
   hopAmountTokens: string;
   hopAmountRaw: string;
   totalSpendTokens?: string; // User's total spend (before fee deduction)
+  hasObfuscation?: boolean; // Whether route uses obfuscation wallets
   hops: {
     recipient: string;
     scheduledAt: string;
@@ -90,6 +91,14 @@ export const DeployModal: React.FC<DeployModalProps> = ({
     },
     {
       enabled: isOpen && !!route && amountLamports > 0,
+    }
+  );
+
+  // Fetch obfuscation cost estimate when route has obfuscation enabled
+  const obfuscationCostEstimate = trpc.routes.getObfuscationCostEstimate.useQuery(
+    { routeId: route?.routeId || 0 },
+    {
+      enabled: isOpen && !!route && route.hasObfuscation === true,
     }
   );
 
@@ -182,7 +191,7 @@ export const DeployModal: React.FC<DeployModalProps> = ({
 
       {/* Modal */}
       <div
-        className="relative z-10 w-full max-w-md mx-4 rounded-3xl bg-[var(--chinese-black-800)] border border-[var(--white-100-transparency-10)] p-6"
+        className="relative z-10 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto rounded-3xl bg-[var(--chinese-black-800)] border border-[var(--white-100-transparency-10)] p-6"
         style={{
           boxShadow:
             "0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0px 1px 0px var(--white-100-transparency-08)",
@@ -297,6 +306,144 @@ export const DeployModal: React.FC<DeployModalProps> = ({
                     {costEstimate.data.data.breakdown.totalCostSOL} SOL
                   </span>
                 </div>
+              </div>
+            )}
+
+            {/* Obfuscation Cost Breakdown - Only shown when route has obfuscation */}
+            {route.hasObfuscation && (
+              <div className="bg-[var(--eerie-black-700)] rounded-2xl p-4 mb-6">
+                {/* Header with privacy icon */}
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-5 h-5 rounded-full bg-[var(--laser-lemon-500)]/20 flex items-center justify-center">
+                    <svg
+                      className="w-3 h-3 text-[var(--laser-lemon-500)]"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                      />
+                    </svg>
+                  </div>
+                  <span className="text-sm font-medium text-[var(--white-100)]">
+                    Privacy Protection Costs
+                  </span>
+                </div>
+
+                {/* Loading state */}
+                {obfuscationCostEstimate.isLoading && (
+                  <div className="flex items-center justify-center py-3">
+                    <div className="w-4 h-4 border-2 border-[var(--laser-lemon-500)] border-t-transparent rounded-full animate-spin" />
+                    <span className="ml-2 text-sm text-[var(--philippine-gray-500)]">
+                      Calculating...
+                    </span>
+                  </div>
+                )}
+
+                {/* Error state */}
+                {obfuscationCostEstimate.isError && (
+                  <div className="text-sm text-red-400 text-center py-2">
+                    Unable to calculate obfuscation costs
+                  </div>
+                )}
+
+                {/* Cost data */}
+                {obfuscationCostEstimate.data?.success && obfuscationCostEstimate.data.data && (
+                  <>
+                    {/* Privacy Wallets count */}
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm text-[var(--philippine-gray-500)]">
+                        Privacy Wallets
+                      </span>
+                      <span className="text-[var(--white-100)] font-medium">
+                        {obfuscationCostEstimate.data.data.intermediateCount}
+                      </span>
+                    </div>
+
+                    {/* Transaction Fees */}
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm text-[var(--philippine-gray-500)]">
+                        Transaction Fees
+                      </span>
+                      <span className="text-[var(--white-100)] font-medium">
+                        {obfuscationCostEstimate.data.data.breakdown.transactionFeesSOL} SOL
+                      </span>
+                    </div>
+
+                    {/* Account Deposits (SPL only) */}
+                    {obfuscationCostEstimate.data.data.tokenType === "SPL" && (
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm text-[var(--philippine-gray-500)]">
+                          Account Deposits
+                        </span>
+                        <span className="text-[var(--white-100)] font-medium">
+                          {obfuscationCostEstimate.data.data.breakdown.accountDepositsSOL} SOL
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Divider */}
+                    <div className="border-t border-[var(--white-100-transparency-10)] my-3" />
+
+                    {/* Refundable Section - Green styling */}
+                    <div className="bg-emerald-500/10 rounded-xl p-3 mb-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <svg
+                          className="w-4 h-4 text-emerald-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                        <span className="text-xs font-medium text-emerald-400 uppercase tracking-wider">
+                          Returned After Completion
+                        </span>
+                      </div>
+
+                      {/* Rent Recovery (SPL only) */}
+                      {obfuscationCostEstimate.data.data.tokenType === "SPL" && (
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm text-[var(--philippine-gray-500)]">
+                            Account Rent Recovery
+                          </span>
+                          <span className="text-emerald-400 font-medium">
+                            +{obfuscationCostEstimate.data.data.breakdown.refundableSOL} SOL
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Dust Refund */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-[var(--philippine-gray-500)]">
+                          Dust Refund
+                        </span>
+                        <span className="text-emerald-400 font-medium">
+                          +{obfuscationCostEstimate.data.data.breakdown.dustRefundSOL} SOL
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Net Privacy Cost */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-[var(--white-100)]">
+                        Net Privacy Cost
+                      </span>
+                      <span className="text-[var(--laser-lemon-500)] font-semibold">
+                        {obfuscationCostEstimate.data.data.breakdown.netCostSOL} SOL
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 

@@ -22,6 +22,9 @@ export const routesSchema = pgTable('routes', {
     // Route type
     isEasyRoute: boolean('is_easy_route').default(false).notNull(),
 
+    // Obfuscation (wallet mixing before contract invocation)
+    hasObfuscation: boolean('has_obfuscation').default(false).notNull(), // false for existing routes, true for new
+
     // Ownership and metadata
     creator: varchar('creator').notNull(), // Creator wallet address
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -44,8 +47,12 @@ export const routesSchema = pgTable('routes', {
 });
 
 // Define relations
-export const routesRelations = relations(routesSchema, ({ many }) => ({
+export const routesRelations = relations(routesSchema, ({ many, one }) => ({
   hops: many(hopsSchema),
+  obfuscationSession: one(obfuscationSessionsSchema, {
+    fields: [routesSchema.id],
+    references: [obfuscationSessionsSchema.routeId],
+  }),
 }));
 
 export type Routes = typeof routesSchema.$inferSelect;
@@ -82,12 +89,14 @@ export interface CreateRouteInput {
 // Type for route with deployment info and calculated delays
 export interface RouteWithStatus extends Routes {
     canDeploy: boolean;
-    deploymentStatus: 'draft' | 'deploying' | 'deployed' | 'failed';
+    deploymentStatus: 'draft' | 'deploying' | 'deployed' | 'completed' | 'failed';
+    obfuscationStatus?: string | null; // Status of the obfuscation session if any
     hops?: (RouteHopData & {
         delayMinutes?: number; // Calculated from timestamp differences
         delaySeconds?: number; // Calculated from timestamp differences
     })[]; // For backwards compatibility, will be populated from relational hops
 }
 
-// Import hops schema for relations (must be after routesSchema definition to avoid circular imports)
+// Import schemas for relations (must be after routesSchema definition to avoid circular imports)
 import { hopsSchema } from "../../hops/schema/hops.schema";
+import { obfuscationSessionsSchema } from "../../obfuscation/schema/obfuscation.schema";

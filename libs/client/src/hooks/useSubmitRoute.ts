@@ -53,6 +53,7 @@ export const useSubmitRoute = ({
         hopAmountTokens: route.hopAmountTokens,
         hopAmountRaw: route.hopAmountRaw,
         totalSpendTokens: data.totalSpendTokens,
+        hasObfuscation: route.hasObfuscation,
         hops: data.hops.map((hop: { recipient: string; scheduledAt: string }) => ({
           recipient: hop.recipient,
           scheduledAt: hop.scheduledAt,

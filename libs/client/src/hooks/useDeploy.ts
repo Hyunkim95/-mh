@@ -6,6 +6,7 @@ import { useConnection } from "@solana/wallet-adapter-react";
 import bs58 from "bs58";
 import { trpc } from "../trpc";
 import { extractErrorMessage } from "../utils/extractErrorMessage";
+import { useObfuscationDeploy } from "./useObfuscationDeploy";
 
 // Maximum hops that can fit in a single transaction (matches backend)
 // Each hop = ~40 bytes (32-byte pubkey + 8-byte timestamp)
@@ -23,7 +24,7 @@ const recalculateHopTimes = (
     scheduledAt: number | string;
     delayMinutes?: number;
     isCustomTime?: boolean;
-  }>
+  }>,
 ): Array<{ recipient: string; scheduledAt: number }> => {
   const now = Date.now();
   let cumulativeTime = now;
@@ -66,13 +67,15 @@ const recalculateHopTimes = (
 };
 
 export const useDeploy = () => {
-  const { publicKey, sendTransaction, signTransaction, signAllTransactions } = useWallet();
+  const { publicKey, sendTransaction, signTransaction, signAllTransactions } =
+    useWallet();
   const { connection } = useConnection();
   const utils = trpc.useUtils();
   const initializeRoute = trpc.contract.initializeRoute.useMutation();
   const addHopsBatched = trpc.contract.addHopsBatched.useMutation();
   const initializeRouteSOL = trpc.contract.initializeRouteSOL.useMutation();
   const markDeployed = trpc.routes.markDeployed.useMutation();
+  const { fundObfuscation, hasObfuscation } = useObfuscationDeploy();
 
   const initializeRouteMutation = async (
     data: {
@@ -85,7 +88,7 @@ export const useDeploy = () => {
       hopAmount: string;
       splMint?: string;
     },
-    type: "SPL" | "SOL"
+    type: "SPL" | "SOL",
   ) => {
     // Wallet validation
     if (!publicKey || !sendTransaction) {
@@ -126,7 +129,7 @@ export const useDeploy = () => {
 
       // Deserialize the unsigned transaction
       const transaction = Transaction.from(
-        Buffer.from(transactionSignature.data.transaction, "base64")
+        Buffer.from(transactionSignature.data.transaction, "base64"),
       );
 
       // Phantom wallet signs FIRST (required by Phantom's Lighthouse security)
@@ -138,20 +141,19 @@ export const useDeploy = () => {
       // Then additional signer signs AFTER Phantom (correct order for Lighthouse)
       if (transactionSignature.data.additionalSignerSecret) {
         const additionalSigner = Keypair.fromSecretKey(
-          bs58.decode(transactionSignature.data.additionalSignerSecret)
+          bs58.decode(transactionSignature.data.additionalSignerSecret),
         );
         signedTx.partialSign(additionalSigner);
       }
 
-      // Simulate the fully-signed transaction
-      const simulation = await connection.simulateTransaction(signedTx);
-      console.log("Transaction simulation:", simulation);
-
       // Send the fully-signed transaction
-      const signature = await connection.sendRawTransaction(signedTx.serialize(), {
-        skipPreflight: true,
-        preflightCommitment: "confirmed",
-      });
+      const signature = await connection.sendRawTransaction(
+        signedTx.serialize(),
+        {
+          skipPreflight: true,
+          preflightCommitment: "confirmed",
+        },
+      );
       toast.loading("Confirming transaction...", { id: "deploy" });
 
       // Wait for confirmation
@@ -163,25 +165,23 @@ export const useDeploy = () => {
 
       if (confirmation.value.err) {
         throw new Error(
-          `Transaction failed: ${JSON.stringify(confirmation.value.err)}`
+          `Transaction failed: ${JSON.stringify(confirmation.value.err)}`,
         );
       }
 
       toast.success(
         `${type} Route deployed successfully! Signature: ${signature.slice(
           0,
-          8
+          8,
         )}...`,
-        { id: "deploy" }
+        { id: "deploy" },
       );
-      console.log("Route deployed with signature:", signature);
 
       return signature;
     } catch (error) {
-      console.error(`${type} Route deployment failed:`, error);
       toast.error(
         `${type} Route deployment failed: ${extractErrorMessage(error)}`,
-        { id: "deploy" }
+        { id: "deploy" },
       );
       throw error;
     }
@@ -190,7 +190,7 @@ export const useDeploy = () => {
   const addHopsMutation = async (
     routeId: number,
     creator: string,
-    hops: { recipient: string; scheduledAt: number }[]
+    hops: { recipient: string; scheduledAt: number }[],
   ) => {
     if (!sendTransaction) {
       throw new Error("Wallet not connected");
@@ -204,8 +204,7 @@ export const useDeploy = () => {
         hops,
       });
 
-      const { transactions, totalBatches, totalHops } = result.data;
-      console.log(`Adding ${totalHops} hops in ${totalBatches} batch(es)`);
+      const { transactions, totalBatches } = result.data;
 
       // Check if wallet supports batch signing
       if (!signAllTransactions) {
@@ -214,7 +213,7 @@ export const useDeploy = () => {
 
       // Deserialize all transactions upfront
       const deserializedTxs = transactions.map((batchData) =>
-        Transaction.from(Buffer.from(batchData.transaction, "base64"))
+        Transaction.from(Buffer.from(batchData.transaction, "base64")),
       );
 
       // Show loading message
@@ -222,7 +221,7 @@ export const useDeploy = () => {
         `Please sign ${totalBatches} ${
           totalBatches === 1 ? "transaction" : "transactions"
         } in your wallet...`,
-        { id: "deploy" }
+        { id: "deploy" },
       );
 
       // USER SIGNS ALL TRANSACTIONS AT ONCE - SINGLE WALLET POPUP
@@ -232,7 +231,7 @@ export const useDeploy = () => {
         `Submitting ${totalBatches} ${
           totalBatches === 1 ? "batch" : "batches"
         }...`,
-        { id: "deploy" }
+        { id: "deploy" },
       );
 
       // Send each signed transaction sequentially
@@ -241,24 +240,7 @@ export const useDeploy = () => {
         const batchNum = i + 1;
         const batchData = transactions[i];
         const signedTx = signedTransactions[i];
-        const batchStartHop = i * HOPS_PER_BATCH;
-        const batchEndHop = Math.min(batchStartHop + HOPS_PER_BATCH, hops.length);
-
-        // Simulate against CURRENT state (after previous batches confirmed)
-        console.log(`\n=== Batch ${batchNum}/${totalBatches} Pre-Send Simulation ===`);
-        console.log(`Hops ${batchStartHop + 1}-${batchEndHop}:`, hops.slice(batchStartHop, batchEndHop));
-
-        const simulation = await connection.simulateTransaction(signedTx);
-        console.log(`Batch ${batchNum} simulation result:`, simulation);
-
-        if (simulation.value.err) {
-          console.error(`Batch ${batchNum} simulation FAILED:`, simulation.value.err);
-          console.error(`Logs:`, simulation.value.logs);
-          throw new Error(
-            `Batch ${batchNum} simulation failed: ${JSON.stringify(simulation.value.err)}\nLogs: ${simulation.value.logs?.join('\n')}`
-          );
-        }
-        console.log(`Batch ${batchNum} simulation SUCCESS - sending...`);
+      
 
         toast.loading(`Sending batch ${batchNum}/${totalBatches}...`, {
           id: "deploy",
@@ -270,7 +252,7 @@ export const useDeploy = () => {
           {
             skipPreflight: true,
             preflightCommitment: "confirmed",
-          }
+          },
         );
 
         toast.loading(`Confirming batch ${batchNum}/${totalBatches}...`, {
@@ -287,19 +269,12 @@ export const useDeploy = () => {
         if (confirmation.value.err) {
           throw new Error(
             `Batch ${batchNum} transaction failed: ${JSON.stringify(
-              confirmation.value.err
-            )}`
+              confirmation.value.err,
+            )}`,
           );
         }
-
-        console.log(
-          `Batch ${batchNum}/${totalBatches} confirmed: ${signature}`
-        );
       }
-
-      console.log(`All ${totalBatches} batch(es) completed successfully`);
     } catch (error) {
-      console.error("Adding hops failed:", error);
       toast.error(`Adding hops failed: ${extractErrorMessage(error)}`);
       throw error;
     }
@@ -318,7 +293,7 @@ export const useDeploy = () => {
       hopAmount: string;
       splMint?: string;
     },
-    type: "SPL" | "SOL"
+    type: "SPL" | "SOL",
   ) => {
     // Wallet validation
     if (!publicKey || !sendTransaction) {
@@ -327,6 +302,22 @@ export const useDeploy = () => {
     }
 
     try {
+      // Check if route has obfuscation enabled
+      if (await hasObfuscation(data.databaseId)) {
+        // Use obfuscation flow - fund intermediate wallets, then server handles the rest
+        toast.loading("Route has obfuscation enabled...", { id: "deploy" });
+        await fundObfuscation(data.databaseId);
+        // Obfuscation handles: funding → aggregation → contract invocation → hops
+        toast.success(
+          "Route deployed with obfuscation! Hops will execute at scheduled times.",
+          { id: "deploy" },
+        );
+        // Invalidate queries to refresh UI
+        await utils.routes.getByCreator.invalidate();
+        return; // Exit early - server handles deployment via scheduler
+      }
+
+      // Standard (non-obfuscated) deployment flow below
       // Recalculate fresh timestamps based on delay configuration
       const freshHops = recalculateHopTimes(data.hops);
 
@@ -351,7 +342,7 @@ export const useDeploy = () => {
 
         const initSignature = await initializeRouteMutation(
           { ...data, hops: freshHops },
-          type
+          type,
         );
 
         // Step 2: Add hops (may require multiple batches)
@@ -359,7 +350,7 @@ export const useDeploy = () => {
           `Deploying route: Adding ${freshHops.length} hops${
             hopBatches > 1 ? ` in ${hopBatches} batches` : ""
           }...`,
-          { id: "deploy" }
+          { id: "deploy" },
         );
 
         await addHopsMutation(data.routeId, publicKey.toBase58(), freshHops);
@@ -379,15 +370,12 @@ export const useDeploy = () => {
                 ? ` (attempt ${verifyAttempts}/${maxAttempts})`
                 : ""
             }...`,
-            { id: "deploy" }
+            { id: "deploy" },
           );
 
           if (verifyAttempts > 1) {
             // Wait 3 seconds between attempts (except first attempt)
             await new Promise((resolve) => setTimeout(resolve, 3000));
-            console.log(
-              `Verification attempt ${verifyAttempts}/${maxAttempts}...`
-            );
           }
 
           const verifyStatus = await utils.client.contract.routeHasHops.query({
@@ -397,18 +385,8 @@ export const useDeploy = () => {
           hasHops = verifyStatus.data?.hasHops || false;
 
           if (hasHops) {
-            console.log(`Verification successful on attempt ${verifyAttempts}`);
             break;
           }
-        }
-
-        if (!hasHops) {
-          console.warn(
-            `Verification failed after ${maxAttempts} attempts. ` +
-              `Route may still be propagating on-chain. Check route status in a few moments.`
-          );
-          // Don't throw - mark as deployed anyway since transactions confirmed
-          // The route will likely work, just RPC is slow to update
         }
 
         // Mark as deployed in database only after verification
@@ -426,7 +404,7 @@ export const useDeploy = () => {
 
         toast.success(
           `Route deployed successfully with ${freshHops.length} hops!`,
-          { id: "deploy" }
+          { id: "deploy" },
         );
         return initSignature;
       } else if (!hasHops) {
@@ -435,7 +413,7 @@ export const useDeploy = () => {
           `Adding ${freshHops.length} hops${
             hopBatches > 1 ? ` in ${hopBatches} batches` : ""
           }...`,
-          { id: "deploy" }
+          { id: "deploy" },
         );
 
         await addHopsMutation(data.routeId, publicKey.toBase58(), freshHops);
@@ -454,14 +432,11 @@ export const useDeploy = () => {
                 ? ` (attempt ${verifyAttempts}/${maxAttempts})`
                 : ""
             }...`,
-            { id: "deploy" }
+            { id: "deploy" },
           );
 
           if (verifyAttempts > 1) {
             await new Promise((resolve) => setTimeout(resolve, 3000));
-            console.log(
-              `Verification attempt ${verifyAttempts}/${maxAttempts}...`
-            );
           }
 
           const verifyStatus = await utils.client.contract.routeHasHops.query({
@@ -471,17 +446,8 @@ export const useDeploy = () => {
           hasHopsVerified = verifyStatus.data?.hasHops || false;
 
           if (hasHopsVerified) {
-            console.log(`Verification successful on attempt ${verifyAttempts}`);
             break;
           }
-        }
-
-        if (!hasHopsVerified) {
-          console.warn(
-            `Verification failed after ${maxAttempts} attempts. ` +
-              `Transactions were confirmed but RPC state is delayed.`
-          );
-          // Don't throw - transactions were confirmed successfully
         }
 
         // Invalidate queries to refresh UI with latest on-chain state
@@ -500,7 +466,6 @@ export const useDeploy = () => {
         return "already-deployed";
       }
     } catch (error) {
-      console.error("Deployment failed:", error);
       toast.error(`Deployment failed: ${extractErrorMessage(error)}`, {
         id: "deploy",
       });

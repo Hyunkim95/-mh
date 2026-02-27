@@ -5,9 +5,9 @@ import contractService, {
   getRouteStateAccount,
 } from "../../solana/services/contract.service";
 import { utcNow } from "../../utils/timezone";
-import { PublicKey } from "@solana/web3.js";
 import BN from "bn.js";
 import { getRouteConfiguration } from "../../solana/services/contract-utils";
+import { obfuscationService } from "../../obfuscation";
 
 interface HopExecutionAttempt {
   routeId: number;
@@ -42,7 +42,39 @@ export const triggerHopJob = new CronJob("*/10 * * * * *", async () => {
     for (const routeId of uniqueRoutes) {
       let currentHop;
       try {
-        const routeState = await getRouteStateAccount(routeId);
+        // First, get the route from DB to check obfuscation status
+        // This MUST happen before fetching on-chain accounts, as obfuscation routes
+        // don't have on-chain accounts until the route trigger job deploys them
+        const routeDB = await routesService.getRouteById(routeId);
+
+        if (!routeDB) {
+          console.warn(
+            `[HopScheduler] Route ${routeId} not found in database`
+          );
+          continue;
+        }
+
+        // Check if route has obfuscation enabled BEFORE fetching on-chain accounts
+        if (routeDB.hasObfuscation) {
+          const session = await obfuscationService.getSessionByRouteId(routeId);
+          if (!session) {
+            console.warn(
+              `[HopScheduler] Route ${routeId} has obfuscation but no session found`
+            );
+            continue;
+          }
+
+          // Only proceed if obfuscation is in 'completed' status
+          // On-chain accounts don't exist until route trigger job deploys them
+          if (session.status !== 'completed') {
+            console.log(
+              `[HopScheduler] Route ${routeId} waiting for obfuscation (status: ${session.status})`
+            );
+            continue;
+          }
+        }
+        const onChainRouteId = routeDB.routeId;
+        const routeState = await getRouteStateAccount(onChainRouteId);
 
         currentHop = routeState?.currentHopIndex || 0;
         const lastHopIndex = (routeState?.hopsCount || 1) - 1;
@@ -52,10 +84,12 @@ export const triggerHopJob = new CronJob("*/10 * * * * *", async () => {
         if (currentHop > lastHopIndex) {
           console.log(`[HopScheduler] Route ${routeId} completed all hops (${currentHop}/${lastHopIndex + 1})`);
           await hopsService.markAllHopsCompleted(routeId);
+          // Also update route status to completed
+          await routesService.updateRouteStatus(routeId, routeDB.creator, 'completed');
           continue;
         }
 
-        const routeConfiguration = await getRouteConfiguration(routeId);
+        const routeConfiguration = await getRouteConfiguration(onChainRouteId);
         const hops = routeConfiguration?.hops || [];
 
         if (hops.length === 0) {
@@ -66,10 +100,10 @@ export const triggerHopJob = new CronJob("*/10 * * * * *", async () => {
         }
 
         const currentHopState = hops[currentHop];
-        
+
         const hasEnoughTimeElapsed =
           utcNow().getTime() / 1000 >= Number(currentHopState.executeAt);
-        
+
 
         if (!hasEnoughTimeElapsed) {
           console.log(
@@ -88,25 +122,17 @@ export const triggerHopJob = new CronJob("*/10 * * * * *", async () => {
           );
         }
 
-        const routeDB = await routesService.getRouteById(routeId);
-
-        if (!routeDB) {
-          console.warn(
-            `[HopScheduler] Route ${routeId} not found in database`
-          );
-          continue;
-        }
-
         // Attempt to trigger the hop
         const txSignature = await contractService.executeHop(
-          new PublicKey(routeDB?.creator),
-          new BN(routeDB?.id)
+          new BN(onChainRouteId)
         );
 
         // If route already ended, mark hops as completed
         if (txSignature === null) {
           console.log(`[HopScheduler] Route ${routeId} already ended on-chain, marking as completed`);
           await hopsService.markAllHopsCompleted(routeId);
+          // Also update route status to completed
+          await routesService.updateRouteStatus(routeId, routeDB.creator, 'completed');
           continue;
         }
 

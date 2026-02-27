@@ -2,6 +2,7 @@ import {
   server,
   hopsSchedulerService,
   dualDirectionContractEventsService,
+  obfuscationSchedulerService,
 } from "@trpc-template/server";
 
 const start = async () => {
@@ -22,6 +23,7 @@ const start = async () => {
 if (process.env.SCHEDULER_ENABLED === "true") {
   console.log("Starting hops scheduler service");
   hopsSchedulerService.triggerHopJob.start();
+  obfuscationSchedulerService.startObfuscationScheduler();
 }
 
 if (process.env.DUAL_DIRECTION_ENABLED === "true") {
