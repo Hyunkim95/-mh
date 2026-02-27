@@ -808,10 +808,11 @@ export const estimateDeploymentCost = (
   );
 
   // Transaction fees: ~5000 lamports per tx + priority fees (~200000 lamports per tx avg)
-  // 1 init tx + ceil(hopCount / HOPS_PER_BATCH) add_hops txs
+  // 1 setup tx (initializeExtraAccountMetaList) + 1 init tx + ceil(hopCount / HOPS_PER_BATCH) add_hops txs
+  const setupTxCount = 1;
   const initTxCount = 1;
   const addHopsTxCount = Math.ceil(hopCount / HOPS_PER_BATCH);
-  const totalTxCount = initTxCount + addHopsTxCount;
+  const totalTxCount = setupTxCount + initTxCount + addHopsTxCount;
   const baseTxFee = 5000; // Base transaction fee
   const priorityFee = 200000; // Estimated priority fee per tx (dynamic, can vary)
   const transactionFees = totalTxCount * (baseTxFee + priorityFee);
@@ -846,17 +847,22 @@ export const estimateDeploymentCost = (
   // 5. SOL vault PDA: holds native SOL for route
   const solVaultRent = BASE_RENT;
 
-  // 6. Per-hop network overhead (Token-2022 CPI costs, transfer hook, compute units)
+  // 6. Extra account metas PDA (for transfer hook guard): ~100 bytes
+  const extraAccountMetasSize = 100;
+  const extraAccountMetasRent = BASE_RENT + extraAccountMetasSize * LAMPORTS_PER_BYTE;
+
+  // 7. Per-hop network overhead (Token-2022 CPI costs, transfer hook, compute units)
   const perHopNetworkOverhead = 600000; // ~0.0006 SOL per hop
   const networkOverhead = hopCount * perHopNetworkOverhead;
 
-  // 7. Buffer for additional fees and variance (10%)
+  // 8. Buffer for additional fees and variance (10%)
   const baseAccountRent =
     wsolMintRent +
     wsolAccountRent +
     routeConfigRent +
     routeStateRent +
     solVaultRent +
+    extraAccountMetasRent +
     networkOverhead;
   const accountRent = Math.ceil(baseAccountRent * 1.1);
 
