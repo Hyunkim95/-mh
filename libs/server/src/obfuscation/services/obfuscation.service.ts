@@ -181,45 +181,41 @@ async function generateRandomSplit(total: BN, count: number): Promise<BN[]> {
   const remainder = total.sub(minTotal);
 
   if (remainder.gt(new BN(0))) {
-    // Use BN division to distribute remainder evenly across wallets
-    // This avoids JavaScript Number overflow for large values
-    const countBN = new BN(count);
-    const baseShare = remainder.div(countBN);
-    const extraLamports = remainder.mod(countBN).toNumber(); // mod is always < count, safe to convert
+    // Generate random weights using exponential distribution for natural variation
+    // This produces splits like [0.032, 0.008, 0.025, 0.011, 0.024] instead of
+    // near-identical amounts that are obvious on chain explorers
+    const weights: number[] = Array.from({ length: count }, () => {
+      // Use crypto.randomInt for secure randomness, scaled to [0, 1)
+      const rand = crypto.randomInt(0, 1_000_000) / 1_000_000;
+      // Exponential distribution: -ln(1 - rand * 0.9), floored at 0.1 to prevent extremes
+      return Math.max(0.1, -Math.log(1 - rand * 0.9));
+    });
 
-    // Add base share to each wallet
+    // Normalize weights to sum to 1.0
+    const weightSum = weights.reduce((acc, w) => acc + w, 0);
+    const normalizedWeights = weights.map((w) => w / weightSum);
+
+    // Multiply each weight by remainder to get extra share per wallet
+    // Use high-precision integer math: multiply first, then divide
+    const SCALE = 1_000_000_000;
+    let distributed = new BN(0);
+
     for (let i = 0; i < count; i++) {
-      splits[i] = splits[i].add(baseShare);
+      const weightScaled = Math.floor(normalizedWeights[i] * SCALE);
+      const extra = remainder.mul(new BN(weightScaled)).div(new BN(SCALE));
+      splits[i] = splits[i].add(extra);
+      distributed = distributed.add(extra);
     }
 
-    // Distribute the extra lamports randomly to some wallets
-    if (extraLamports > 0) {
-      // Generate random indices to receive extra lamports
+    // Distribute leftover lamports from rounding to random wallets
+    const leftover = remainder.sub(distributed).toNumber(); // at most count-1, safe
+    if (leftover > 0) {
       const indices = new Set<number>();
-      while (indices.size < extraLamports) {
+      while (indices.size < leftover) {
         indices.add(crypto.randomInt(0, count));
       }
       for (const idx of indices) {
         splits[idx] = splits[idx].add(new BN(1));
-      }
-    }
-
-    // Add some random variance by shuffling small amounts between wallets
-    // This provides obfuscation without using unsafe Number conversions
-    const varianceAmount = baseShare.divn(10); // 10% of base share for variance
-    if (varianceAmount.gtn(0)) {
-      for (let i = 0; i < count - 1; i++) {
-        const transferAmount = varianceAmount
-          .muln(crypto.randomInt(0, 11))
-          .divn(10); // 0-100% of variance
-        if (
-          crypto.randomInt(0, 2) === 0 &&
-          splits[i].gt(minPerWallet.add(transferAmount))
-        ) {
-          // Transfer from wallet i to wallet i+1
-          splits[i] = splits[i].sub(transferAmount);
-          splits[i + 1] = splits[i + 1].add(transferAmount);
-        }
       }
     }
   }
