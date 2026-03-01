@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 
+const BETA_PASSWORD = "enigma2025";
 const STORAGE_KEY = "multihopper_beta_access";
 
 interface BetaAccessGateProps {
@@ -13,9 +14,25 @@ export const BetaAccessGate: React.FC<BetaAccessGateProps> = ({
   onClose,
   onSuccess,
 }) => {
-  const handleUnderstand = () => {
-    localStorage.setItem(STORAGE_KEY, "true");
-    onSuccess();
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setPassword("");
+      setError(false);
+    }
+  }, [isOpen]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password === BETA_PASSWORD) {
+      localStorage.setItem(STORAGE_KEY, "true");
+      onSuccess();
+    } else {
+      setError(true);
+      setPassword("");
+    }
   };
 
   if (!isOpen) return null;
@@ -68,23 +85,94 @@ export const BetaAccessGate: React.FC<BetaAccessGateProps> = ({
 
         {/* Title */}
         <h2 className="text-xl sm:text-2xl font-medium text-mh-yellow text-center mb-3">
-          Welcome to the Beta
+          Private Beta Testing
         </h2>
 
-        {/* Beta welcome message */}
-        <p className="text-mh-yellow/80 text-sm sm:text-base text-center mb-8 leading-relaxed">
-          Welcome to the MultiHopper beta. It does not completely remove full
-          traceability YET. It abstracts your actions from the casual observer
-          and tools like BubbleMaps at this stage. Big upgrades coming soon.
+        {/* Description */}
+        <p className="text-mh-yellow/60 text-sm sm:text-base text-center mb-6 leading-relaxed">
+          We are currently in beta testing and bug fixing. To get access,
+          contact{" "}
+          <a
+            href="https://t.me/enigmafund"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-mh-yellow hover:underline"
+          >
+            @enigmafund
+          </a>{" "}
+          on Telegram or{" "}
+          <a
+            href="https://x.com/enigmafund"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-mh-yellow hover:underline"
+          >
+            X
+          </a>
+          .
         </p>
 
-        {/* I UNDERSTAND button */}
-        <button
-          onClick={handleUnderstand}
-          className="w-full py-3 bg-mh-yellow text-black font-semibold rounded-xl hover:brightness-110 transition-all"
-        >
-          I understand. Let's Hop.
-        </button>
+        {/* Password form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-mh-yellow/60 text-sm mb-2">
+              Access Code
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError(false);
+              }}
+              placeholder="Enter your access code"
+              className={`w-full px-4 py-3 bg-black/50 border rounded-xl text-mh-yellow placeholder-mh-yellow/30 focus:outline-none transition-colors ${
+                error
+                  ? "border-red-500 focus:border-red-500"
+                  : "border-mh-yellow/20 focus:border-mh-yellow/50"
+              }`}
+              autoFocus
+            />
+            {error && (
+              <p className="text-red-400 text-sm mt-2">
+                Invalid access code. Please try again.
+              </p>
+            )}
+          </div>
+
+          <button
+            type="submit"
+            className="w-full py-3 bg-mh-yellow text-black font-semibold rounded-xl hover:brightness-110 transition-all"
+          >
+            Enter Beta
+          </button>
+        </form>
+
+        {/* Social links */}
+        <div className="flex items-center justify-center gap-4 mt-6 pt-6 border-t border-mh-yellow/10">
+          <a
+            href="https://t.me/enigmafund"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-mh-yellow/50 hover:text-mh-yellow transition-colors text-sm"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18 1.897-.962 6.502-1.359 8.627-.168.9-.5 1.201-.82 1.23-.697.064-1.226-.461-1.901-.903-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.139-5.062 3.345-.479.329-.913.489-1.302.481-.428-.009-1.252-.242-1.865-.442-.752-.244-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.831-2.529 6.998-3.015 3.333-1.386 4.025-1.627 4.477-1.635.099-.002.321.023.465.141.12.098.153.228.166.331.014.103.031.336.018.52z" />
+            </svg>
+            Telegram
+          </a>
+          <a
+            href="https://x.com/enigmafund"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-mh-yellow/50 hover:text-mh-yellow transition-colors text-sm"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+            </svg>
+            X / Twitter
+          </a>
+        </div>
       </div>
     </div>
   );
