@@ -4,40 +4,18 @@ import {
   WalletDisconnectButton,
   WalletMultiButton,
 } from "@solana/wallet-adapter-react-ui";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { router } from "../router";
-import { BetaAccessGate, isBetaUnlocked } from "../components/BetaAccessGate";
 
 export const LoginPage = () => {
   const { authenticate, userData } = useSolanaAuth();
   const { publicKey } = useWallet();
-  const [showBetaGate, setShowBetaGate] = useState(!isBetaUnlocked());
 
   useEffect(() => {
     if (userData && publicKey) {
       router.navigate({ to: "/" });
     }
   }, [userData]);
-
-  const handleBetaSuccess = () => {
-    setShowBetaGate(false);
-  };
-
-  const handleBetaClose = () => {
-    router.navigate({ to: "/" });
-  };
-
-  if (showBetaGate) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-        <BetaAccessGate
-          isOpen={true}
-          onClose={handleBetaClose}
-          onSuccess={handleBetaSuccess}
-        />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">

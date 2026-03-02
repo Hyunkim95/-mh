@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { router } from "../router";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { BetaAccessGate, isBetaUnlocked } from "../components/BetaAccessGate";
 
 // Import SVG assets
 import LogoIcon from "../assets/landing/logo-icon.svg";
@@ -19,7 +18,6 @@ export const LandingPage: React.FC = () => {
   const { connected } = useWallet();
   const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [showBetaGate, setShowBetaGate] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -31,15 +29,6 @@ export const LandingPage: React.FC = () => {
   });
 
   const handleConnectWallet = () => {
-    if (isBetaUnlocked()) {
-      router.navigate({ to: "/login" });
-    } else {
-      setShowBetaGate(true);
-    }
-  };
-
-  const handleBetaSuccess = () => {
-    setShowBetaGate(false);
     router.navigate({ to: "/login" });
   };
 
@@ -1867,12 +1856,6 @@ export const LandingPage: React.FC = () => {
       `}
       </style>
 
-      {/* Beta Access Gate Modal */}
-      <BetaAccessGate
-        isOpen={showBetaGate}
-        onClose={() => setShowBetaGate(false)}
-        onSuccess={handleBetaSuccess}
-      />
     </div>
   );
 };
