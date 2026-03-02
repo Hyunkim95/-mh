@@ -390,14 +390,24 @@ git commit -m "fix: replace input.creator with ctx.user.publicKey for ownership 
 
 ## Task 6: Update Frontend — Remove creator from tRPC Inputs (C3 client)
 
-**Files:**
-- Modify: `libs/client/src/hooks/useDeploy.ts` (lines 115, 123, 419)
+**Files (7 core hooks + 6 components + 4 pages):**
+- Modify: `libs/client/src/hooks/useDeploy.ts` (lines 115, 123, 216-228, 380, 419, 443)
+- Modify: `libs/client/src/hooks/useSubmitRoute.ts` (lines 13-20, 37)
 - Modify: `libs/client/src/hooks/useInitializeTokenConfig.ts` (lines 33, 76)
+- Modify: `libs/client/src/hooks/useUpdateTokenConfig.ts` (lines 26, 68)
+- Modify: `libs/client/src/hooks/useReplayRoute.ts` (lines 9, 12, 15)
+- Modify: `libs/client/src/hooks/useObfuscationDeploy.ts` (line 51)
+- Modify: `libs/client/src/hooks/useTriggerHop.ts` (lines 3-7)
 - Modify: `libs/client/src/components/admin/AdminHopsTab.tsx` (lines 59, 100, 108, 134)
 - Modify: `libs/client/src/components/HopsTab.tsx` (lines 64, 131, 139, 175)
 - Modify: `libs/client/src/components/RouteDetailView.tsx` (line 104)
-- Modify: `libs/client/src/components/history/History.tsx`
-- Potentially other components — search for `creator:` near `.mutate` or `.query`
+- Modify: `libs/client/src/components/TokenConfigForm.tsx` (line 10)
+- Modify: `libs/client/src/components/admin/AdminTokenConfigForm.tsx`
+- Modify: `libs/client/src/components/history/RouteItem.tsx`
+- Modify: `libs/client/src/pages/ConfigureHops.tsx` (lines 82, 810)
+- Modify: `libs/client/src/pages/Multihop.tsx` (lines 99, 111, 131, 139, 175)
+- Modify: `libs/client/src/pages/TokenConfigDetail.tsx` (line 172)
+- Modify: `libs/client/src/pages/AdminMultihop.tsx` (line 87)
 
 **Step 1: Find all files passing creator to tRPC calls**
 
