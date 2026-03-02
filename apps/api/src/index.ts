@@ -13,6 +13,16 @@ const start = async () => {
     console.log(`🚀 Server ready at http://${host}:${port}`);
     console.log(`📡 tRPC endpoint: http://${host}:${port}/trpc`);
     console.log(`🏥 Health check: http://${host}:${port}/health`);
+
+    // Diagnostic heartbeat: log every 60s so we can tell when the process goes silent
+    const dynoType = process.env.SCHEDULER_ENABLED === "true" ? "scheduler" :
+                     process.env.DUAL_DIRECTION_ENABLED === "true" ? "indexer" : "web";
+    if (dynoType === "web") {
+      setInterval(() => {
+        const mem = process.memoryUsage();
+        console.log(`[heartbeat] web alive | rss=${Math.round(mem.rss / 1024 / 1024)}MB heap=${Math.round(mem.heapUsed / 1024 / 1024)}/${Math.round(mem.heapTotal / 1024 / 1024)}MB eventloop=ok`);
+      }, 60_000);
+    }
   } catch (err) {
     console.log("err", err);
     server.log.error(err);

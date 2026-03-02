@@ -18,6 +18,9 @@ const client = new Pool({
     : {
         rejectUnauthorized: false,
       },
+  max: 5,
+  connectionTimeoutMillis: 5000,
+  keepAlive: true,
 });
 
 export const db = drizzle(client, { schema });

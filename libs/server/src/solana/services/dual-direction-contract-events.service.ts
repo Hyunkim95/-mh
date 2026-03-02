@@ -318,6 +318,7 @@ process.on("SIGTERM", async () => {
   } catch (error) {
     console.error("Error during dual direction service shutdown:", error);
   }
+  process.exit(0);
 });
 
 process.on("SIGINT", async () => {

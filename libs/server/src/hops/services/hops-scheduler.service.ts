@@ -24,18 +24,31 @@ const RETRY_COOLDOWN_MINUTES = 5; // Wait 5 minutes before retrying
 const _triggerHop = async () => {
   // Run every 10 seconds
   try {
-    console.log("[HopScheduler] Starting hop scan...");
-
-    // Get overdue hops that should have been executed by now
     const currentTime = utcNow();
     const readyHops = await hopsService.getOverdueHops(currentTime);
-    console.log(
-      `[HopScheduler] Found ${
-        readyHops.length
-      } overdue hops at ${currentTime.toISOString()}`
-    );
     const uniqueRoutes = new Set(readyHops.map((hop) => hop.routeId));
 
+    // Skip routes that are in cooldown (reached max retries)
+    let skippedCount = 0;
+    for (const routeId of uniqueRoutes) {
+      const failure = failedRoutes.get(routeId);
+      if (failure && failure.failureCount >= MAX_RETRY_ATTEMPTS) {
+        const minutesSinceLastAttempt = (currentTime.getTime() - failure.lastAttempt.getTime()) / 60000;
+        if (minutesSinceLastAttempt < RETRY_COOLDOWN_MINUTES) {
+          skippedCount++;
+          uniqueRoutes.delete(routeId);
+        } else {
+          // Cooldown expired, reset failure count and retry
+          failure.failureCount = 0;
+        }
+      }
+    }
+
+    if (readyHops.length > 0) {
+      console.log(
+        `[HopScheduler] ${readyHops.length} overdue hops, ${uniqueRoutes.size} routes to process, ${skippedCount} in cooldown`
+      );
+    }
 
     for (const routeId of uniqueRoutes) {
       let currentHop;
@@ -156,31 +169,19 @@ const _triggerHop = async () => {
       } catch (error: any) {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
-        const errorLogs = error?.logs || error?.transactionError?.logs;
-        const errorStack = error instanceof Error ? error.stack : undefined;
         console.error(
           `[HopScheduler] Failed to trigger hop ${routeId}: ${errorMessage}`
         );
-        if (errorLogs) {
-          console.error(`[HopScheduler] Transaction logs for route ${routeId}:`, JSON.stringify(errorLogs));
-        }
-        if (errorStack) {
-          console.error(`[HopScheduler] Stack for route ${routeId}:`, errorStack);
-        }
-
-        const fullError = errorLogs
-          ? `${errorMessage} | Logs: ${JSON.stringify(errorLogs)}`
-          : errorMessage;
 
         // Record the failure
-        recordHopFailure(routeId, fullError);
+        recordHopFailure(routeId, errorMessage);
         if (currentHop !== undefined && currentHop !== null) {
           // Update hop with error
           await hopsService.updateHopExecutionByIndex(
             routeId,
             currentHop,
             {
-              error: fullError,
+              error: errorMessage,
             }
           );
         }
@@ -214,13 +215,9 @@ function recordHopFailure(routeId: number, error: string) {
   }
 
   const failureInfo = failedRoutes.get(routeId)!;
-  console.log(
-    `[HopScheduler] Recorded failure ${failureInfo.failureCount}/${MAX_RETRY_ATTEMPTS} for hop ${routeId}: ${error}`
-  );
-
-  if (failureInfo.failureCount >= MAX_RETRY_ATTEMPTS) {
+  if (failureInfo.failureCount >= MAX_RETRY_ATTEMPTS && failureInfo.failureCount === MAX_RETRY_ATTEMPTS) {
     console.warn(
-      `[HopScheduler] Hop ${routeId} has reached maximum retry attempts. Will retry after ${RETRY_COOLDOWN_MINUTES} minutes.`
+      `[HopScheduler] Route ${routeId} reached ${MAX_RETRY_ATTEMPTS} failures, cooling down ${RETRY_COOLDOWN_MINUTES}m`
     );
   }
 }
