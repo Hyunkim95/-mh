@@ -232,6 +232,3 @@ export const triggerHopJob = new CronJob("*/10 * * * * *", _triggerHop);
 export const hopsSchedulerService = {
   triggerHopJob,
 };
-
-
-_triggerHop();
