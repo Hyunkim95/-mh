@@ -345,7 +345,7 @@ export const LandingPage: React.FC = () => {
               className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-normal leading-[1.05] mb-4 sm:mb-8 tracking-tight"
               style={{ animation: "fadeInUp 0.6s ease-out 0.1s both" }}
             >
-              Send Crypto, <span className="text-mh-yellow">Privately</span>
+              Send Private, <span className="text-mh-yellow">Programmable</span> Money
             </h1>
 
             <h2
