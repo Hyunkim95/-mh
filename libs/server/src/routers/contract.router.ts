@@ -243,12 +243,10 @@ export const contractRouter = router({
           payer,
           parsedConfig
         );
-        const signer = executorService.getSigner();
 
-        const serializedTransaction = await signAndSerialize(
+        const serializedTransaction = await serialize(
           transaction,
           payer,
-          signer,
           params.connection
         );
 

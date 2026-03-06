@@ -1433,13 +1433,16 @@ const updateTokenConfig = async (
 ) => {
   const program = buildProgram(params);
   const tokenConfigPda = await getTokenConfigPda();
-  const signer = executorService.getSigner();
+
+  // Read the current on-chain signer from token config
+  const tokenConfigAccount = await program.account.tokenConfig.fetch(tokenConfigPda);
+  const currentSigner = tokenConfigAccount.signer as PublicKey;
 
   return await program.methods
     .updateTokenConfig(
       tokenConfigParams.minTransfer || null,
       tokenConfigParams.feeBps || null,
-      signer.publicKey,
+      null, // keep current signer unchanged
       tokenConfigParams.feeTreasury || null,
       tokenConfigParams.maxHops || null,
       tokenConfigParams.flatFeeLamports || null,
@@ -1447,7 +1450,7 @@ const updateTokenConfig = async (
     .accountsPartial({
       tokenConfig: tokenConfigPda,
       creator: payer,
-      signer: signer.publicKey,
+      signer: currentSigner,
     })
     .instruction();
 };
