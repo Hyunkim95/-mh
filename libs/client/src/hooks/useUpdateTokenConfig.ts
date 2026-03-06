@@ -30,6 +30,9 @@ export const useUpdateTokenConfig = ({
       );
       const output = await connection.simulateTransaction(transaction);
       console.log("Simulation output:", output);
+      if (output.value.err) {
+        throw new Error(`Simulation failed: ${JSON.stringify(output.value.err)}`);
+      }
       const signature = await sendTransaction(transaction, connection, {
         skipPreflight: true,
       });
@@ -44,7 +47,7 @@ export const useUpdateTokenConfig = ({
       );
 
       if (confirmation.value.err) {
-        throw new Error(`Transaction failed: ${confirmation.value.err}`);
+        throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
       }
 
       toast.success(

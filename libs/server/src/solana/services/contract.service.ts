@@ -1246,7 +1246,7 @@ export const signAndSerialize = async (
   provider: Connection,
 ) => {
   const { blockhash, lastValidBlockHeight } =
-    await provider.getLatestBlockhash("finalized");
+    await provider.getLatestBlockhash("confirmed");
   transaction.recentBlockhash = blockhash;
   transaction.lastValidBlockHeight = lastValidBlockHeight;
   transaction.feePayer = payer;
