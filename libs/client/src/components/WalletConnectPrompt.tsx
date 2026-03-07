@@ -41,9 +41,6 @@ export const WalletConnectPrompt: React.FC = () => {
                 Phantom
               </span>
               <span className="px-2 py-1 bg-gray-100 rounded text-xs">
-                Solflare
-              </span>
-              <span className="px-2 py-1 bg-gray-100 rounded text-xs">
                 Backpack
               </span>
               <span className="px-2 py-1 bg-gray-100 rounded text-xs">
