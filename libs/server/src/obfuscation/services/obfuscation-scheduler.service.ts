@@ -14,6 +14,7 @@ import {
   initializeRouteFromWalletX,
   addHopsFromWalletX,
   isRouteDeployedOnChain,
+  getRouteStateAccount,
 } from "../../solana/services/contract.service";
 import routesService from "../../routes/services/routes.service";
 
@@ -334,6 +335,24 @@ async function processAggregations(): Promise<void> {
  * - Actual fee tracking
  */
 async function processDeploymentAndCleanup(): Promise<void> {
+  // Safety check: recover sessions stuck in "funding" where all wallets are already funded
+  // This can happen if the client-side confirmFunding flow errors after on-chain success
+  const stuckFundingSessions = await db.query.obfuscationSessionsSchema.findMany({
+    where: eq(obfuscationSessionsSchema.status, "funding"),
+  });
+
+  for (const stuckSession of stuckFundingSessions) {
+    try {
+      const allFunded = await intermediateWalletService.areAllWalletsFunded(stuckSession.id);
+      if (allFunded) {
+        console.log(`[ObfuscationScheduler] [Recovery] Session ${stuckSession.id} stuck in "funding" but all wallets funded — advancing to aggregating`);
+        await obfuscationService.scheduleAggregations(stuckSession.id);
+      }
+    } catch (error) {
+      console.error(`[ObfuscationScheduler] [Recovery] Error checking stuck session ${stuckSession.id}:`, error);
+    }
+  }
+
   // Find sessions in 'aggregating' or 'deploying' status (deploying may need retry)
   const sessions = await db.query.obfuscationSessionsSchema.findMany({
     where: or(
@@ -416,8 +435,23 @@ async function processDeploymentAndCleanup(): Promise<void> {
 
       const isDeployed = isDeployedInDb || isDeployedOnChain;
 
-      if (!isDeployed) {
-        console.log(`[ObfuscationScheduler] [Deployment] Session ${session.id}: Route not deployed yet, starting deployment...`);
+      // Check if route is deployed but missing hops on-chain (incomplete deployment)
+      // This happens when initialization succeeds but addHops fails
+      let needsHopsOnly = false;
+      if (isDeployed) {
+        try {
+          const routeState = await getRouteStateAccount(route.routeId);
+          if (routeState && routeState.hopsCount === 0) {
+            needsHopsOnly = true;
+            console.log(`[ObfuscationScheduler] [Deployment] Session ${session.id}: Route ${route.routeId} deployed but has 0 hops on-chain — adding hops`);
+          }
+        } catch {
+          // If we can't read route state, skip
+        }
+      }
+
+      if (!isDeployed || needsHopsOnly) {
+        console.log(`[ObfuscationScheduler] [Deployment] Session ${session.id}: ${needsHopsOnly ? 'Adding missing hops' : 'Route not deployed yet, starting deployment'}...`);
 
         // Update session status to deploying
         await obfuscationService.updateSessionStatus(session.id, "deploying");
@@ -466,6 +500,29 @@ async function processDeploymentAndCleanup(): Promise<void> {
         }
 
         try {
+          if (needsHopsOnly) {
+            // Route already initialized — just add hops
+            console.log(`[ObfuscationScheduler] Adding hops to existing route ${route.routeId} for session ${session.id}`);
+
+            await addHopsFromWalletX(
+              walletXKeypair,
+              new BN(route.routeId),
+              hops,
+            );
+
+            const dynamicFees = await obfuscationService.getDynamicFees();
+            const batchCount = Math.ceil(hops.length / 3);
+            actualFeesLamports += batchCount * (5000 + dynamicFees.priorityFeeLamports);
+
+            await routesService.updateRouteStatus(
+              route.id,
+              route.creator,
+              "deployed",
+              { deploymentTxHash: route.deploymentTxHash || "recovered-from-chain" },
+            );
+
+            console.log(`[ObfuscationScheduler] Successfully added hops to route ${route.routeId} for session ${session.id}`);
+          } else {
           // Initialize route from Wallet X
           // IMPORTANT: Use route.routeId (on-chain identifier), not route.id (database ID)
           console.log(`[ObfuscationScheduler] Initializing route ${route.routeId} from Wallet X for session ${session.id}`);
@@ -502,6 +559,7 @@ async function processDeploymentAndCleanup(): Promise<void> {
           );
 
           console.log(`[ObfuscationScheduler] Successfully deployed route ${route.routeId} for session ${session.id}, tx: ${signature}`);
+          } // end else (full deployment)
         } catch (deployError: any) {
           const errorMessage = deployError instanceof Error ? deployError.message : "Unknown deployment error";
           console.error(`[ObfuscationScheduler] Deployment failed for session ${session.id}:`, errorMessage);
