@@ -328,17 +328,26 @@ export const useDeploy = () => {
     try {
       // Check if route has obfuscation enabled
       if (await hasObfuscation(data.databaseId)) {
-        // Use obfuscation flow - fund intermediate wallets, then server handles the rest
-        toast.loading("Route has obfuscation enabled...", { id: "deploy" });
-        await fundObfuscation(data.databaseId);
-        // Obfuscation handles: funding → aggregation → contract invocation → hops
-        toast.success(
-          "Route deployed with obfuscation! Hops will execute at scheduled times.",
-          { id: "deploy" },
-        );
-        // Invalidate queries to refresh UI
-        await utils.routes.getByCreator.invalidate();
-        return; // Exit early - server handles deployment via scheduler
+        // Check if obfuscation session is already completed (e.g., retrying incomplete deployment)
+        const sessionResult = await utils.client.routes.getObfuscationSession.query({
+          routeId: data.databaseId,
+        });
+        const sessionStatus = sessionResult?.data?.status;
+
+        if (sessionStatus !== "completed") {
+          // Use obfuscation flow - fund intermediate wallets, then server handles the rest
+          toast.loading("Route has obfuscation enabled...", { id: "deploy" });
+          await fundObfuscation(data.databaseId);
+          // Obfuscation handles: funding → aggregation → contract invocation → hops
+          toast.success(
+            "Route deployed with obfuscation! Hops will execute at scheduled times.",
+            { id: "deploy" },
+          );
+          // Invalidate queries to refresh UI
+          await utils.routes.getByCreator.invalidate();
+          return; // Exit early - server handles deployment via scheduler
+        }
+        // Session completed but route may need hops added — fall through to standard flow
       }
 
       // Standard (non-obfuscated) deployment flow below
