@@ -141,7 +141,7 @@ export const LandingPage: React.FC = () => {
       {/* Beta Warning Banner */}
       <div
         className="w-full bg-[#FBFF69] text-black text-center text-sm font-medium"
-        style={{ padding: "15px 16px" }}
+        style={{ padding: "7px 16px" }}
       >
         This product is currently in beta and has not been audited. Use at your
         own risk.
@@ -647,7 +647,7 @@ export const LandingPage: React.FC = () => {
             </div>
 
             <h2 className="text-2xl sm:text-3xl lg:text-5xl not-italic font-normal leading-10 text-center">
-              Welcome to programmable money
+              Welcome to <br />programmable money
             </h2>
           </div>
 
