@@ -244,9 +244,12 @@ export const contractRouter = router({
           parsedConfig
         );
 
-        const serializedTransaction = await serialize(
+        // The on-chain program requires both the admin wallet and the executor signer
+        const executorSigner = executorService.getSigner();
+        const serializedTransaction = await signAndSerialize(
           transaction,
           payer,
+          executorSigner,
           params.connection
         );
 
@@ -284,9 +287,12 @@ export const contractRouter = router({
           parsedConfig
         );
 
-        const serializedTransaction = await serialize(
+        // The on-chain program requires both the admin wallet and the executor signer
+        const executorSigner = executorService.getSigner();
+        const serializedTransaction = await signAndSerialize(
           transaction,
           creatorKey,
+          executorSigner,
           params.connection
         );
 
