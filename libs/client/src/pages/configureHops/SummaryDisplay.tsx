@@ -8,6 +8,7 @@ interface SummaryDisplayProps {
   hops: HopConfigItem[]
   selectedAsset: TokenAsset | null
   selectedAmount: number
+  feePercentage?: number
 }
 
 export const SummaryDisplay: React.FC<SummaryDisplayProps> = ({
@@ -15,6 +16,7 @@ export const SummaryDisplay: React.FC<SummaryDisplayProps> = ({
   hops,
   selectedAsset,
   selectedAmount,
+  feePercentage = 0.005,
 }) => {
   const [imageError, setImageError] = useState(false);
   const usdPerToken = React.useMemo(() => {
@@ -168,6 +170,35 @@ export const SummaryDisplay: React.FC<SummaryDisplayProps> = ({
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Fee Breakdown */}
+      <div className='bg-[var(--eerie-black-700)] rounded-2xl p-4 mt-2'>
+        <div className='text-xs text-[var(--white-100-transparency-60)] mb-3 uppercase tracking-wide'>
+          Fee Breakdown
+        </div>
+        <div className='flex flex-col gap-2'>
+          <div className='flex items-center justify-between'>
+            <span className='text-sm text-[var(--white-100-transparency-60)]'>Amount</span>
+            <span className='text-sm text-[var(--white-100)]'>
+              {selectedAmount} {selectedAsset?.symbol ?? ''}
+            </span>
+          </div>
+          <div className='flex items-center justify-between'>
+            <span className='text-sm text-[var(--white-100-transparency-60)]'>
+              Platform Fee ({(feePercentage * 100).toFixed(1)}%)
+            </span>
+            <span className='text-sm text-[var(--white-100)]'>
+              {(selectedAmount * feePercentage).toFixed(6)} {selectedAsset?.symbol ?? ''}
+            </span>
+          </div>
+          <div className='flex items-center justify-between pt-2 border-t border-[var(--white-100-transparency-10)]'>
+            <span className='text-sm font-medium text-[var(--white-100)]'>Total</span>
+            <span className='text-sm font-medium text-[var(--laser-lemon-500)]'>
+              {(selectedAmount * (1 + feePercentage)).toFixed(6)} {selectedAsset?.symbol ?? ''}
+            </span>
           </div>
         </div>
       </div>

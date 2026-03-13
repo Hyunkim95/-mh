@@ -777,9 +777,7 @@ export const LandingPage: React.FC = () => {
 
           <div className="flex items-center justify-center w-[100%] mt-16 ">
             <button
-              onClick={() => {
-                console.log("Send assets CTA");
-              }}
+              onClick={handleConnectWallet}
               className="not-italic font-medium text-sm text-center max-w-[124px] w-full py-2 bg-mh-yellow text-black rounded-xl hover:brightness-110 hover:shadow-lg hover:shadow-mh-yellow/20 transition-all duration-300"
               style={{
                 // fontFamily: 'Clash Grotesk Variable',

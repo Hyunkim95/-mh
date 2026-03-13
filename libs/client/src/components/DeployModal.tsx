@@ -270,7 +270,7 @@ export const DeployModal: React.FC<DeployModalProps> = ({
                 </div>
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm text-[var(--philippine-gray-500)]">
-                    Platform Fee (1%)
+                    Platform Fee ({((costEstimate.data.data.feeBps ?? 100) / 100).toFixed(1)}%)
                   </span>
                   <span className="text-[var(--white-100)] font-medium">
                     {costEstimate.data.data.breakdown.percentageFeeSOL} SOL
@@ -309,7 +309,7 @@ export const DeployModal: React.FC<DeployModalProps> = ({
               </div>
             )}
 
-            {/* Obfuscation Cost Breakdown - Only shown when route has obfuscation */}
+            {/* Abstraction Cost Breakdown - Only shown when route has obfuscation */}
             {route.hasObfuscation && (
               <div className="bg-[var(--eerie-black-700)] rounded-2xl p-4 mb-6">
                 {/* Header with privacy icon */}
@@ -347,7 +347,7 @@ export const DeployModal: React.FC<DeployModalProps> = ({
                 {/* Error state */}
                 {obfuscationCostEstimate.isError && (
                   <div className="text-sm text-red-400 text-center py-2">
-                    Unable to calculate obfuscation costs
+                    Unable to calculate abstraction costs
                   </div>
                 )}
 

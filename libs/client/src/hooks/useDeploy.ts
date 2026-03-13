@@ -336,11 +336,11 @@ export const useDeploy = () => {
 
         if (sessionStatus !== "completed") {
           // Use obfuscation flow - fund intermediate wallets, then server handles the rest
-          toast.loading("Route has obfuscation enabled...", { id: "deploy" });
+          toast.loading("Route has abstraction enabled...", { id: "deploy" });
           await fundObfuscation(data.databaseId);
           // Obfuscation handles: funding → aggregation → contract invocation → hops
           toast.success(
-            "Route deployed with obfuscation! Hops will execute at scheduled times.",
+            "Route deployed with abstraction! Hops will execute at scheduled times.",
             { id: "deploy" },
           );
           // Invalidate queries to refresh UI
@@ -350,7 +350,7 @@ export const useDeploy = () => {
         // Session completed but route may need hops added — fall through to standard flow
       }
 
-      // Standard (non-obfuscated) deployment flow below
+      // Standard (non-abstracted) deployment flow below
       // Recalculate fresh timestamps based on delay configuration
       const freshHops = recalculateHopTimes(data.hops);
 

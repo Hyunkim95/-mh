@@ -110,7 +110,7 @@ export const AdminTokenConfigForm: React.FC<AdminTokenConfigFormProps> = ({
           <label className={labelBase}>Fee Percentage (%)</label>
           <input
             type='number'
-            step='0.01'
+            step='0.001'
             min='0'
             max='100'
             value={humanReadableConfig.feeBps}

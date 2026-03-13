@@ -144,7 +144,7 @@ export const useObfuscationDeploy = () => {
         throw new Error("All funding transactions failed");
       }
     } catch (error) {
-      toast.error(`Obfuscation funding failed: ${extractErrorMessage(error)}`, {
+      toast.error(`Abstraction funding failed: ${extractErrorMessage(error)}`, {
         id: "obfuscation",
       });
       throw error;

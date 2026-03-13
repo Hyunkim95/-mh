@@ -19,7 +19,7 @@ interface EasyRouteFormProps {
   onDestinationWalletChange: (wallet: string) => void
   walletError: string | null
   onWalletValidate: (wallet: string) => void
-  feePercentage?: number // Fee as decimal (e.g., 0.01 for 1%)
+  feePercentage?: number // Fee as decimal (e.g., 0.005 for 0.5%)
 }
 
 export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
@@ -34,7 +34,7 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
   onDestinationWalletChange,
   walletError,
   onWalletValidate,
-  feePercentage = 0.01, // Default 1% fee
+  feePercentage = 0.005, // Default 0.5% fee
 }) => {
   const [imageError, setImageError] = useState(false)
   const [isEditingAmount, setIsEditingAmount] = useState(false)

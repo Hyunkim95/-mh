@@ -11,7 +11,7 @@ import { describe, it, expect } from "vitest";
  */
 
 // Default fee percentage used when config unavailable
-const DEFAULT_FEE_PERCENTAGE = 0.01;
+const DEFAULT_FEE_PERCENTAGE = 0.005;
 
 // Simulate the fee percentage calculation from ConfigureHops.tsx
 function calculateFeePercentage(
@@ -136,13 +136,13 @@ describe("feePercentage calculation from token config", () => {
   });
 
   describe("Fallback behavior", () => {
-    it("should use default 1% when SPL config unavailable", () => {
+    it("should use default 0.5% when SPL config unavailable", () => {
       const feePercentage = calculateFeePercentage("SPL", null, null);
 
       expect(feePercentage).toBe(DEFAULT_FEE_PERCENTAGE);
     });
 
-    it("should use default 1% when SOL config unavailable", () => {
+    it("should use default 0.5% when SOL config unavailable", () => {
       const feePercentage = calculateFeePercentage("SOL", null, null);
 
       expect(feePercentage).toBe(DEFAULT_FEE_PERCENTAGE);

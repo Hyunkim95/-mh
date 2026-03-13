@@ -796,7 +796,7 @@ export const contractRouter = router({
         const { hopCount, amountLamports, type } = input;
 
         // Get token config to get actual fee values
-        let feeBps = 100; // Default 1%
+        let feeBps = 50; // Default 0.5%
         let flatFeeLamports = 10000; // Default 0.00001 SOL
 
         try {

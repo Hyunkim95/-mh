@@ -8,12 +8,14 @@ interface EasyRouteSummaryProps {
   selectedAsset: TokenAsset | null
   selectedAmount: number
   easyRouteConfig: EasyRouteConfig
+  feePercentage?: number
 }
 
 export const EasyRouteSummary: React.FC<EasyRouteSummaryProps> = ({
   selectedAsset,
   selectedAmount,
   easyRouteConfig,
+  feePercentage = 0.005,
 }) => {
   const [imageError, setImageError] = useState(false)
 
@@ -115,6 +117,35 @@ export const EasyRouteSummary: React.FC<EasyRouteSummaryProps> = ({
             </div>
             <div className="text-xs text-[var(--philippine-gray-500)] mt-1">
               {easyRouteConfig.destinationWallet}
+            </div>
+          </div>
+        </div>
+
+        {/* Fee Breakdown */}
+        <div className="mt-6 pt-4 border-t border-[var(--white-100-transparency-10)]">
+          <div className="text-xs text-[var(--philippine-gray-500)] mb-3 uppercase tracking-wide">
+            Fee Breakdown
+          </div>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-[var(--philippine-gray-500)]">Amount</span>
+              <span className="text-sm text-[var(--white-100)]">
+                {selectedAmount} {selectedAsset?.symbol || ''}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-[var(--philippine-gray-500)]">
+                Platform Fee ({(feePercentage * 100).toFixed(1)}%)
+              </span>
+              <span className="text-sm text-[var(--white-100)]">
+                {(selectedAmount * feePercentage).toFixed(6)} {selectedAsset?.symbol || ''}
+              </span>
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t border-[var(--white-100-transparency-10)]">
+              <span className="text-sm font-medium text-[var(--white-100)]">Total</span>
+              <span className="text-sm font-medium text-[var(--laser-lemon-500)]">
+                {(selectedAmount * (1 + feePercentage)).toFixed(6)} {selectedAsset?.symbol || ''}
+              </span>
             </div>
           </div>
         </div>

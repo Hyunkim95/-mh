@@ -10,7 +10,7 @@ interface AmountSelectorProps {
   asset: TokenAsset | null
   amount: number
   onAmountChange: (amount: number) => void
-  feePercentage?: number // Fee as decimal (e.g., 0.01 for 1%)
+  feePercentage?: number // Fee as decimal (e.g., 0.005 for 0.5%)
   onBalanceRefreshed?: (newBalance: number) => void
 }
 
@@ -18,7 +18,7 @@ export const AmountSelector: React.FC<AmountSelectorProps> = ({
   asset,
   amount,
   onAmountChange,
-  feePercentage = 0.01, // Default 1% fee
+  feePercentage = 0.005, // Default 0.5% fee
   onBalanceRefreshed,
 }) => {
   const [hoveredAmount, setHoveredAmount] = useState(false)

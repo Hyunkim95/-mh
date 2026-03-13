@@ -780,7 +780,7 @@ const calculateExecutorFunding = (hopCount: number): BN => {
 export const estimateDeploymentCost = (
   hopCount: number,
   amountLamports: number,
-  feeBps: number = 100,
+  feeBps: number = 50, // Fee in basis points (e.g., 50 = 0.5%)
   flatFeeLamports: number = 10000,
 ): {
   executorFunding: number;

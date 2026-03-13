@@ -45,8 +45,8 @@ import HopsAndDelaysIcon from '../assets/configure-hops/hops-and-delays-icon.svg
 import FinalDestinationIcon from '../assets/configure-hops/final-destination-icon.svg'
 import ThreeLinesIndicator from '../assets/configure-hops/three-lines-indicator.svg'
 
-// Default fee percentage (1% = 0.01) - used as fallback if config fetch fails
-const DEFAULT_FEE_PERCENTAGE = 0.01
+// Default fee percentage (0.5% = 0.005) - used as fallback if config fetch fails
+const DEFAULT_FEE_PERCENTAGE = 0.005
 
 export const ConfigureHops: React.FC = () => {
   // Tab state - now includes 'mode' step: choose → mode → configure → summary
@@ -505,6 +505,7 @@ walletC,10`
           selectedAsset={selectedAsset}
           selectedAmount={selectedAmount}
           easyRouteConfig={easyRouteConfig}
+          feePercentage={feePercentage}
         />
       ) : (
         <>
@@ -522,6 +523,7 @@ walletC,10`
             routeName={routeName}
             selectedAsset={selectedAsset}
             selectedAmount={selectedAmount}
+            feePercentage={feePercentage}
           />
         </>
       )}

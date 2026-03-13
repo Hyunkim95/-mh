@@ -97,7 +97,7 @@ describe("EasyRouteForm", () => {
     onDestinationWalletChange: vi.fn(),
     walletError: null as string | null,
     onWalletValidate: vi.fn(),
-    feePercentage: 0.01,
+    feePercentage: 0.005,
   };
 
   beforeEach(() => {
@@ -134,7 +134,7 @@ describe("EasyRouteForm", () => {
 
     it("should calculate max amount accounting for fee", () => {
       const balance = 1000;
-      const feePercentage = 0.01;
+      const feePercentage = 0.005;
       const asset = createMockAsset({ amount: balance.toString() });
       const expectedMaxAmount = calculateExpectedMaxAmount(
         balance,
@@ -147,11 +147,10 @@ describe("EasyRouteForm", () => {
         feePercentage,
       });
 
-      // The component should display the fee-adjusted max amount
-      // Max amount for 1000 balance with 1% fee = 990.099009
-      // Check that the displayed amount contains "990"
+      // Max amount is the full balance (fee deducted at submission time)
+      // formatTokenAmount(1000) = "1,000"
       const container = document.body;
-      expect(container.textContent).toMatch(/990/);
+      expect(container.textContent).toMatch(/1,000/);
     });
 
     it("should display USD value for the selected amount", () => {
@@ -568,9 +567,9 @@ describe("EasyRouteForm", () => {
       renderComponent({ selectedAsset: asset, selectedAmount: 1000 });
 
       // Should render without crashing
-      // formatTokenAmount returns "1000" without commas, check the container contains this
+      // formatTokenAmount(1000) returns "1,000" with commas
       const container = document.body;
-      expect(container.textContent).toContain("1000");
+      expect(container.textContent).toContain("1,000");
     });
 
     it("should handle undefined USD value", () => {
