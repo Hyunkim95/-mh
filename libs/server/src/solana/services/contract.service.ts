@@ -1388,6 +1388,7 @@ export const getTokenConfigSPL = async () => {
     const tokenConfigAccount =
       await program.account.tokenConfig.fetch(tokenConfigPda);
     return {
+      creator: tokenConfigAccount.creator.toBase58(),
       minTransfer: tokenConfigAccount.minTransfer.toString(),
       feeBps: (
         Number(tokenConfigAccount.feeBps.toString()) / 10_000
@@ -1408,6 +1409,7 @@ export const getTokenConfigSOL = async () => {
     const tokenConfigAccount =
       await program.account.tokenConfig.fetch(tokenConfigPda);
     return {
+      creator: tokenConfigAccount.creator.toBase58(),
       minTransfer: tokenConfigAccount.minTransfer.toString(),
       feeBps: tokenConfigAccount.feeBps.toString(),
       feeTreasury: tokenConfigAccount.feeTreasury.toBase58(),
@@ -1438,21 +1440,26 @@ const updateTokenConfig = async (
   const tokenConfigAccount = await program.account.tokenConfig.fetch(tokenConfigPda);
   const currentSigner = tokenConfigAccount.signer as PublicKey;
 
-  return await program.methods
-    .updateTokenConfig(
-      tokenConfigParams.minTransfer || null,
-      tokenConfigParams.feeBps || null,
-      null, // keep current signer unchanged
-      tokenConfigParams.feeTreasury || null,
-      tokenConfigParams.maxHops || null,
-      tokenConfigParams.flatFeeLamports || null,
-    )
-    .accountsPartial({
-      tokenConfig: tokenConfigPda,
-      creator: payer,
-      signer: currentSigner,
-    })
-    .instruction();
+  // Build instruction manually to avoid Anchor's "unknown signer" validation
+  // when the on-chain signer differs from the provider wallet
+  const data = program.coder.instruction.encode('updateTokenConfig', {
+    minTransfer: tokenConfigParams.minTransfer || null,
+    feeBps: tokenConfigParams.feeBps || null,
+    signer: null, // keep current signer unchanged
+    feeTreasury: tokenConfigParams.feeTreasury || null,
+    maxHops: tokenConfigParams.maxHops || null,
+    flatFeeLamports: tokenConfigParams.flatFeeLamports || null,
+  });
+
+  return new TransactionInstruction({
+    keys: [
+      { pubkey: tokenConfigPda, isSigner: false, isWritable: true },
+      { pubkey: payer, isSigner: true, isWritable: false },
+      { pubkey: currentSigner, isSigner: true, isWritable: false },
+    ],
+    programId: program.programId,
+    data,
+  });
 };
 
 const updateSolTokenConfigWithTransaction = async (

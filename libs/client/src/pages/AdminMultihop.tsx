@@ -35,6 +35,12 @@ export const AdminMultihop = () => {
 
   const hasTokenConfig = !!tokenConfigs?.data;
 
+  const isWalletMismatch =
+    hasTokenConfig &&
+    publicKey &&
+    tokenConfigs?.data?.creator &&
+    publicKey.toBase58() !== tokenConfigs.data.creator
+
   return (
     <div className='min-h-screen text-[var(--white-100)] flex flex-col items-center gap-9 w-full relative'>
       <div className='min-h-screen flex w-full fixed'>
@@ -44,6 +50,17 @@ export const AdminMultihop = () => {
         </div>
       </div>
       <NavBar />
+
+      {/* Wallet mismatch warning */}
+      {isWalletMismatch && (
+        <div className='w-full px-20 relative z-30'>
+          <div className='flex items-start gap-3 p-4 rounded-2xl bg-[var(--red-pastel-500)]/10 border border-[var(--red-pastel-500)]'>
+            <span className='text-sm text-[var(--red-pastel-500)]'>
+              Connected wallet ({publicKey.toBase58().slice(0, 4)}...{publicKey.toBase58().slice(-4)}) does not match the on-chain token config creator ({tokenConfigs!.data!.creator!.slice(0, 4)}...{tokenConfigs!.data!.creator!.slice(-4)}). Updates will fail. Please connect with the creator wallet.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className='w-full px-20 relative z-30'>
