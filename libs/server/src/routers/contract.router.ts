@@ -122,6 +122,11 @@ const withdrawOnBehalfInputSchema = z.object({
   amount: z.string(),
 });
 
+const withdrawFromSignerInputSchema = z.object({
+  to: publicKeySchema,
+  amount: z.string(),
+});
+
 const triggerHopInputSchema = z.object({
   routeId: z.number(),
   creator: publicKeySchema,

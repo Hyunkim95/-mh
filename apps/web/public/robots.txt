@@ -1,4 +1,27 @@
 User-agent: *
 Allow: /
 
+# Explicitly allow search engine bots
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+# Allow AI crawlers for search and discovery
+User-agent: Google-Extended
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
 Sitemap: https://multihopper.com/sitemap.xml
