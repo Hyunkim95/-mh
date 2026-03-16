@@ -355,7 +355,7 @@ export const LandingPage: React.FC = () => {
                 fontFamily: "Roboto, sans-serif",
               }}
             >
-              Create Private Routes in Seconds
+              Regulated-Ready On-Chain Asset Routing in Seconds
             </h2>
 
             {/* Main Feature Card */}
@@ -629,7 +629,7 @@ export const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Privacy in Motion / Programmable Money Section */}
+      {/* Programmable Infrastructure for Institutional Digital Assets / Programmable Money Section */}
       <section className="w-full px-4 sm:px-6 lg:px-8 py-12 sm:py-14 lg:py-20">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-8 sm:mb-14">
@@ -642,7 +642,7 @@ export const LandingPage: React.FC = () => {
                 className="text-xs sm:text-base not-italic font-medium leading-5 text-white"
                 style={{ fontFamily: "Roboto, sans-serif" }}
               >
-                Privacy in Motion
+                Programmable Infrastructure for Institutional Digital Assets
               </span>
             </div>
 
@@ -806,7 +806,7 @@ export const LandingPage: React.FC = () => {
                 className="text-xs sm:text-base not-italic font-medium leading-5 text-white"
                 style={{ fontFamily: "Roboto, sans-serif" }}
               >
-                Privacy in Motion
+                Programmable Infrastructure for Institutional Digital Assets
               </span>
             </div>
 
@@ -1592,6 +1592,26 @@ export const LandingPage: React.FC = () => {
                         className="hover:text-white transition-colors"
                       >
                         FAQ
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        href="https://www.strategic-super-reserve.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-white transition-colors"
+                      >
+                        Strategic Super Reserve
+                      </a>
+                    </li>
+                    <li>
+                      <a
+                        href="https://www.enigmafund.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-white transition-colors"
+                      >
+                        EnigmaFund Venture Capital
                       </a>
                     </li>
                   </ul>
