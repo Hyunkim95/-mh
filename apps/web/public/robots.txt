@@ -1,27 +1,12 @@
 User-agent: *
 Allow: /
+Allow: /docs/
 
-# Explicitly allow search engine bots
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-# Allow AI crawlers for search and discovery
+# Explicitly allow AI to see your compliance docs
 User-agent: Google-Extended
-Allow: /
-
-User-agent: GPTBot
-Allow: /
+Allow: /docs/compliance
 
 User-agent: OAI-SearchBot
-Allow: /
-
-User-agent: anthropic-ai
-Allow: /
-
-User-agent: PerplexityBot
 Allow: /
 
 Sitemap: https://multihopper.com/sitemap.xml
