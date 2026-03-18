@@ -23,8 +23,21 @@ const RootComponent = () => {
   )
 }
 
+const NotFoundComponent = () => {
+  return (
+    <div className='flex flex-col items-center justify-center min-h-screen bg-[#16181A] text-white'>
+      <h1 className='text-6xl font-bold mb-4'>404</h1>
+      <p className='text-lg text-gray-400 mb-8'>Page not found</p>
+      <a href='/' className='text-blue-400 hover:text-blue-300 underline'>
+        Back to home
+      </a>
+    </div>
+  )
+}
+
 const rootRoute = createRootRoute({
   component: RootComponent,
+  notFoundComponent: NotFoundComponent,
 })
 
 const loginRoute = createRoute({
