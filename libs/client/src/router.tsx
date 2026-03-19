@@ -13,6 +13,7 @@ import { MyAssets } from './pages/MyAssets'
 import { ConfigureHops } from './pages/ConfigureHops'
 import { LandingPage } from './pages/LandingPage'
 import { History } from './pages/History'
+import { UnwrapSol } from './pages/UnwrapSol'
 
 // Root route component
 const RootComponent = () => {
@@ -107,6 +108,13 @@ const historyRoute = createRoute({
   ),
 })
 
+// Unwrap SOL route - public (route creator signs client-side)
+const unwrapSolRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/unwrap/$routeId',
+  component: UnwrapSol,
+})
+
 // Create route tree
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -116,6 +124,7 @@ const routeTree = rootRoute.addChildren([
   myAssetsRoute,
   configureHopsRoute,
   historyRoute,
+  unwrapSolRoute,
 ])
 
 // Create router
