@@ -128,25 +128,20 @@ async function fetchRouteInfo(
   }
 
   const rcData = routeConfigInfo.data;
-  // RouteConfig layout (after 8-byte discriminator):
+  // RouteConfig layout (verified against on-chain data):
+  // discriminator: 8 bytes at offset 0
   // creator: Pubkey (32 bytes) at offset 8
   // route_id: u64 (8 bytes) at offset 40
-  // source_owner: Pubkey (32 bytes) at offset 48
-  // executor: Pubkey (32 bytes) at offset 80
-  // original_mint: Pubkey (32 bytes) at offset 112
-  // route_token_mint: Pubkey (32 bytes) at offset 144
-  // hop_amount: u64 (8 bytes) at offset 176
+  // original_mint: Pubkey (32 bytes) at offset 48
+  // route_token_mint: Pubkey (32 bytes) at offset 80
+  // hop_amount: u64 (8 bytes) at offset 292
   const creator = new PublicKey(rcData.slice(8, 40)).toBase58();
-  const sourceOwner = new PublicKey(rcData.slice(48, 80)).toBase58();
-  const executor = new PublicKey(rcData.slice(80, 112)).toBase58();
-  const originalMint = new PublicKey(rcData.slice(112, 144)).toBase58();
-  const routeTokenMint = new PublicKey(rcData.slice(144, 176)).toBase58();
-  const hopAmount = rcData.readBigUInt64LE(176);
+  const originalMint = new PublicKey(rcData.slice(48, 80)).toBase58();
+  const routeTokenMint = new PublicKey(rcData.slice(80, 112)).toBase58();
+  const hopAmount = rcData.readBigUInt64LE(292);
 
   console.log(LOG_PREFIX, "RouteConfig parsed", {
     creator,
-    sourceOwner,
-    executor,
     originalMint,
     routeTokenMint,
     hopAmount: hopAmount.toString(),
@@ -154,11 +149,13 @@ async function fetchRouteInfo(
   });
 
   const rsData = routeStateInfo.data;
-  // RouteState layout (after 8-byte discriminator):
+  // RouteState layout (verified against on-chain data):
+  // discriminator: 8 bytes at offset 0
   // current_hop_index: u8 at offset 8
-  // hops_count: u8 at offset 9
+  // started_at: i64 (8 bytes) at offset 9
+  // hops_count: u8 at offset 17
   const currentHopIndex = rsData.readUInt8(8);
-  const hopsCount = rsData.readUInt8(9);
+  const hopsCount = rsData.readUInt8(17);
 
   console.log(LOG_PREFIX, "RouteState parsed", {
     currentHopIndex,
