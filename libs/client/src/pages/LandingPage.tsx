@@ -208,6 +208,15 @@ export const LandingPage: React.FC = () => {
                 {/* Nav Links */}
                 <div className="flex items-center gap-10">
                   <a
+                    href="https://business.multihopper.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="not-italic font-medium text-xs leading-3 text-[#7E7F83] hover:text-white transition-colors duration-300"
+                    style={{ fontFamily: "Roboto, sans-serif" }}
+                  >
+                    Business
+                  </a>
+                  <a
                     href="#how-it-works"
                     className="flex items-center gap-1 not-italic font-medium text-xs leading-3 text-[#7E7F83] hover:text-white transition-colors duration-300"
                     style={{ fontFamily: "Roboto, sans-serif" }}
@@ -297,6 +306,14 @@ export const LandingPage: React.FC = () => {
           {mobileMenuOpen && (
             <div className="md:hidden mt-4 p-4 bg-mh-dark-300/95 backdrop-blur-xl border border-white/10 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-200">
               <div className="flex flex-col gap-4">
+                <a
+                  href="https://business.multihopper.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-white/80 hover:text-white py-2 transition-colors"
+                >
+                  Business
+                </a>
                 <a
                   href="#how-it-works"
                   className="text-white/80 hover:text-white py-2 transition-colors"
@@ -1570,6 +1587,16 @@ export const LandingPage: React.FC = () => {
                       fontFamily: "Roboto, sans-serif",
                     }}
                   >
+                    <li>
+                      <a
+                        href="https://business.multihopper.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-white transition-colors"
+                      >
+                        Business
+                      </a>
+                    </li>
                     <li>
                       <a
                         href="#how-it-works"
