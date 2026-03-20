@@ -4,6 +4,7 @@ import {
   dualDirectionContractEventsService,
   obfuscationSchedulerService,
 } from "@trpc-template/server";
+import { startWatchdog } from "./watchdog";
 
 const start = async () => {
   try {
@@ -18,6 +19,7 @@ const start = async () => {
     const dynoType = process.env.SCHEDULER_ENABLED === "true" ? "scheduler" :
                      process.env.DUAL_DIRECTION_ENABLED === "true" ? "indexer" : "web";
     if (dynoType === "web") {
+      startWatchdog();
       setInterval(() => {
         const mem = process.memoryUsage();
         console.log(`[heartbeat] web alive | rss=${Math.round(mem.rss / 1024 / 1024)}MB heap=${Math.round(mem.heapUsed / 1024 / 1024)}/${Math.round(mem.heapTotal / 1024 / 1024)}MB eventloop=ok`);
