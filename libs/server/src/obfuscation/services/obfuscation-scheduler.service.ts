@@ -21,6 +21,7 @@ import routesService from "../../routes/services/routes.service";
 // Constants
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+const MAX_PERMANENT_FAILURES = 15; // Stop retrying entirely after this many failures
 const LOCK_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes lock timeout
 const MAX_HOPS_WARNING_THRESHOLD = 30; // Warn if route has more than 30 hops
 
@@ -118,6 +119,11 @@ async function shouldRetryFromDb(
     const failureCount = wallet.failureCount || 0;
     const nextRetryAt = wallet.nextRetryAt;
 
+    // Permanently stop retrying after too many failures
+    if (failureCount >= MAX_PERMANENT_FAILURES) {
+      return false;
+    }
+
     if (failureCount >= MAX_RETRY_ATTEMPTS) {
       // Allow retry after cooldown period
       return nextRetryAt ? now >= nextRetryAt : true;
@@ -129,6 +135,11 @@ async function shouldRetryFromDb(
 
     const failureCount = session.failureCount || 0;
     const nextRetryAt = session.nextRetryAt;
+
+    // Permanently stop retrying after too many failures
+    if (failureCount >= MAX_PERMANENT_FAILURES) {
+      return false;
+    }
 
     if (failureCount >= MAX_RETRY_ATTEMPTS) {
       return nextRetryAt ? now >= nextRetryAt : true;

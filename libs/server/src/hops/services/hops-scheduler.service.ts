@@ -20,6 +20,7 @@ interface HopExecutionAttempt {
 const failedRoutes = new Map<number, HopExecutionAttempt>();
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_COOLDOWN_MINUTES = 5; // Wait 5 minutes before retrying
+const MAX_PERMANENT_FAILURES = 10; // After this many total failures, mark route as failed in DB
 
 const _triggerHop = async () => {
   // Run every 10 seconds
@@ -107,6 +108,17 @@ const _triggerHop = async () => {
           console.warn(
             `[HopScheduler] Route ${routeId} has no configured hops`
           );
+          // Record failure so this route enters cooldown instead of retrying every 10s
+          recordHopFailure(routeId, "No on-chain route configuration found");
+          const failure = failedRoutes.get(routeId);
+          if (failure && failure.failureCount >= MAX_PERMANENT_FAILURES) {
+            console.warn(
+              `[HopScheduler] Route ${routeId} permanently failed after ${failure.failureCount} attempts — marking as failed`
+            );
+            await hopsService.markAllHopsCompleted(routeId);
+            await routesService.updateRouteStatus(routeId, routeDB.creator, 'failed');
+            failedRoutes.delete(routeId);
+          }
           continue;
         }
 
