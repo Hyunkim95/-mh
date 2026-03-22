@@ -26,9 +26,11 @@ if (!isMainThread) {
     if (elapsed > TIMEOUT_MS) {
       const seconds = Math.round(elapsed / 1000);
       process.stderr.write(
-        `[watchdog] FATAL: Main thread event loop frozen for ${seconds}s. Forcing exit.\n`
+        `[watchdog] FATAL: Main thread event loop frozen for ${seconds}s. Killing process.\n`
       );
-      process.exit(1);
+      // process.exit() in a worker only kills the worker thread, not the main process.
+      // process.abort() terminates the entire process from any thread.
+      process.abort();
     }
 
     // Send ping to main thread
