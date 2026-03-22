@@ -3,18 +3,21 @@ import {
   hopsSchedulerService,
   dualDirectionContractEventsService,
   obfuscationSchedulerService,
+  createLogger,
 } from "@trpc-template/server";
 import { startWatchdog } from "./watchdog";
 import { monitorEventLoopDelay } from "node:perf_hooks";
+
+const log = createLogger("API");
 
 const start = async () => {
   try {
     const port = process.env.PORT ? parseInt(process.env.PORT) : 3001;
     const host = process.env.HOST || "0.0.0.0";
     await server.listen({ port, host });
-    console.log(`🚀 Server ready at http://${host}:${port}`);
-    console.log(`📡 tRPC endpoint: http://${host}:${port}/trpc`);
-    console.log(`🏥 Health check: http://${host}:${port}/health`);
+    log.info(`Server ready at http://${host}:${port}`);
+    log.info(`tRPC endpoint: http://${host}:${port}/trpc`);
+    log.info(`Health check: http://${host}:${port}/health`);
 
     // Diagnostic heartbeat: log every 60s so we can tell when the process goes silent
     const dynoType = process.env.SCHEDULER_ENABLED === "true" ? "scheduler" :
@@ -60,8 +63,8 @@ const start = async () => {
 
         const requests = (process as any)._getActiveRequests().length;
 
-        console.log(
-          `[heartbeat] web alive | rss=${rss}MB heap=${heapUsed}/${heapTotal}MB` +
+        log.debug(
+          `heartbeat web alive | rss=${rss}MB heap=${heapUsed}/${heapTotal}MB` +
           ` | cpu_user=${cpuUser}ms cpu_sys=${cpuSys}ms` +
           ` | loop_p50=${loopP50}ms loop_p99=${loopP99}ms loop_max=${loopMax}ms` +
           ` | handles=${handles.length} (${handleStr})` +
@@ -70,20 +73,20 @@ const start = async () => {
       }, 60_000);
     }
   } catch (err) {
-    console.log("err", err);
+    log.error("Startup error", err);
     server.log.error(err);
     process.exit(1);
   }
 };
 
 if (process.env.SCHEDULER_ENABLED === "true") {
-  console.log("Starting hops scheduler service");
+  log.info("Starting hops scheduler service");
   hopsSchedulerService.triggerHopJob.start();
   obfuscationSchedulerService.startObfuscationScheduler();
 }
 
 if (process.env.DUAL_DIRECTION_ENABLED === "true") {
-  console.log("Starting dual direction contract events service");
+  log.info("Starting dual direction contract events service");
   dualDirectionContractEventsService.initialize();
 }
 

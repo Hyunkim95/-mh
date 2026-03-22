@@ -1,5 +1,8 @@
 import axios from "axios";
 import { get } from "lodash";
+import { createLogger } from "../../utils/logger";
+
+const log = createLogger("TokensService");
 
 const internalCache = new Map<string, any>();
 const userToTimestamp = new Map<string, number>();
@@ -11,7 +14,7 @@ const userToTimestamp = new Map<string, number>();
 const invalidateCache = (owner: string): void => {
   internalCache.delete(owner);
   userToTimestamp.delete(owner);
-  console.log(`[TokensService] Cache invalidated for owner ${owner}`);
+  log.info(`Cache invalidated for owner ${owner}`);
 };
 
 export interface HelisuTokenResponse {
@@ -73,7 +76,7 @@ const getTokenAccounts = async (
     hasMore = totalAssets.length < total;
     page++;
   }
-  console.log(totalAssets, `Total assets fetched for owner ${owner}.`);
+  log.debug(`Total assets fetched for owner ${owner}: ${totalAssets.length}`);
   return totalAssets.filter((asset) => asset.interface === "FungibleToken");
 };
 
@@ -88,8 +91,7 @@ const getTokensAccountsWithCache = async (
   }
   userToTimestamp.set(owner, now + 1000 * 60 * 1);
   const tokens = await getTokenAccounts(owner, apiUrl);
-  console.log(
-    tokens, 
+  log.debug(
     `Fetched ${tokens.length} tokens for owner ${owner} from Helius.`
   )
   internalCache.set(owner, tokens);
@@ -178,7 +180,7 @@ export const getTokenPrice = async (
     // If no price found, return null
     return { price: null, pricePerToken: null };
   } catch (error) {
-    console.error(`Error fetching token price for ${mintAddress}:`, error);
+    log.error(`Error fetching token price for ${mintAddress}:`, error);
     return { price: null, pricePerToken: null };
   }
 };

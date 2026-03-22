@@ -24,6 +24,9 @@ import bs58 from "bs58";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
 import executorService from "../executors/executor.service";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("ContractRouter");
 
 // Input validation schemas
 const publicKeySchema = z
@@ -473,7 +476,7 @@ export const contractRouter = router({
           },
         };
       } catch (error) {
-        console.error("Failed to initialize SOL route:", error);
+        log.error("Failed to initialize SOL route:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message:
@@ -775,7 +778,7 @@ export const contractRouter = router({
           },
         };
       } catch (error) {
-        console.error("Trigger hop error:", error);
+        log.error("Trigger hop error:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message:
@@ -815,7 +818,7 @@ export const contractRouter = router({
             flatFeeLamports = Number(tokenConfig.flatFeeLamports);
           }
         } catch (configError) {
-          console.warn(
+          log.warn(
             "Could not fetch token config, using defaults:",
             configError
           );

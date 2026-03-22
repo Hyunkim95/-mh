@@ -21,6 +21,9 @@ import {
   createDynamicPriorityInstructions,
   getRecommendedPriorityFee,
 } from "../../solana/services/contract.service";
+import { createLogger } from "../../utils/logger";
+
+const log = createLogger("ObfuscationTxBuilder");
 
 // Get connection from obfuscation service
 const getConnection = () => obfuscationService.getConnection();
@@ -54,8 +57,8 @@ async function buildCleanupTxCore(
 
   // Need at least the tx fee + 1 lamport to transfer
   if (balance <= exactTxFee) {
-    console.log(
-      `[CleanupTxBuilder] Skipping cleanup for ${ownerPublicKey.toBase58()} - balance ${balance} <= tx fee ${exactTxFee}`,
+    log.info(
+      `Skipping cleanup for ${ownerPublicKey.toBase58()} - balance ${balance} <= tx fee ${exactTxFee}`,
     );
     return null;
   }
@@ -90,8 +93,8 @@ async function buildCleanupTxCore(
   // Account ends at 0 lamports after fee deduction → garbage collected
   const transferAmount = balance - exactTxFee;
 
-  console.log(
-    `[CleanupTxBuilder] ${ownerPublicKey.toBase58()} - draining ${transferAmount} lamports (balance=${balance}, fee=${exactTxFee}), account will be closed`,
+  log.info(
+    `${ownerPublicKey.toBase58()} - draining ${transferAmount} lamports (balance=${balance}, fee=${exactTxFee}), account will be closed`,
   );
   transaction.add(
     SystemProgram.transfer({
@@ -331,8 +334,8 @@ async function buildAggregationTransaction(
 
   const solBalance = await connection.getBalance(intermediatePublicKey);
 
-  console.log(
-    `[AggregationTxBuilder] ${intermediatePublicKey.toBase58()} - solBalance=${solBalance}, actualTxFee=${actualTxFee}, RENT_EXEMPT=${RENT_EXEMPT_MINIMUM_LAMPORTS}, cleanupTxFee=${cleanupTxFee}, priorityFee=${priorityFeeLamports}`,
+  log.info(
+    `${intermediatePublicKey.toBase58()} - solBalance=${solBalance}, actualTxFee=${actualTxFee}, RENT_EXEMPT=${RENT_EXEMPT_MINIMUM_LAMPORTS}, cleanupTxFee=${cleanupTxFee}, priorityFee=${priorityFeeLamports}`,
   );
 
   let solTransferAmount: number;
@@ -385,8 +388,8 @@ async function buildAggregationTransaction(
       0,
       solBalance - reserveForCleanup - ataCreationCost,
     );
-    console.log(
-      `[AggregationTxBuilder] SPL route - ataCreationCost=${ataCreationCost}, reserveForCleanup=${reserveForCleanup}, solTransferAmount=${solTransferAmount}, expectedRemaining=${solBalance - (BASE_TX_FEE_LAMPORTS + priorityFeeLamports) - ataCreationCost - solTransferAmount}`,
+    log.info(
+      `SPL route - ataCreationCost=${ataCreationCost}, reserveForCleanup=${reserveForCleanup}, solTransferAmount=${solTransferAmount}, expectedRemaining=${solBalance - (BASE_TX_FEE_LAMPORTS + priorityFeeLamports) - ataCreationCost - solTransferAmount}`,
     );
   } else {
     // SOL route: Reserve cleanup tx fee + rent-exempt minimum

@@ -1,15 +1,18 @@
-import { 
-  Connection, 
+import {
+  Connection,
   PublicKey,
   ParsedAccountData
 } from '@solana/web3.js';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { BaseEtlJob, ExtractResult, TransformResult, LoadResult, EtlJobConfig } from '@libs/etl';
-import { 
+import {
   SolanaAccountETLConfig,
   SolanaAccountData,
   SolanaSchemaMapper
 } from './types';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('SolanaAcctETL');
 
 export class SolanaAccountEtlJob<TSchema = any> extends BaseEtlJob<SolanaAccountData, TSchema> {
   private connection: Connection;
@@ -83,7 +86,7 @@ export class SolanaAccountEtlJob<TSchema = any> extends BaseEtlJob<SolanaAccount
     const programId = new PublicKey(this.solanaConfig.programId!);
     const accounts: SolanaAccountData[] = [];
 
-    console.log(`Fetching accounts for program: ${programId.toString()}`);
+    log.info(`Fetching accounts for program: ${programId.toString()}`);
 
     // Get all program accounts
     const programAccounts = await this.connection.getParsedProgramAccounts(
@@ -122,7 +125,7 @@ export class SolanaAccountEtlJob<TSchema = any> extends BaseEtlJob<SolanaAccount
 
         accounts.push(accountData);
       } catch (error) {
-        console.warn(`Failed to process account ${accountInfo.pubkey.toString()}:`, error);
+        log.warn(`Failed to process account ${accountInfo.pubkey.toString()}:`, error);
       }
     }
 
@@ -132,7 +135,7 @@ export class SolanaAccountEtlJob<TSchema = any> extends BaseEtlJob<SolanaAccount
   private async extractSpecificAccount(): Promise<SolanaAccountData[]> {
     const accountPubkey = new PublicKey(this.solanaConfig.accountAddress!);
     
-    console.log(`Fetching account: ${accountPubkey.toString()}`);
+    log.info(`Fetching account: ${accountPubkey.toString()}`);
 
     const accountInfo = await this.connection.getParsedAccountInfo(
       accountPubkey,
@@ -140,7 +143,7 @@ export class SolanaAccountEtlJob<TSchema = any> extends BaseEtlJob<SolanaAccount
     );
 
     if (!accountInfo.value) {
-      console.log(`Account ${accountPubkey.toString()} not found`);
+      log.info(`Account ${accountPubkey.toString()} not found`);
       return [];
     }
 
@@ -300,36 +303,36 @@ export class SolanaAccountEtlJob<TSchema = any> extends BaseEtlJob<SolanaAccount
   }
   // Override lifecycle methods
   protected async beforeJob(): Promise<void> {
-    console.log(`Starting Solana account ETL: ${this.config.jobName}`);
-    console.log(`Program/Account: ${this.solanaConfig.programId || this.solanaConfig.accountAddress}`);
-    console.log(`RPC: ${this.solanaConfig.rpcUrl}`);
-    console.log(`Commitment: ${this.solanaConfig.commitment}`);
+    log.info(`Starting Solana account ETL: ${this.config.jobName}`);
+    log.info(`Program/Account: ${this.solanaConfig.programId || this.solanaConfig.accountAddress}`);
+    log.debug(`RPC: ${this.solanaConfig.rpcUrl}`);
+    log.debug(`Commitment: ${this.solanaConfig.commitment}`);
     
     // Test RPC connection
     try {
       const slot = await this.connection.getSlot();
-      console.log(`Connected to Solana RPC, current slot: ${slot}`);
+      log.info(`Connected to Solana RPC, current slot: ${slot}`);
     } catch (error) {
       throw new Error(`Failed to connect to Solana RPC: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   protected async afterJob(result: any): Promise<void> {
-    console.log(`Solana account ETL completed: ${this.config.jobName}`);
-    console.log(`Success: ${result.success}`);
-    console.log(`Accounts processed: ${result.totalLoaded}`);
-    console.log(`Duration: ${result.duration}ms`);
-    
+    log.info(`Solana account ETL completed: ${this.config.jobName}`);
+    log.info(`Success: ${result.success}`);
+    log.info(`Accounts processed: ${result.totalLoaded}`);
+    log.info(`Duration: ${result.duration}ms`);
+
     if (result.errors.length > 0) {
-      console.log(`Errors encountered: ${result.errors.length}`);
+      log.warn(`Errors encountered: ${result.errors.length}`);
     }
   }
 
   protected async onError(error: Error, stage: 'extract' | 'transform' | 'load'): Promise<void> {
-    console.error(`Solana account ETL error in ${stage}:`, error.message);
-    
+    log.error(`Solana account ETL error in ${stage}: ${error.message}`);
+
     if (stage === 'extract') {
-      console.error('Consider increasing delayMs to avoid rate limiting');
+      log.error('Consider increasing delayMs to avoid rate limiting');
     }
   }
 

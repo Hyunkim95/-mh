@@ -3,6 +3,9 @@ import {
   getTokenConfigSPL,
   getTokenConfigSOL,
 } from "../../solana/services/contract.service";
+import { createLogger } from "../../utils/logger";
+
+const log = createLogger("RouteValidation");
 
 interface RouteInput {
   tokenType: "SPL" | "SOL";
@@ -120,7 +123,7 @@ export async function validateRouteAgainstTokenConfig(
       errors,
     };
   } catch (error) {
-    console.error("Error validating route against token config:", error);
+    log.error("Error validating route against token config:", error);
     errors.push(
       "Failed to validate route: Unable to fetch token configuration"
     );

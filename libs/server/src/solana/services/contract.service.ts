@@ -23,6 +23,9 @@ import bs58 from "bs58";
 import executorService from "../../executors/executor.service";
 import { fetchTokenMetadata } from "@libs/solana-node";
 import { config } from "../../config/config";
+import { createLogger } from "../../utils/logger";
+
+const log = createLogger("ContractService");
 
 const solToLamports = (sol: number) => {
   return sol * LAMPORTS_PER_SOL;
@@ -139,7 +142,7 @@ export const getRecommendedPriorityFee = async (
     // Ensure minimum fee of 1 micro-lamport
     return Math.max(1000, recommendedFee);
   } catch (error) {
-    console.warn("Failed to get recent prioritization fees:", error);
+    log.warn("Failed to get recent prioritization fees:", error);
     // Fallback to default fee
     return 1000;
   }
@@ -1536,7 +1539,7 @@ export const initializeRouteFromWalletX = async (
 ): Promise<string> => {
   if (tokenType === "SOL") {
     // SOL routes fit in a single transaction
-    console.log("[ContractService] Initializing SOL Route,,,");
+    log.info("Initializing SOL Route,,,");
     const result = await initializeRouteSolWithWrap(
       walletXKeypair.publicKey,
       routeId,

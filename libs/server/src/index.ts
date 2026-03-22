@@ -16,6 +16,9 @@ export { default as executorService } from "./executors/executor.service";
 
 // Export timezone utilities
 export * from "./utils/timezone";
+
+// Export logger
+export { createLogger } from "./utils/logger";
 export * from "./hops/services/hops-scheduler.service";
 export { dualDirectionContractEventsService };
 export { type HelisuTokenResponse } from "./solana/services/tokens.service";

@@ -8,6 +8,9 @@ import { utcNow } from "../../utils/timezone";
 import BN from "bn.js";
 import { getRouteConfiguration } from "../../solana/services/contract-utils";
 import { obfuscationService } from "../../obfuscation";
+import { createLogger } from "../../utils/logger";
+
+const log = createLogger("HopScheduler");
 
 interface HopExecutionAttempt {
   routeId: number;
@@ -46,8 +49,8 @@ const _triggerHop = async () => {
     }
 
     if (readyHops.length > 0) {
-      console.log(
-        `[HopScheduler] ${readyHops.length} overdue hops, ${uniqueRoutes.size} routes to process, ${skippedCount} in cooldown`
+      log.info(
+        `${readyHops.length} overdue hops, ${uniqueRoutes.size} routes to process, ${skippedCount} in cooldown`
       );
     }
 
@@ -60,9 +63,7 @@ const _triggerHop = async () => {
         const routeDB = await routesService.getRouteById(routeId);
 
         if (!routeDB) {
-          console.warn(
-            `[HopScheduler] Route ${routeId} not found in database`
-          );
+          log.warn(`Route ${routeId} not found in database`);
           continue;
         }
 
@@ -70,18 +71,14 @@ const _triggerHop = async () => {
         if (routeDB.hasObfuscation) {
           const session = await obfuscationService.getSessionByRouteId(routeId);
           if (!session) {
-            console.warn(
-              `[HopScheduler] Route ${routeId} has obfuscation but no session found`
-            );
+            log.warn(`Route ${routeId} has obfuscation but no session found`);
             continue;
           }
 
           // Only proceed if obfuscation is in 'completed' status
           // On-chain accounts don't exist until route trigger job deploys them
           if (session.status !== 'completed') {
-            console.log(
-              `[HopScheduler] Route ${routeId} waiting for obfuscation (status: ${session.status})`
-            );
+            log.debug(`Route ${routeId} waiting for obfuscation (status: ${session.status})`);
             continue;
           }
         }
@@ -94,7 +91,7 @@ const _triggerHop = async () => {
         // Check if all hops are done FIRST (before fetching config)
         // This prevents completed routes from getting stuck if getRouteConfiguration fails
         if (currentHop > lastHopIndex) {
-          console.log(`[HopScheduler] Route ${routeId} completed all hops (${currentHop}/${lastHopIndex + 1})`);
+          log.info(`Route ${routeId} completed all hops (${currentHop}/${lastHopIndex + 1})`);
           await hopsService.markAllHopsCompleted(routeId);
           // Also update route status to completed
           await routesService.updateRouteStatus(routeId, routeDB.creator, 'completed');
@@ -105,16 +102,12 @@ const _triggerHop = async () => {
         const hops = routeConfiguration?.hops || [];
 
         if (hops.length === 0) {
-          console.warn(
-            `[HopScheduler] Route ${routeId} has no configured hops`
-          );
+          log.warn(`Route ${routeId} has no configured hops`);
           // Record failure so this route enters cooldown instead of retrying every 10s
           recordHopFailure(routeId, "No on-chain route configuration found");
           const failure = failedRoutes.get(routeId);
           if (failure && failure.failureCount >= MAX_PERMANENT_FAILURES) {
-            console.warn(
-              `[HopScheduler] Route ${routeId} permanently failed after ${failure.failureCount} attempts — marking as failed`
-            );
+            log.warn(`Route ${routeId} permanently failed after ${failure.failureCount} attempts — marking as failed`);
             await hopsService.markAllHopsCompleted(routeId);
             await routesService.updateRouteStatus(routeId, routeDB.creator, 'failed');
             failedRoutes.delete(routeId);
@@ -129,13 +122,7 @@ const _triggerHop = async () => {
 
 
         if (!hasEnoughTimeElapsed) {
-          console.log(
-            `[HopScheduler] Route ${routeId} - Not enough time elapsed for hop ${currentHop}`
-            ,
-            new Date(
-              Number(currentHopState.executeAt) * 1000
-            )
-          );
+          log.debug(`Route ${routeId} - Not enough time elapsed for hop ${currentHop}, scheduled at ${new Date(Number(currentHopState.executeAt) * 1000).toISOString()}`);
           await hopsService.updateHopScheduleByIndex(
             routeId,
             currentHop,
@@ -152,7 +139,7 @@ const _triggerHop = async () => {
 
         // If route already ended, mark hops as completed
         if (txSignature === null) {
-          console.log(`[HopScheduler] Route ${routeId} already ended on-chain, marking as completed`);
+          log.info(`Route ${routeId} already ended on-chain, marking as completed`);
           await hopsService.markAllHopsCompleted(routeId);
           // Also update route status to completed
           await routesService.updateRouteStatus(routeId, routeDB.creator, 'completed');
@@ -162,9 +149,7 @@ const _triggerHop = async () => {
         // If successful, remove from failed hops map
         if (failedRoutes.has(routeDB.id)) {
           failedRoutes.delete(routeDB.id);
-          console.log(
-            `[HopScheduler] Successfully executed previously failed hop ${routeDB.id}`
-          );
+          log.info(`Successfully executed previously failed hop ${routeDB.id}`);
         }
 
         // Update hop execution status with txHash
@@ -177,13 +162,11 @@ const _triggerHop = async () => {
           }
         );
 
-        console.log(`[HopScheduler] Hop ${currentHop} for route ${routeId} executed: ${txSignature}`);
+        log.info(`Hop ${currentHop} for route ${routeId} executed: ${txSignature}`);
       } catch (error: any) {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
-        console.error(
-          `[HopScheduler] Failed to trigger hop ${routeId}: ${errorMessage}`
-        );
+        log.error(`Failed to trigger hop ${routeId}: ${errorMessage}`);
 
         // Record the failure
         recordHopFailure(routeId, errorMessage);
@@ -200,9 +183,9 @@ const _triggerHop = async () => {
       }
     }
 
-    console.log("[HopScheduler] Hop scan completed");
+    log.debug("Hop scan completed");
   } catch (error) {
-    console.error("[HopScheduler] Critical error during hop scan:", error);
+    log.error("Critical error during hop scan:", error);
   }
 };
 
@@ -228,9 +211,7 @@ function recordHopFailure(routeId: number, error: string) {
 
   const failureInfo = failedRoutes.get(routeId)!;
   if (failureInfo.failureCount >= MAX_RETRY_ATTEMPTS && failureInfo.failureCount === MAX_RETRY_ATTEMPTS) {
-    console.warn(
-      `[HopScheduler] Route ${routeId} reached ${MAX_RETRY_ATTEMPTS} failures, cooling down ${RETRY_COOLDOWN_MINUTES}m`
-    );
+    log.warn(`Route ${routeId} reached ${MAX_RETRY_ATTEMPTS} failures, cooling down ${RETRY_COOLDOWN_MINUTES}m`);
   }
 }
 

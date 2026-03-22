@@ -8,6 +8,9 @@ import {
 } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import crypto from "crypto";
+import { createLogger } from "../utils/logger";
+
+const log = createLogger("ExecutorService");
 
 // Connection for Solana operations
 const connection = new Connection(
@@ -62,7 +65,7 @@ const balance = async (routeId: number): Promise<BN> => {
     const balanceInLamports = await connection.getBalance(wallet.publicKey);
     return new BN(balanceInLamports);
   } catch (error) {
-    console.error(
+    log.error(
       "Error getting balance for route ID",
       routeId,
       "error",
@@ -112,7 +115,7 @@ const withdrawOnBehalf = async (
       { commitment: "confirmed" }
     );
 
-    console.log("Withdrawal successful:", {
+    log.info("Withdrawal successful:", {
       routeId,
       from: executorWallet.publicKey.toBase58(),
       to,
@@ -122,7 +125,7 @@ const withdrawOnBehalf = async (
 
     return signature;
   } catch (error) {
-    console.error(
+    log.error(
       "Error withdrawing on behalf for route ID",
       routeId,
       "error",
@@ -147,7 +150,7 @@ const getExecutorPublicKey = (routeId: number): string => {
  * @deprecated Use getWalletByRouteId instead
  */
 const getKeypair = async (routeId: number): Promise<Keypair> => {
-  console.warn("getKeypair is deprecated, use getWalletByRouteId instead");
+  log.warn("getKeypair is deprecated, use getWalletByRouteId instead");
   return getWalletByRouteId(routeId);
 };
 

@@ -83,6 +83,9 @@ jspm_packages/
 # TypeScript
 *.tsbuildinfo
 
+# Git worktrees
+.worktrees/
+
 # Temporary folders
 tmp/
 temp/
