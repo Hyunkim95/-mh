@@ -1,6 +1,9 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { ContractEventsEtlJob } from './contract-events-etl';
 import { ContractEventProcessor } from './contract-event-processor';
+import { createLogger } from '../../utils/logger';
+
+const log = createLogger('ETLScheduler');
 
 export interface ContractEventsSchedulerConfig {
   rpcUrl: string;
@@ -35,20 +38,16 @@ export class ContractEventsScheduler {
    */
   async start(): Promise<void> {
     if (this.isRunning) {
-      console.log('Contract events scheduler is already running');
+      log.info('Contract events scheduler is already running');
       return;
     }
 
     if (!this.config.enabled) {
-      console.log('Contract events scheduler is disabled');
+      log.info('Contract events scheduler is disabled');
       return;
     }
 
-    console.log('Starting contract events scheduler...');
-    console.log(`ETL interval: ${this.config.etlIntervalMs}ms`);
-    console.log(`Processing interval: ${this.config.processingIntervalMs}ms`);
-    console.log(`Direction: ${this.config.direction}`);
-    console.log(`Program ID: ${this.config.programId}`);
+    log.info(`Starting: interval=${this.config.etlIntervalMs}ms, processing=${this.config.processingIntervalMs}ms, direction=${this.config.direction}`);
 
     this.isRunning = true;
 
@@ -58,7 +57,7 @@ export class ContractEventsScheduler {
     // Start the event processing loop
     this.startEventProcessing();
 
-    console.log('Contract events scheduler started successfully');
+    log.info('Started successfully');
   }
 
   /**
@@ -81,7 +80,7 @@ export class ContractEventsScheduler {
       this.processingInterval = undefined;
     }
 
-    console.log('Contract events scheduler stopped');
+    log.info('Stopped');
   }
 
   /**
@@ -93,7 +92,7 @@ export class ContractEventsScheduler {
 
       // Overlap guard: skip if previous ETL run is still in progress
       if (this.isEtlJobRunning) {
-        console.log(`ETL job still running (${this.config.direction}), skipping tick`);
+        log.debug(`ETL job still running (${this.config.direction}), skipping tick`);
         return;
       }
 
@@ -121,10 +120,10 @@ export class ContractEventsScheduler {
         } else if (result && result.totalExtracted > 0) {
           this.consecutiveEmptyRuns = 0;
           this.lastEmptyRunTime = undefined;
-          console.log(`ETL processed ${result.totalExtracted} transactions (${this.config.direction})`);
+          log.info(`ETL processed ${result.totalExtracted} transactions (${this.config.direction})`);
         }
       } catch (error) {
-        console.error('ETL job failed:', error);
+        log.error('ETL job failed:', error);
       } finally {
         this.isEtlJobRunning = false;
       }
@@ -132,7 +131,7 @@ export class ContractEventsScheduler {
 
     // Run immediately on start
     this.runEtlJob().catch(error => {
-      console.error('Initial ETL job failed:', error);
+      log.error('Initial ETL job failed:', error);
     });
   }
 
@@ -150,14 +149,14 @@ export class ContractEventsScheduler {
         const result = await this.eventProcessor.processUnprocessedEvents();
 
         if (result.processed > 0) {
-          console.log(`Event processing completed: ${result.processed} events processed`);
+          log.info(`Event processing completed: ${result.processed} events processed`);
 
           if (result.errors.length > 0) {
-            console.warn(`Event processing errors: ${result.errors.length} events failed`);
+            log.warn(`Event processing errors: ${result.errors.length} events failed`);
           }
         }
       } catch (error) {
-        console.error('Event processing failed:', error);
+        log.error('Event processing failed:', error);
       } finally {
         this.isProcessingRunning = false;
       }
@@ -238,9 +237,9 @@ export class ContractEventsScheduler {
    * Force run ETL job immediately
    */
   async runEtlNow(): Promise<any> {
-    console.log('Running ETL job manually...');
+    log.info('Running ETL job manually...');
     const result = await this.runEtlJob();
-    console.log('Manual ETL job completed:', result);
+    log.info('Manual ETL job completed');
     
     return result;
   }
@@ -249,9 +248,9 @@ export class ContractEventsScheduler {
    * Force process events immediately
    */
   async processEventsNow(): Promise<any> {
-    console.log('Processing events manually...');
+    log.info('Processing events manually...');
     const result = await this.eventProcessor.processUnprocessedEvents();
-    console.log('Manual event processing completed:', result);
+    log.info('Manual event processing completed');
     
     return result;
   }
@@ -260,9 +259,9 @@ export class ContractEventsScheduler {
    * Reprocess failed events
    */
   async reprocessFailedEvents(eventIds?: number[]): Promise<void> {
-    console.log('Reprocessing failed events...');
+    log.info('Reprocessing failed events...');
     await this.eventProcessor.reprocessFailedEvents(eventIds);
-    console.log('Failed events reprocessing completed');
+    log.info('Failed events reprocessing completed');
   }
 
   /**
@@ -270,7 +269,7 @@ export class ContractEventsScheduler {
    */
   updateConfig(newConfig: Partial<ContractEventsSchedulerConfig>): void {
     this.config = { ...this.config, ...newConfig };
-    console.log('Contract events scheduler configuration updated');
+    log.info('Configuration updated');
   }
 
   /**

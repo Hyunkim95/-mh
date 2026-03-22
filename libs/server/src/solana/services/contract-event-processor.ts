@@ -15,6 +15,9 @@ import {
   MULTI_HOPPER_PROGRAM_ID,
 } from "./contract-utils";
 import { tokenConfigsService } from "../../token-configs/services/token-configs.service";
+import { createLogger } from "../../utils/logger";
+
+const log = createLogger("EventProcessor");
 
 export class ContractEventProcessor {
   constructor(private db: NodePgDatabase<any>) {}
@@ -57,7 +60,7 @@ export class ContractEventProcessor {
     let processed = 0;
     const errors: Array<{ eventId: number; error: string }> = [];
 
-    console.log(
+    log.debug(
       `Processing ${unprocessedEvents.length} unprocessed contract events`
     );
 
@@ -76,7 +79,7 @@ export class ContractEventProcessor {
 
         processed++;
       } catch (error) {
-        console.error(`Failed to process event ${event.id}:`, error);
+        log.error(`Failed to process event ${event.id}:`, error);
         errors.push({
           eventId: event.id,
           error: error instanceof Error ? error.message : String(error),
@@ -84,7 +87,7 @@ export class ContractEventProcessor {
       }
     }
 
-    console.log(`Processed ${processed} events, ${errors.length} errors`);
+    log.info(`Processed ${processed} events, ${errors.length} errors`);
     return { processed, errors };
   }
 
@@ -92,7 +95,7 @@ export class ContractEventProcessor {
    * Process a single contract event
    */
   private async processEvent(event: ContractEvent): Promise<void> {
-    console.log(`Processing event: id=${event.id} type=${event.eventType}`);
+    log.debug(`Processing event: id=${event.id} type=${event.eventType}`);
     switch (event.eventType) {
       case "hopCompleted":
         await this.processHopCompletedEvent(event);
@@ -110,7 +113,7 @@ export class ContractEventProcessor {
         await this.processTokenConfigUpdatedEvent(event);
         break;
       default:
-        console.log(`Unknown event type: ${event.eventType}`);
+        log.warn(`Unknown event type: ${event.eventType}`);
     }
   }
 
@@ -145,7 +148,7 @@ export class ContractEventProcessor {
 
       if (route.length === 0) {
         // If not found by PDA, try to get route ID from on-chain and find by route ID
-        console.log(
+        log.info(
           `Route not found by PDA: ${event.routePda}, attempting to resolve route ID from chain`
         );
 
@@ -172,13 +175,13 @@ export class ContractEventProcessor {
                 })
                 .where(eq(routesSchema.id, route[0].id));
 
-              console.log(
+              log.info(
                 `Updated route ${route[0].id} with PDA ${event.routePda}`
               );
             }
           }
         } catch (error) {
-          console.warn(
+          log.warn(
             `Failed to resolve route ID from PDA ${event.routePda}:`,
             error
           );
@@ -186,7 +189,7 @@ export class ContractEventProcessor {
       }
 
       if (route.length === 0) {
-        console.warn(`Route not found for PDA: ${event.routePda}`);
+        log.warn(`Route not found for PDA: ${event.routePda}`);
         return;
       }
 
@@ -205,7 +208,7 @@ export class ContractEventProcessor {
         .limit(1);
 
       if (hop.length === 0) {
-        console.warn(
+        log.warn(
           `Hop not found for route ${routeRecord.id}, index ${eventData.hopIndex}`
         );
         return;
@@ -233,7 +236,7 @@ export class ContractEventProcessor {
         })
         .where(eq(routesSchema.id, routeRecord.id));
 
-      console.log(
+      log.info(
         `Processed HopCompleted: route ${routeRecord.id}, hop ${eventData.hopIndex}`
       );
     });
@@ -253,7 +256,7 @@ export class ContractEventProcessor {
         MULTI_HOPPER_PROGRAM_ID
       );
     } catch (error) {
-      console.warn(
+      log.warn(
         `Failed to get route ID from PDA ${eventData.route.toString()}:`,
         error
       );
@@ -289,7 +292,7 @@ export class ContractEventProcessor {
         .limit(1);
 
       if (route && route.length > 0) {
-        console.log(
+        log.info(
           `Matched route ${route[0].id} by transaction hash fallback`
         );
       }
@@ -297,7 +300,7 @@ export class ContractEventProcessor {
 
     if (!route || route.length === 0) {
       new Date(),
-        console.warn(
+        log.warn(
           `No matching route found for creator: ${eventData.creator.toString()}, route ID: ${onChainRouteId}`
         );
       return;
@@ -330,7 +333,7 @@ export class ContractEventProcessor {
       .limit(1);
 
     if (route.length === 0) {
-      console.warn(`Route not found for PDA: ${eventData.route.toString()}`);
+      log.warn(`Route not found for PDA: ${eventData.route.toString()}`);
       return;
     }
 
@@ -343,7 +346,7 @@ export class ContractEventProcessor {
       })
       .where(eq(routesSchema.id, route[0].id));
 
-    console.log(
+    log.info(
       `Processed RouteFinished: route ${
         route[0].id
       } completed at ${this.convertHexTimestampToDate(eventData.at)}`
@@ -444,7 +447,7 @@ export class ContractEventProcessor {
         .where(eq(contractEvents.processed, false));
     }
 
-    console.log(`Reprocessing ${eventsToReprocess.length} events`);
+    log.info(`Reprocessing ${eventsToReprocess.length} events`);
 
     for (const event of eventsToReprocess) {
       try {
@@ -458,9 +461,9 @@ export class ContractEventProcessor {
           })
           .where(eq(contractEvents.id, event.id));
 
-        console.log(`Reprocessed event ${event.id}`);
+        log.debug(`Reprocessed event ${event.id}`);
       } catch (error) {
-        console.error(`Failed to reprocess event ${event.id}:`, error);
+        log.error(`Failed to reprocess event ${event.id}:`, error);
       }
     }
   }
