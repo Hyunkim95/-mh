@@ -13,16 +13,39 @@ export interface SolanaInstructionParams {
   programId: PublicKey;
 }
 
+// Cached singleton instances to avoid creating new Connection/Program on every call
+let cachedConnection: Connection | null = null;
+let cachedProgram: Program<MultiHopperProject> | null = null;
+
+function getCachedConnection(): Connection {
+  if (!cachedConnection) {
+    cachedConnection = new Connection(
+      process.env.SOLANA_RPC_URL || clusterApiUrl("mainnet-beta")
+    );
+  }
+  return cachedConnection;
+}
+
 // Default connection parameters
 export const getDefaultParams = (): SolanaInstructionParams => ({
-  connection: new Connection(
-    process.env.SOLANA_RPC_URL || clusterApiUrl("mainnet-beta")
-  ),
+  connection: getCachedConnection(),
   programId: MULTI_HOPPER_PROGRAM_ID,
 });
 
-// Build program instance
+// Build program instance (cached for default params)
 export const buildProgram = (params: SolanaInstructionParams) => {
+  if (
+    params.connection === getCachedConnection() &&
+    params.programId.equals(MULTI_HOPPER_PROGRAM_ID)
+  ) {
+    if (!cachedProgram) {
+      cachedProgram = new Program<MultiHopperProject>(
+        IDL as any,
+        new AnchorProvider(params.connection, {} as any, {})
+      );
+    }
+    return cachedProgram;
+  }
   return new Program<MultiHopperProject>(
     IDL as any,
     new AnchorProvider(params.connection, {} as any, {})

@@ -16,6 +16,8 @@ export class ContractEventsScheduler {
   private etlInterval?: NodeJS.Timeout;
   private processingInterval?: NodeJS.Timeout;
   private isRunning = false;
+  private isEtlJobRunning = false;
+  private isProcessingRunning = false;
   private consecutiveEmptyRuns = 0; // Track consecutive runs with no data
   private maxEmptyRuns = 3; // Stop ETL after this many empty runs
   private cooldownPeriod = 5 * 60 * 1000; // 5 minutes cooldown after max empty runs
@@ -89,52 +91,42 @@ export class ContractEventsScheduler {
     this.etlInterval = setInterval(async () => {
       if (!this.isRunning) return;
 
-      // For backward direction, we should be more aggressive and continue processing
-      // until we truly reach the end of historical data. Only apply cooldown for forward direction.
-      const shouldApplyCooldown = this.config.direction === 'forward';
-      
-      if (shouldApplyCooldown && this.consecutiveEmptyRuns >= this.maxEmptyRuns && this.lastEmptyRunTime) {
+      // Overlap guard: skip if previous ETL run is still in progress
+      if (this.isEtlJobRunning) {
+        console.log(`ETL job still running (${this.config.direction}), skipping tick`);
+        return;
+      }
+
+      // Apply cooldown for both forward and backward directions
+      if (this.consecutiveEmptyRuns >= this.maxEmptyRuns && this.lastEmptyRunTime) {
+        const cooldown = this.config.direction === 'backward'
+          ? this.cooldownPeriod * 2
+          : this.cooldownPeriod;
         const timeSinceLastEmpty = Date.now() - this.lastEmptyRunTime.getTime();
-        if (timeSinceLastEmpty < this.cooldownPeriod) {
-          console.log(`ETL in cooldown for ${Math.ceil((this.cooldownPeriod - timeSinceLastEmpty) / 1000)}s more (${this.consecutiveEmptyRuns} consecutive empty runs)`);
+        if (timeSinceLastEmpty < cooldown) {
           return;
         } else {
-          // Reset cooldown
-          console.log(`Cooldown period ended, resuming ETL (${this.config.direction})`);
           this.consecutiveEmptyRuns = 0;
           this.lastEmptyRunTime = undefined;
         }
       }
 
+      this.isEtlJobRunning = true;
       try {
         const result = await this.runEtlJob();
-        
-        // Check if this run processed any data
+
         if (result && result.totalExtracted === 0) {
           this.consecutiveEmptyRuns++;
           this.lastEmptyRunTime = new Date();
-          
-          if (this.config.direction === 'backward') {
-            // For backward direction, log but don't apply aggressive cooldown
-            console.log(`Backward ETL run ${this.consecutiveEmptyRuns} with no data - continuing to search historical data`);
-            
-            // Reset counter more frequently for backward to prevent getting stuck
-            if (this.consecutiveEmptyRuns >= 10) { // Higher threshold for backward
-              console.log(`Backward ETL: ${this.consecutiveEmptyRuns} consecutive empty runs, may have reached historical limit`);
-              // Still don't cooldown, just log the situation
-            }
-          } else {
-            console.log(`Forward ETL run ${this.consecutiveEmptyRuns}/${this.maxEmptyRuns} with no data`);
-          }
         } else if (result && result.totalExtracted > 0) {
-          // Reset counter if we found data
           this.consecutiveEmptyRuns = 0;
           this.lastEmptyRunTime = undefined;
           console.log(`ETL processed ${result.totalExtracted} transactions (${this.config.direction})`);
         }
       } catch (error) {
         console.error('ETL job failed:', error);
-        // Don't increment empty run counter for errors
+      } finally {
+        this.isEtlJobRunning = false;
       }
     }, this.config.etlIntervalMs);
 
@@ -151,21 +143,23 @@ export class ContractEventsScheduler {
     this.processingInterval = setInterval(async () => {
       if (!this.isRunning) return;
 
+      if (this.isProcessingRunning) return;
+
+      this.isProcessingRunning = true;
       try {
         const result = await this.eventProcessor.processUnprocessedEvents();
-        
+
         if (result.processed > 0) {
           console.log(`Event processing completed: ${result.processed} events processed`);
-          
+
           if (result.errors.length > 0) {
             console.warn(`Event processing errors: ${result.errors.length} events failed`);
-            result.errors.forEach(error => {
-              console.warn(`Event ${error.eventId}: ${error.error}`);
-            });
           }
         }
       } catch (error) {
         console.error('Event processing failed:', error);
+      } finally {
+        this.isProcessingRunning = false;
       }
     }, this.config.processingIntervalMs);
   }

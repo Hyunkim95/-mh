@@ -91,6 +91,19 @@ export interface ContractTransactionData {
   transaction: ParsedTransactionWithMeta;
 }
 
+// Cached event parser to avoid creating new Connection/Program per transaction
+let cachedEventParser: ReturnType<typeof buildEventParser> | null = null;
+
+function getCachedEventParser() {
+  if (!cachedEventParser) {
+    cachedEventParser = buildEventParser(
+      MULTI_HOPPER_PROGRAM_ID,
+      new Connection(process.env.SOLANA_RPC_URL || clusterApiUrl("mainnet-beta"))
+    );
+  }
+  return cachedEventParser;
+}
+
 // Schema mapper that transforms Solana transaction data to our contract format
 class ContractEventsSchemaMapper
   implements SolanaSchemaMapper<ContractTransactionData>
@@ -130,10 +143,7 @@ class ContractEventsSchemaMapper
 
   private parseEventsFromLogs(logs: string[]): ContractEventData[] {
     const events: ContractEventData[] = [];
-    const eventParser = buildEventParser(
-      MULTI_HOPPER_PROGRAM_ID,
-      new Connection(process.env.SOLANA_RPC_URL || clusterApiUrl("mainnet-beta"))
-    );
+    const eventParser = getCachedEventParser();
     const decoded = [...eventParser.parseLogs(logs)];
     if (!decoded) return [];
     for (const event of decoded) {

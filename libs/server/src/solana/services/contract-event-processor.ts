@@ -51,7 +51,8 @@ export class ContractEventProcessor {
       .select()
       .from(contractEvents)
       .where(eq(contractEvents.processed, false))
-      .orderBy(contractEvents.createdAt);
+      .orderBy(contractEvents.createdAt)
+      .limit(100);
 
     let processed = 0;
     const errors: Array<{ eventId: number; error: string }> = [];
@@ -91,7 +92,7 @@ export class ContractEventProcessor {
    * Process a single contract event
    */
   private async processEvent(event: ContractEvent): Promise<void> {
-    console.log("Processing event:", event);
+    console.log(`Processing event: id=${event.id} type=${event.eventType}`);
     switch (event.eventType) {
       case "hopCompleted":
         await this.processHopCompletedEvent(event);
