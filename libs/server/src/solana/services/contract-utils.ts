@@ -2,6 +2,9 @@ import { PublicKey, Connection, clusterApiUrl } from "@solana/web3.js";
 import { Program, AnchorProvider, BN, EventParser } from "@coral-xyz/anchor";
 import { MultiHopperProject } from "../idl/multi_hopper_project";
 import * as IDLJson from "../idl/multi_hopper_project.json";
+import { createLogger } from "../../utils/logger";
+
+const log = createLogger("ContractUtils");
 
 const IDL = IDLJson as any;
 
@@ -104,7 +107,7 @@ export const getRouteIdFromPda = async (
 
     return routeConfigAccount.routeId.toNumber();
   } catch (error) {
-    console.warn(
+    log.warn(
       `Failed to derive route ID from PDA ${routeConfigPda.toString()}:`,
       error
     );
@@ -140,7 +143,7 @@ export const getRouteConfiguration = async (
       createdAt: routeConfigAccount.createdAt.toString(),
     };
   } catch (error) {
-    console.warn("Error fetching route configuration:", error);
+    log.warn("Error fetching route configuration:", error);
     return null;
   }
 };
@@ -171,7 +174,7 @@ export const getRouteStateAccount = async (
       hopsCount: routeStateAccount.hopsCount,
     };
   } catch (error) {
-    console.warn("Error fetching route state:", error);
+    log.warn("Error fetching route state:", error);
     return null;
   }
 };
@@ -189,7 +192,7 @@ export const verifyRoutePda = async (
     );
     return derivedPda.equals(routePda);
   } catch (error) {
-    console.warn("Error verifying route PDA:", error);
+    log.warn("Error verifying route PDA:", error);
     return false;
   }
 };
@@ -206,7 +209,7 @@ export const getRouteConfigPdas = async (
       const pda = await getRouteConfigPda(new BN(routeId), programId);
       results.push({ routeId, pda });
     } catch (error) {
-      console.warn(`Failed to derive PDA for route ${routeId}:`, error);
+      log.warn(`Failed to derive PDA for route ${routeId}:`, error);
     }
   }
 

@@ -3,6 +3,9 @@ import { routesSchema } from "../../routes/schema/route.schema";
 import { and, asc, eq, lte, isNull } from "drizzle-orm";
 import { CreateHopInput, Hop } from "../schema/hops.schema";
 import { utcNow, toUtc } from "../../utils/timezone";
+import { createLogger } from "../../utils/logger";
+
+const log = createLogger("HopsService");
 
 // Mark next hop as ready for execution and set execution time
 // Get hops for a specific route ordered by index
@@ -241,7 +244,7 @@ const getOverdueHops = async (
   routeId?: number
 ): Promise<Hop[]> => {
   const checkTime = currentTime ? toUtc(currentTime) : utcNow();
-  console.log("checkTime", checkTime.toISOString());
+  log.debug("checkTime", checkTime.toISOString());
   const conditions = [
     lte(hopsSchema.scheduledAt, checkTime),
     isNull(hopsSchema.txHash),

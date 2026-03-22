@@ -11,6 +11,9 @@ import { CreateHopInput } from "../../hops/schema/hops.schema";
 import { parseUserDateToUtc } from "../../utils/timezone";
 import { isRouteDeployedOnChain } from "../../solana/services/contract.service";
 import { obfuscationService } from "../../obfuscation";
+import { createLogger } from "../../utils/logger";
+
+const log = createLogger("RoutesService");
 
 // Helper to compute hop deltas (in ms) from absolute scheduledAt timestamps
 function computeHopDeltasMs(hops: Array<{ scheduledAt: Date | string }>): number[] {
@@ -418,7 +421,7 @@ const cascadeCreate = async (_route: NewRoute, _hops: NewHop[]) => {
 
 const triggerNextHop = async (routeId: number) => {
  // TODO: Implement hop triggering logic
-  console.log(`Triggering next hop for route ${routeId}`);
+  log.info(`Triggering next hop for route ${routeId}`);
   // Implementation for triggering next hop
 };
 
