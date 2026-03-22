@@ -1,4 +1,7 @@
 import { Worker, isMainThread, parentPort } from "worker_threads";
+import { createLogger } from "@trpc-template/server";
+
+const log = createLogger("Watchdog");
 
 const PING_INTERVAL_MS = 15_000; // Ping main thread every 15s
 const TIMEOUT_MS = 30_000; // If no pong in 30s, event loop is frozen
@@ -54,17 +57,17 @@ export function startWatchdog(): void {
   });
 
   worker.on("error", (err: Error) => {
-    console.error("[watchdog] Worker error:", err.message);
+    log.error("Worker error:", err.message);
   });
 
   worker.on("exit", (code: number) => {
     if (code !== 0) {
-      console.error(`[watchdog] Worker exited with code ${code}`);
+      log.error(`Worker exited with code ${code}`);
     }
   });
 
   // Ensure worker doesn't prevent process from exiting normally
   worker.unref();
 
-  console.log("[watchdog] Event loop monitor started");
+  log.info("Event loop monitor started");
 }
