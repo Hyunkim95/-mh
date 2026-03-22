@@ -9,13 +9,16 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { sql, inArray } from 'drizzle-orm';
 import { BaseEtlJob, ExtractResult, TransformResult, LoadResult, EtlJobConfig } from '@libs/etl';
 import { uniqBy } from 'lodash';
-import { 
+import {
   SolanaTransactionETLConfig,
   SolanaTransactionData,
   SignatureCursor,
   IndexingDirection,
   SolanaSchemaMapper
 } from './types';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('SolanaTxETL');
 
 // Type constraint to ensure TSchema has a signature property
 interface SchemaWithSignature {
@@ -64,7 +67,7 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
             const retryAfter = response.headers.get('retry-after');
             const delay = retryAfter ? parseInt(retryAfter) * 1000 : Math.min(1000 * Math.pow(2, Math.random() * 3), 10000);
             
-            console.log(`Server responded with 429 Too Many Requests. Retrying after ${delay}ms delay...`);
+            log.warn(`Server responded with 429 Too Many Requests. Retrying after ${delay}ms delay...`);
             await new Promise(resolve => setTimeout(resolve, delay));
             
             // Retry the request
@@ -108,10 +111,10 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
         'signature'
       );
 
-      console.log(`Found ${combinedTransactions.length} unique transactions (${recentTransactions.length} recent, ${historicalTransactions.length} historical)`);
+      log.debug(`Found ${combinedTransactions.length} unique transactions (${recentTransactions.length} recent, ${historicalTransactions.length} historical)`);
 
       if (combinedTransactions.length === 0) {
-        console.log(`No signatures found for ${this.solanaConfig.direction} direction (cursor: ${cursor ? 'exists' : 'none'})`);
+        log.debug(`No signatures found for ${this.solanaConfig.direction} direction (cursor: ${cursor ? 'exists' : 'none'})`);
         return {
           data: [],
           nextCursor: cursor,
@@ -127,7 +130,7 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
       // Filter out already processed transactions using cursor metadata
       const unprocessedTransactions = await this.filterProcessedTransactions(combinedTransactions);
 
-      console.log(`Processing ${unprocessedTransactions.length} unprocessed transactions (${combinedTransactions.length - unprocessedTransactions.length} already processed)`);
+      log.debug(`Processing ${unprocessedTransactions.length} unprocessed transactions (${combinedTransactions.length - unprocessedTransactions.length} already processed)`);
 
       if (unprocessedTransactions.length === 0) {
         return {
@@ -153,7 +156,7 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
 
       // Detect cursor loops to prevent infinite processing
       if (this.recentCursors.includes(nextCursor)) {
-        console.warn(`Cursor loop detected! Cursor ${nextCursor.substring(0, 50)}... has been seen before. Stopping ETL.`);
+        log.warn(`Cursor loop detected! Cursor ${nextCursor.substring(0, 50)}... has been seen before. Stopping ETL.`);
         return {
           data: transactionData,
           nextCursor,
@@ -243,7 +246,7 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
       // Filter out already processed transactions
       const unprocessed = transactions.filter(tx => !processedSignatures.has(tx.signature));
       
-      console.log(`Filtered out ${processedSignatures.size} already processed signatures from batch of ${transactions.length}`);
+      log.debug(`Filtered out ${processedSignatures.size} already processed signatures from batch of ${transactions.length}`);
 
       // Update in-memory cache
       transactions.forEach(tx => {
@@ -252,7 +255,7 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
 
       return unprocessed;
     } catch (error) {
-      console.warn('Failed to filter processed transactions, processing all:', error);
+      log.warn('Failed to filter processed transactions, processing all:', error);
       return transactions;
     }
   }
@@ -266,11 +269,11 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
     const until = untilSignature || boundaries.newestProcessed;
 
     if (until && this.indexedTransactions.has(until)) {
-      console.log('Last transaction already indexed, skipping RPC call');
+      log.debug('Last transaction already indexed, skipping RPC call');
       return [];
     }
 
-    console.log(`Fetching recent transactions until: ${until ? until.substring(0, 8) + '...' : 'none'}`);
+    log.debug(`Fetching recent transactions until: ${until ? until.substring(0, 8) + '...' : 'none'}`);
 
     try {
       const signatures = await this.connection.getSignaturesForAddress(
@@ -284,7 +287,7 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
       // Pre-filter signatures against recent processed ones to reduce subsequent processing
       const filteredSignatures = signatures.filter(sig => !boundaries.recentProcessedSignatures.has(sig.signature));
       
-      console.log(`Fetched ${signatures.length} signatures, ${filteredSignatures.length} are potentially new`);
+      log.debug(`Fetched ${signatures.length} signatures, ${filteredSignatures.length} are potentially new`);
 
       if (until) {
         this.indexedTransactions.set(until, true);
@@ -292,7 +295,7 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
 
       return filteredSignatures;
     } catch (error) {
-      console.error('Error fetching recent transactions:', error);
+      log.error('Error fetching recent transactions:', error);
       return [];
     }
   }
@@ -306,7 +309,7 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
     const before = beforeSignature || boundaries.oldestProcessed;
     
     if (!before) {
-      console.log('No historical boundary found, fetching from beginning');
+      log.debug('No historical boundary found, fetching from beginning');
       // If no processed signatures exist, we can fetch some historical data
       try {
         const signatures = await this.connection.getSignaturesForAddress(
@@ -317,17 +320,17 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
         );
         return signatures.filter(sig => !boundaries.recentProcessedSignatures.has(sig.signature));
       } catch (error) {
-        console.error('Error fetching initial historical transactions:', error);
+        log.error('Error fetching initial historical transactions:', error);
         return [];
       }
     }
 
     if (this.indexedTransactions.has(before)) {
-      console.log('Historical boundary already indexed, skipping RPC call');
+      log.debug('Historical boundary already indexed, skipping RPC call');
       return [];
     }
 
-    console.log(`Fetching historical transactions before: ${before.substring(0, 8)}...`);
+    log.debug(`Fetching historical transactions before: ${before.substring(0, 8)}...`);
 
     try {
       const signatures = await this.connection.getSignaturesForAddress(
@@ -341,7 +344,7 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
       // Pre-filter signatures against recent processed ones
       const filteredSignatures = signatures.filter(sig => !boundaries.recentProcessedSignatures.has(sig.signature));
       
-      console.log(`Fetched ${signatures.length} historical signatures, ${filteredSignatures.length} are potentially new`);
+      log.debug(`Fetched ${signatures.length} historical signatures, ${filteredSignatures.length} are potentially new`);
 
       if (before) {
         this.indexedTransactions.set(before, true);
@@ -349,7 +352,7 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
 
       return filteredSignatures;
     } catch (error) {
-      console.error('Error fetching historical transactions:', error);
+      log.error('Error fetching historical transactions:', error);
       return [];
     }
   }
@@ -394,7 +397,7 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
         recentProcessedSignatures,
       };
     } catch (error) {
-      console.warn('Failed to get processed signature boundaries:', error);
+      log.warn('Failed to get processed signature boundaries:', error);
       return { recentProcessedSignatures: new Set() };
     }
   }
@@ -448,7 +451,7 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
               accountKeys,
             };
           } catch (error) {
-            console.warn(`Failed to fetch transaction ${sigInfo.signature}:`, error);
+            log.warn(`Failed to fetch transaction ${sigInfo.signature}:`, error);
             return null;
           }
         })
@@ -519,7 +522,7 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
     // Deduplicate by signature before processing using lodash
     const uniqueData = uniqBy(data, 'signature');
     
-    console.log(`Processing ${uniqueData.length} unique transactions (${data.length - uniqueData.length} duplicates removed)`);
+    log.debug(`Processing ${uniqueData.length} unique transactions (${data.length - uniqueData.length} duplicates removed)`);
 
     let processedCount = 0;
     const errors: Array<{ data: TSchema; error: Error; index: number }> = [];
@@ -628,7 +631,7 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
       try {
         lastIndexedSlot = await this.connection.getSlot();
       } catch (error) {
-        console.warn('Failed to get current slot for cursor metadata:', error);
+        log.warn('Failed to get current slot for cursor metadata:', error);
       }
 
       // Update cursor with enhanced metadata including boundaries
@@ -663,9 +666,9 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
         }
       );
 
-      console.log(`Updated cursor with ${signatures.length} new signatures, boundaries: newest=${boundaries.newestProcessed?.substring(0, 8)}..., oldest=${boundaries.oldestProcessed?.substring(0, 8)}...`);
+      log.debug(`Updated cursor with ${signatures.length} new signatures, boundaries: newest=${boundaries.newestProcessed?.substring(0, 8)}..., oldest=${boundaries.oldestProcessed?.substring(0, 8)}...`);
     } catch (error) {
-      console.warn('Failed to update cursor with processed signatures:', error);
+      log.warn('Failed to update cursor with processed signatures:', error);
     }
   }
 
@@ -707,37 +710,37 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
 
   // Override lifecycle methods
   protected async beforeJob(): Promise<void> {
-    console.log(`Starting Solana transaction ETL: ${this.config.jobName}`);
-    console.log(`Direction: ${this.solanaConfig.direction}`);
-    console.log(`Program/Account: ${this.solanaConfig.programId || this.solanaConfig.accountAddress}`);
-    console.log(`RPC: ${this.solanaConfig.rpcUrl}`);
-    console.log(`Commitment: ${this.solanaConfig.commitment}`);
+    log.info(`Starting Solana transaction ETL: ${this.config.jobName}`);
+    log.info(`Direction: ${this.solanaConfig.direction}`);
+    log.info(`Program/Account: ${this.solanaConfig.programId || this.solanaConfig.accountAddress}`);
+    log.debug(`RPC: ${this.solanaConfig.rpcUrl}`);
+    log.debug(`Commitment: ${this.solanaConfig.commitment}`);
     
     // Test RPC connection
     try {
       const slot = await this.connection.getSlot();
-      console.log(`Connected to Solana RPC, current slot: ${slot}`);
+      log.info(`Connected to Solana RPC, current slot: ${slot}`);
     } catch (error) {
       throw new Error(`Failed to connect to Solana RPC: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   protected async afterJob(result: any): Promise<void> {
-    console.log(`Solana transaction ETL completed: ${this.config.jobName}`);
-    console.log(`Success: ${result.success}`);
-    console.log(`Transactions processed: ${result.totalLoaded}`);
-    console.log(`Duration: ${result.duration}ms`);
-    
+    log.info(`Solana transaction ETL completed: ${this.config.jobName}`);
+    log.info(`Success: ${result.success}`);
+    log.info(`Transactions processed: ${result.totalLoaded}`);
+    log.info(`Duration: ${result.duration}ms`);
+
     if (result.errors.length > 0) {
-      console.log(`Errors encountered: ${result.errors.length}`);
+      log.warn(`Errors encountered: ${result.errors.length}`);
     }
   }
 
   protected async onError(error: Error, stage: 'extract' | 'transform' | 'load'): Promise<void> {
-    console.error(`Solana ETL error in ${stage}:`, error.message);
-    
+    log.error(`Solana ETL error in ${stage}: ${error.message}`);
+
     if (stage === 'extract') {
-      console.error('Consider reducing maxSignatures or increasing delayMs to avoid rate limiting');
+      log.error('Consider reducing maxSignatures or increasing delayMs to avoid rate limiting');
     }
   }
 

@@ -6,6 +6,9 @@ import {
   fetchMetadata,
   findMetadataPda,
 } from '@metaplex-foundation/mpl-token-metadata';
+import { createLogger } from './utils/logger';
+
+const log = createLogger('TokenMetadata');
 
 /**
  * Token metadata interface
@@ -101,7 +104,7 @@ export async function fetchTokenMetadata(
     }
 
     const metadata = digitalAsset.metadata;
-    console.log('metadata', metadata);
+    log.debug('metadata', metadata);
 
     const tokenMetadata: TokenMetadata = {
       mint: mint.toBase58(),
@@ -134,7 +137,7 @@ export async function fetchTokenMetadata(
 
     return tokenMetadata;
   } catch (error) {
-    console.error('Error fetching token metadata:', error);
+    log.error('Error fetching token metadata:', error);
     return null;
   }
 }
@@ -174,7 +177,7 @@ export async function fetchTokenInfo(
       description: metadata?.description,
     };
   } catch (error) {
-    console.error('Error fetching token info:', error);
+    log.error('Error fetching token info:', error);
     return null;
   }
 }
@@ -209,7 +212,7 @@ export async function fetchOnChainMetadata(
       tokenStandard: metadata.tokenStandard?.toString(),
     };
   } catch (error) {
-    console.error('Error fetching on-chain metadata:', error);
+    log.error('Error fetching on-chain metadata:', error);
     return null;
   }
 }
@@ -258,7 +261,7 @@ export async function fetchTokenMetadataURI(
     // Return the original URI if it exists and is not empty
     return metadata.uri && metadata.uri.trim() !== '' ? metadata.uri : null;
   } catch (error) {
-    console.warn('Could not fetch original metadata URI:', error instanceof Error ? error.message : 'Unknown error');
+    log.warn('Could not fetch original metadata URI:', error instanceof Error ? error.message : 'Unknown error');
     return null;
   }
 }
