@@ -11,6 +11,9 @@ import {
 } from '../obfuscation';
 import { db } from '../db';
 import { routesSchema } from '../db/schema';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger("RoutesRouter");
 
 // Validation schemas
 const routeHopSchema = z.object({
@@ -63,7 +66,7 @@ export const routesRouter = router({
           message: validation.isValid ? 'Route is valid' : 'Route validation failed'
         };
       } catch (error) {
-        console.error('Error validating route:', error);
+        log.error('Error validating route:', error);
         return {
           success: false,
           data: {
@@ -93,7 +96,7 @@ export const routesRouter = router({
           message: 'Route created successfully'
         };
       } catch (error) {
-        console.error('Error creating route:', error);
+        log.error('Error creating route:', error);
 
         // Throw the original error message if it's a validation error
         if (error instanceof Error && error.message.includes('Route validation failed')) {
@@ -116,7 +119,7 @@ export const routesRouter = router({
           message: 'Route replay created successfully',
         };
       } catch (error) {
-        console.error('Error replaying route:', error);
+        log.error('Error replaying route:', error);
         throw new Error(
           error instanceof Error ? error.message : 'Failed to replay route'
         );
@@ -142,7 +145,7 @@ export const routesRouter = router({
           nextCursor: routes.nextCursor,
         };
       } catch (error) {
-        console.error('Error fetching routes:', error);
+        log.error('Error fetching routes:', error);
         throw new Error('Failed to fetch routes');
       }
     }),
@@ -161,7 +164,7 @@ export const routesRouter = router({
           data: route
         };
       } catch (error) {
-        console.error('Error fetching route:', error);
+        log.error('Error fetching route:', error);
         throw new Error('Failed to fetch route');
       }
     }),
@@ -205,7 +208,7 @@ export const routesRouter = router({
           message: 'Route updated successfully'
         };
       } catch (error) {
-        console.error('Error updating route:', error);
+        log.error('Error updating route:', error);
 
         // Throw the original error message if it's a validation error
         if (error instanceof Error && error.message.includes('Route validation failed')) {
@@ -230,7 +233,7 @@ export const routesRouter = router({
           message: 'Route deleted successfully'
         };
       } catch (error) {
-        console.error('Error deleting route:', error);
+        log.error('Error deleting route:', error);
         throw new Error('Failed to delete route');
       }
     }),
@@ -260,7 +263,7 @@ export const routesRouter = router({
           message: 'Hop timestamps updated successfully'
         };
       } catch (error) {
-        console.error('Error updating hop timestamps:', error);
+        log.error('Error updating hop timestamps:', error);
         throw new Error('Failed to update hop timestamps');
       }
     }),
@@ -297,7 +300,7 @@ export const routesRouter = router({
           message: 'Route marked as deployed successfully'
         };
       } catch (error) {
-        console.error('Error marking route as deployed:', error);
+        log.error('Error marking route as deployed:', error);
         throw new Error('Failed to mark route as deployed');
       }
     }),
@@ -328,7 +331,7 @@ export const routesRouter = router({
           data: sessionWithWallets,
         };
       } catch (error) {
-        console.error('Error fetching obfuscation session:', error);
+        log.error('Error fetching obfuscation session:', error);
         throw new Error('Failed to fetch obfuscation session');
       }
     }),
@@ -452,7 +455,7 @@ export const routesRouter = router({
           },
         };
       } catch (error) {
-        console.error('Error building funding transactions:', error);
+        log.error('Error building funding transactions:', error);
         throw new Error(
           error instanceof Error ? error.message : 'Failed to build funding transactions'
         );
@@ -500,7 +503,7 @@ export const routesRouter = router({
             : 'Funding confirmed',
         };
       } catch (error) {
-        console.error('Error confirming funding:', error);
+        log.error('Error confirming funding:', error);
         throw new Error('Failed to confirm funding');
       }
     }),
@@ -551,7 +554,7 @@ export const routesRouter = router({
             : `Confirmed ${input.fundingResults.length} funding transactions`,
         };
       } catch (error) {
-        console.error('Error confirming funding:', error);
+        log.error('Error confirming funding:', error);
         throw new Error('Failed to confirm funding');
       }
     }),
@@ -590,7 +593,7 @@ export const routesRouter = router({
           },
         };
       } catch (error) {
-        console.error('Error fetching obfuscation status:', error);
+        log.error('Error fetching obfuscation status:', error);
         throw new Error('Failed to fetch obfuscation status');
       }
     }),

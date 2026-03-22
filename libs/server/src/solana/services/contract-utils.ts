@@ -2,6 +2,9 @@ import { PublicKey, Connection, clusterApiUrl } from "@solana/web3.js";
 import { Program, AnchorProvider, BN, EventParser } from "@coral-xyz/anchor";
 import { MultiHopperProject } from "../idl/multi_hopper_project";
 import * as IDLJson from "../idl/multi_hopper_project.json";
+import { createLogger } from "../../utils/logger";
+
+const log = createLogger("ContractUtils");
 
 const IDL = IDLJson as any;
 
@@ -13,16 +16,39 @@ export interface SolanaInstructionParams {
   programId: PublicKey;
 }
 
+// Cached singleton instances to avoid creating new Connection/Program on every call
+let cachedConnection: Connection | null = null;
+let cachedProgram: Program<MultiHopperProject> | null = null;
+
+function getCachedConnection(): Connection {
+  if (!cachedConnection) {
+    cachedConnection = new Connection(
+      process.env.SOLANA_RPC_URL || clusterApiUrl("mainnet-beta")
+    );
+  }
+  return cachedConnection;
+}
+
 // Default connection parameters
 export const getDefaultParams = (): SolanaInstructionParams => ({
-  connection: new Connection(
-    process.env.SOLANA_RPC_URL || clusterApiUrl("mainnet-beta")
-  ),
+  connection: getCachedConnection(),
   programId: MULTI_HOPPER_PROGRAM_ID,
 });
 
-// Build program instance
+// Build program instance (cached for default params)
 export const buildProgram = (params: SolanaInstructionParams) => {
+  if (
+    params.connection === getCachedConnection() &&
+    params.programId.equals(MULTI_HOPPER_PROGRAM_ID)
+  ) {
+    if (!cachedProgram) {
+      cachedProgram = new Program<MultiHopperProject>(
+        IDL as any,
+        new AnchorProvider(params.connection, {} as any, {})
+      );
+    }
+    return cachedProgram;
+  }
   return new Program<MultiHopperProject>(
     IDL as any,
     new AnchorProvider(params.connection, {} as any, {})
@@ -81,7 +107,7 @@ export const getRouteIdFromPda = async (
 
     return routeConfigAccount.routeId.toNumber();
   } catch (error) {
-    console.warn(
+    log.warn(
       `Failed to derive route ID from PDA ${routeConfigPda.toString()}:`,
       error
     );
@@ -117,7 +143,7 @@ export const getRouteConfiguration = async (
       createdAt: routeConfigAccount.createdAt.toString(),
     };
   } catch (error) {
-    console.warn("Error fetching route configuration:", error);
+    log.warn("Error fetching route configuration:", error);
     return null;
   }
 };
@@ -148,7 +174,7 @@ export const getRouteStateAccount = async (
       hopsCount: routeStateAccount.hopsCount,
     };
   } catch (error) {
-    console.warn("Error fetching route state:", error);
+    log.warn("Error fetching route state:", error);
     return null;
   }
 };
@@ -166,7 +192,7 @@ export const verifyRoutePda = async (
     );
     return derivedPda.equals(routePda);
   } catch (error) {
-    console.warn("Error verifying route PDA:", error);
+    log.warn("Error verifying route PDA:", error);
     return false;
   }
 };
@@ -183,7 +209,7 @@ export const getRouteConfigPdas = async (
       const pda = await getRouteConfigPda(new BN(routeId), programId);
       results.push({ routeId, pda });
     } catch (error) {
-      console.warn(`Failed to derive PDA for route ${routeId}:`, error);
+      log.warn(`Failed to derive PDA for route ${routeId}:`, error);
     }
   }
 

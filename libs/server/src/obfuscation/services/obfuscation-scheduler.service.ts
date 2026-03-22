@@ -17,6 +17,9 @@ import {
   getRouteStateAccount,
 } from "../../solana/services/contract.service";
 import routesService from "../../routes/services/routes.service";
+import { createLogger } from "../../utils/logger";
+
+const log = createLogger("ObfuscationScheduler");
 
 // Constants
 const MAX_RETRY_ATTEMPTS = 3;
@@ -67,7 +70,7 @@ async function recordFailureToDb(
       .where(eq(obfuscationSessionsSchema.id, sessionId));
   }
 
-  console.error(`[ObfuscationScheduler] Recorded failure for session ${sessionId}${walletId ? ` wallet ${walletId}` : ''}: ${error}`);
+  log.error(`Recorded failure for session ${sessionId}${walletId ? ` wallet ${walletId}` : ''}: ${error}`);
 }
 
 /**
@@ -177,7 +180,7 @@ async function acquireSessionLock(sessionId: number): Promise<boolean> {
 
     return result.length > 0;
   } catch (error) {
-    console.warn(`[ObfuscationScheduler] Failed to acquire lock for session ${sessionId}:`, error);
+    log.warn(`Failed to acquire lock for session ${sessionId}:`, error);
     return false;
   }
 }
@@ -200,7 +203,7 @@ async function releaseSessionLock(sessionId: number): Promise<void> {
         ),
       );
   } catch (error) {
-    console.warn(`[ObfuscationScheduler] Failed to release lock for session ${sessionId}:`, error);
+    log.warn(`Failed to release lock for session ${sessionId}:`, error);
   }
 }
 
@@ -228,7 +231,7 @@ function validateHopsConfiguration(
 
   // Warn about large hop counts
   if (route.hops.length > MAX_HOPS_WARNING_THRESHOLD) {
-    console.warn(`[ObfuscationScheduler] Route ${route.id} has ${route.hops.length} hops, which may require multiple batch transactions`);
+    log.warn(`Route ${route.id} has ${route.hops.length} hops, which may require multiple batch transactions`);
   }
 
   return { valid: true };
@@ -261,7 +264,7 @@ async function processAggregations(): Promise<void> {
   const allWallets = [...readyWallets, ...failedWallets];
 
   if (allWallets.length > 0) {
-    console.log(`[ObfuscationScheduler] [Aggregation] Found ${readyWallets.length} ready wallets, ${failedWallets.length} failed wallets ready for retry`);
+    log.info(`[Aggregation] Found ${readyWallets.length} ready wallets, ${failedWallets.length} failed wallets ready for retry`);
   }
 
   for (const wallet of allWallets) {
@@ -286,7 +289,7 @@ async function processAggregations(): Promise<void> {
 
       if (!txData) {
         const errorMsg = "Failed to build aggregation transaction - no transaction data returned";
-        console.error(`[ObfuscationScheduler] ${errorMsg} for wallet ${wallet.id}`);
+        log.error(`${errorMsg} for wallet ${wallet.id}`);
         await intermediateWalletService.updateAggregationStatus(
           wallet.id,
           "failed",
@@ -311,12 +314,12 @@ async function processAggregations(): Promise<void> {
 
       // Clear failure tracking on success
       await clearFailureTracking(wallet.sessionId, wallet.id);
-      console.log(`[ObfuscationScheduler] Successfully aggregated wallet ${wallet.id} for session ${wallet.sessionId}, tx: ${signature}`);
+      log.info(`Successfully aggregated wallet ${wallet.id} for session ${wallet.sessionId}, tx: ${signature}`);
     } catch (error: any) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
 
-      console.error(`[ObfuscationScheduler] Aggregation failed for wallet ${wallet.id}:`, errorMessage);
+      log.error(`Aggregation failed for wallet ${wallet.id}:`, errorMessage);
 
       // Combined status + error update (single DB call)
       await intermediateWalletService.updateAggregationStatus(
@@ -356,11 +359,11 @@ async function processDeploymentAndCleanup(): Promise<void> {
     try {
       const allFunded = await intermediateWalletService.areAllWalletsFunded(stuckSession.id);
       if (allFunded) {
-        console.log(`[ObfuscationScheduler] [Recovery] Session ${stuckSession.id} stuck in "funding" but all wallets funded — advancing to aggregating`);
+        log.info(`[Recovery] Session ${stuckSession.id} stuck in "funding" but all wallets funded — advancing to aggregating`);
         await obfuscationService.scheduleAggregations(stuckSession.id);
       }
     } catch (error) {
-      console.error(`[ObfuscationScheduler] [Recovery] Error checking stuck session ${stuckSession.id}:`, error);
+      log.error(`[Recovery] Error checking stuck session ${stuckSession.id}:`, error);
     }
   }
 
@@ -373,21 +376,21 @@ async function processDeploymentAndCleanup(): Promise<void> {
   });
 
   if (sessions.length > 0) {
-    console.log(`[ObfuscationScheduler] [Deployment] Found ${sessions.length} sessions to process (aggregating/deploying)`);
+    log.info(`[Deployment] Found ${sessions.length} sessions to process (aggregating/deploying)`);
   }
 
   for (const session of sessions) {
     // Check if we should retry based on DB failure tracking
     const shouldRetry = await shouldRetryFromDb(session.id);
     if (!shouldRetry) {
-      console.log(`[ObfuscationScheduler] Skipping session ${session.id} - max retries exceeded or cooling down`);
+      log.info(`Skipping session ${session.id} - max retries exceeded or cooling down`);
       continue;
     }
 
     // Acquire distributed lock for multi-server safety
     const lockAcquired = await acquireSessionLock(session.id);
     if (!lockAcquired) {
-      console.log(`[ObfuscationScheduler] Could not acquire lock for session ${session.id} - another server is processing`);
+      log.info(`Could not acquire lock for session ${session.id} - another server is processing`);
       continue;
     }
 
@@ -415,7 +418,7 @@ async function processDeploymentAndCleanup(): Promise<void> {
       });
 
       if (!route) {
-        console.error(`[ObfuscationScheduler] [Deployment] Route not found for session ${session.id}`);
+        log.error(`[Deployment] Route not found for session ${session.id}`);
         await releaseSessionLock(session.id);
         continue;
       }
@@ -423,7 +426,7 @@ async function processDeploymentAndCleanup(): Promise<void> {
       // Validate hops configuration
       const validation = validateHopsConfiguration(route, session.routeId);
       if (!validation.valid) {
-        console.error(`[ObfuscationScheduler] Hops validation failed for session ${session.id}: ${validation.error}`);
+        log.error(`Hops validation failed for session ${session.id}: ${validation.error}`);
         await recordFailureToDb(session.id, validation.error!);
         await releaseSessionLock(session.id);
         continue;
@@ -435,7 +438,7 @@ async function processDeploymentAndCleanup(): Promise<void> {
 
       // Handle case where route is on-chain but DB not updated
       if (isDeployedOnChain && !isDeployedInDb) {
-        console.log(`[ObfuscationScheduler] [Deployment] Route ${route.id} found on-chain but not in DB, updating status`);
+        log.info(`[Deployment] Route ${route.id} found on-chain but not in DB, updating status`);
         await routesService.updateRouteStatus(
           route.id,
           route.creator,
@@ -454,7 +457,7 @@ async function processDeploymentAndCleanup(): Promise<void> {
           const routeState = await getRouteStateAccount(route.routeId);
           if (routeState && routeState.hopsCount === 0) {
             needsHopsOnly = true;
-            console.log(`[ObfuscationScheduler] [Deployment] Session ${session.id}: Route ${route.routeId} deployed but has 0 hops on-chain — adding hops`);
+            log.info(`[Deployment] Session ${session.id}: Route ${route.routeId} deployed but has 0 hops on-chain — adding hops`);
           }
         } catch {
           // If we can't read route state, skip
@@ -462,7 +465,7 @@ async function processDeploymentAndCleanup(): Promise<void> {
       }
 
       if (!isDeployed || needsHopsOnly) {
-        console.log(`[ObfuscationScheduler] [Deployment] Session ${session.id}: ${needsHopsOnly ? 'Adding missing hops' : 'Route not deployed yet, starting deployment'}...`);
+        log.info(`[Deployment] Session ${session.id}: ${needsHopsOnly ? 'Adding missing hops' : 'Route not deployed yet, starting deployment'}...`);
 
         // Update session status to deploying
         await obfuscationService.updateSessionStatus(session.id, "deploying");
@@ -470,7 +473,7 @@ async function processDeploymentAndCleanup(): Promise<void> {
         // Get Wallet X keypair
         const walletXKeypair = await walletXService.getKeypair(session.id);
         if (!walletXKeypair) {
-          console.error(`[ObfuscationScheduler] Could not get Wallet X keypair for session ${session.id}`);
+          log.error(`Could not get Wallet X keypair for session ${session.id}`);
           await releaseSessionLock(session.id);
           continue;
         }
@@ -484,7 +487,7 @@ async function processDeploymentAndCleanup(): Promise<void> {
           const expectedAmount = new BN(session.totalAmount);
 
           if (tokenBalance.lt(expectedAmount)) {
-            console.log(`[ObfuscationScheduler] Session ${session.id} waiting for tokens - have ${tokenBalance.toString()}, need ${expectedAmount.toString()}`);
+            log.info(`Session ${session.id} waiting for tokens - have ${tokenBalance.toString()}, need ${expectedAmount.toString()}`);
             await releaseSessionLock(session.id);
             continue;
           }
@@ -500,20 +503,20 @@ async function processDeploymentAndCleanup(): Promise<void> {
           })) || [];
 
         if (hops.length === 0) {
-          console.error(`[ObfuscationScheduler] No hops found for route ${route.id}`);
+          log.error(`No hops found for route ${route.id}`);
           await releaseSessionLock(session.id);
           continue;
         }
 
         // Log hop count warning for large routes
         if (hops.length > MAX_HOPS_WARNING_THRESHOLD) {
-          console.warn(`[ObfuscationScheduler] Route ${route.id} has ${hops.length} hops - deployment may require multiple transactions`);
+          log.warn(`Route ${route.id} has ${hops.length} hops - deployment may require multiple transactions`);
         }
 
         try {
           if (needsHopsOnly) {
             // Route already initialized — just add hops
-            console.log(`[ObfuscationScheduler] Adding hops to existing route ${route.routeId} for session ${session.id}`);
+            log.info(`Adding hops to existing route ${route.routeId} for session ${session.id}`);
 
             await addHopsFromWalletX(
               walletXKeypair,
@@ -532,11 +535,11 @@ async function processDeploymentAndCleanup(): Promise<void> {
               { deploymentTxHash: route.deploymentTxHash || "recovered-from-chain" },
             );
 
-            console.log(`[ObfuscationScheduler] Successfully added hops to route ${route.routeId} for session ${session.id}`);
+            log.info(`Successfully added hops to route ${route.routeId} for session ${session.id}`);
           } else {
           // Initialize route from Wallet X
           // IMPORTANT: Use route.routeId (on-chain identifier), not route.id (database ID)
-          console.log(`[ObfuscationScheduler] Initializing route ${route.routeId} from Wallet X for session ${session.id}`);
+          log.info(`Initializing route ${route.routeId} from Wallet X for session ${session.id}`);
           const signature = await initializeRouteFromWalletX(
             walletXKeypair,
             new BN(route.routeId),
@@ -569,11 +572,11 @@ async function processDeploymentAndCleanup(): Promise<void> {
             { deploymentTxHash: signature },
           );
 
-          console.log(`[ObfuscationScheduler] Successfully deployed route ${route.routeId} for session ${session.id}, tx: ${signature}`);
+          log.info(`Successfully deployed route ${route.routeId} for session ${session.id}, tx: ${signature}`);
           } // end else (full deployment)
         } catch (deployError: any) {
           const errorMessage = deployError instanceof Error ? deployError.message : "Unknown deployment error";
-          console.error(`[ObfuscationScheduler] Deployment failed for session ${session.id}:`, errorMessage);
+          log.error(`Deployment failed for session ${session.id}:`, errorMessage);
 
           // Record failure for retry
           await recordFailureToDb(session.id, errorMessage);
@@ -624,7 +627,7 @@ async function processDeploymentAndCleanup(): Promise<void> {
             cleanupError instanceof Error
               ? cleanupError.message
               : "Unknown error";
-          console.error(`[ObfuscationScheduler] [Cleanup] Session ${session.id}: Cleanup failed for wallet ${wallet.id}:`, errorMessage);
+          log.error(`[Cleanup] Session ${session.id}: Cleanup failed for wallet ${wallet.id}:`, errorMessage);
           // Combined status + error update (single DB call)
           await intermediateWalletService.updateCleanupStatus(
             wallet.id,
@@ -658,7 +661,7 @@ async function processDeploymentAndCleanup(): Promise<void> {
         const errorMessage = walletXCleanupError instanceof Error
           ? walletXCleanupError.message
           : "Unknown error";
-        console.error(`[ObfuscationScheduler] [Cleanup] Session ${session.id}: Wallet X cleanup failed:`, errorMessage);
+        log.error(`[Cleanup] Session ${session.id}: Wallet X cleanup failed:`, errorMessage);
         walletXCleanupSuccess = false;
         // Record failure for retry on next scheduler run
         await recordFailureToDb(session.id, `Wallet X cleanup failed: ${errorMessage}`);
@@ -671,16 +674,16 @@ async function processDeploymentAndCleanup(): Promise<void> {
       if (allCleaned && walletXCleanupSuccess) {
         await obfuscationService.completeSession(session.id, actualFeesLamports.toString());
       } else {
-        console.log(`[ObfuscationScheduler] [Cleanup] Session ${session.id}: Some cleanups failed (wallets: ${allCleaned}, walletX: ${walletXCleanupSuccess}), will retry on next run`);
+        log.info(`[Cleanup] Session ${session.id}: Some cleanups failed (wallets: ${allCleaned}, walletX: ${walletXCleanupSuccess}), will retry on next run`);
       }
 
       // Clear failure tracking on success
       await clearFailureTracking(session.id);
-      console.log(`[ObfuscationScheduler] [Completion] Session ${session.id}: ✅ COMPLETED SUCCESSFULLY - Route ${route.routeId} deployed, actual fees: ${actualFeesLamports} lamports (${(actualFeesLamports / 1_000_000_000).toFixed(6)} SOL)`);
+      log.info(`[Completion] Session ${session.id}: COMPLETED SUCCESSFULLY - Route ${route.routeId} deployed, actual fees: ${actualFeesLamports} lamports (${(actualFeesLamports / 1_000_000_000).toFixed(6)} SOL)`);
     } catch (error: any) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
-      console.error(`[ObfuscationScheduler] Critical error processing session ${session.id}:`, errorMessage);
+      log.error(`Critical error processing session ${session.id}:`, errorMessage);
       await recordFailureToDb(session.id, errorMessage);
     } finally {
       // Always release the lock
@@ -717,9 +720,9 @@ export const obfuscationProcessorJob = new CronJob(
       // Log critical errors for debugging - never swallow errors silently
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       const errorStack = error instanceof Error ? error.stack : undefined;
-      console.error("[ObfuscationScheduler] Critical error during processing:", errorMessage);
+      log.error("Critical error during processing:", errorMessage);
       if (errorStack) {
-        console.error("[ObfuscationScheduler] Stack trace:", errorStack);
+        log.error("Stack trace:", errorStack);
       }
       // Consider sending to error tracking service (Sentry, etc.) in production
     } finally {
@@ -732,18 +735,18 @@ export const obfuscationProcessorJob = new CronJob(
  * Start the obfuscation scheduler
  */
 export function startObfuscationScheduler(): void {
-  console.log(`[ObfuscationScheduler] Starting scheduler (server ID: ${SERVER_ID})`);
+  log.info(`Starting scheduler (server ID: ${SERVER_ID})`);
   obfuscationProcessorJob.start();
-  console.log(`[ObfuscationScheduler] Scheduler started - running every 5 seconds`);
+  log.info(`Scheduler started - running every 5 seconds`);
 }
 
 /**
  * Stop the obfuscation scheduler
  */
 export function stopObfuscationScheduler(): void {
-  console.log(`[ObfuscationScheduler] Stopping scheduler...`);
+  log.info(`Stopping scheduler...`);
   obfuscationProcessorJob.stop();
-  console.log(`[ObfuscationScheduler] Scheduler stopped`);
+  log.info(`Scheduler stopped`);
 }
 
 export const obfuscationSchedulerService = {

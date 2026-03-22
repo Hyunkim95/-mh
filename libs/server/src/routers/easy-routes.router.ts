@@ -2,6 +2,9 @@ import { z } from 'zod';
 import { publicProcedure, router } from '../trpc';
 import { createEasyRouteService } from '../routes/services/easy-route.service';
 import { db } from '../db';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger("EasyRoutesRouter");
 
 // Validation schema for Easy Route input
 const easyRouteSchema = z.object({
@@ -40,7 +43,7 @@ export const easyRoutesRouter = router({
           message: 'Easy Route created successfully'
         };
       } catch (error) {
-        console.error('Error creating Easy Route:', error);
+        log.error('Error creating Easy Route:', error);
         throw new Error(
           error instanceof Error ? error.message : 'Failed to create Easy Route'
         );
@@ -64,7 +67,7 @@ export const easyRoutesRouter = router({
           message: validation.isValid ? 'Easy Route is valid' : 'Easy Route validation failed'
         };
       } catch (error) {
-        console.error('Error validating Easy Route:', error);
+        log.error('Error validating Easy Route:', error);
         return {
           success: false,
           data: {

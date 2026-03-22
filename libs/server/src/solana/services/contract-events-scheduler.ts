@@ -1,6 +1,9 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { ContractEventsEtlJob } from './contract-events-etl';
 import { ContractEventProcessor } from './contract-event-processor';
+import { createLogger } from '../../utils/logger';
+
+const log = createLogger('ETLScheduler');
 
 export interface ContractEventsSchedulerConfig {
   rpcUrl: string;
@@ -16,6 +19,8 @@ export class ContractEventsScheduler {
   private etlInterval?: NodeJS.Timeout;
   private processingInterval?: NodeJS.Timeout;
   private isRunning = false;
+  private isEtlJobRunning = false;
+  private isProcessingRunning = false;
   private consecutiveEmptyRuns = 0; // Track consecutive runs with no data
   private maxEmptyRuns = 3; // Stop ETL after this many empty runs
   private cooldownPeriod = 5 * 60 * 1000; // 5 minutes cooldown after max empty runs
@@ -33,20 +38,16 @@ export class ContractEventsScheduler {
    */
   async start(): Promise<void> {
     if (this.isRunning) {
-      console.log('Contract events scheduler is already running');
+      log.info('Contract events scheduler is already running');
       return;
     }
 
     if (!this.config.enabled) {
-      console.log('Contract events scheduler is disabled');
+      log.info('Contract events scheduler is disabled');
       return;
     }
 
-    console.log('Starting contract events scheduler...');
-    console.log(`ETL interval: ${this.config.etlIntervalMs}ms`);
-    console.log(`Processing interval: ${this.config.processingIntervalMs}ms`);
-    console.log(`Direction: ${this.config.direction}`);
-    console.log(`Program ID: ${this.config.programId}`);
+    log.info(`Starting: interval=${this.config.etlIntervalMs}ms, processing=${this.config.processingIntervalMs}ms, direction=${this.config.direction}`);
 
     this.isRunning = true;
 
@@ -56,7 +57,7 @@ export class ContractEventsScheduler {
     // Start the event processing loop
     this.startEventProcessing();
 
-    console.log('Contract events scheduler started successfully');
+    log.info('Started successfully');
   }
 
   /**
@@ -79,7 +80,7 @@ export class ContractEventsScheduler {
       this.processingInterval = undefined;
     }
 
-    console.log('Contract events scheduler stopped');
+    log.info('Stopped');
   }
 
   /**
@@ -89,58 +90,48 @@ export class ContractEventsScheduler {
     this.etlInterval = setInterval(async () => {
       if (!this.isRunning) return;
 
-      // For backward direction, we should be more aggressive and continue processing
-      // until we truly reach the end of historical data. Only apply cooldown for forward direction.
-      const shouldApplyCooldown = this.config.direction === 'forward';
-      
-      if (shouldApplyCooldown && this.consecutiveEmptyRuns >= this.maxEmptyRuns && this.lastEmptyRunTime) {
+      // Overlap guard: skip if previous ETL run is still in progress
+      if (this.isEtlJobRunning) {
+        log.debug(`ETL job still running (${this.config.direction}), skipping tick`);
+        return;
+      }
+
+      // Apply cooldown for both forward and backward directions
+      if (this.consecutiveEmptyRuns >= this.maxEmptyRuns && this.lastEmptyRunTime) {
+        const cooldown = this.config.direction === 'backward'
+          ? this.cooldownPeriod * 2
+          : this.cooldownPeriod;
         const timeSinceLastEmpty = Date.now() - this.lastEmptyRunTime.getTime();
-        if (timeSinceLastEmpty < this.cooldownPeriod) {
-          console.log(`ETL in cooldown for ${Math.ceil((this.cooldownPeriod - timeSinceLastEmpty) / 1000)}s more (${this.consecutiveEmptyRuns} consecutive empty runs)`);
+        if (timeSinceLastEmpty < cooldown) {
           return;
         } else {
-          // Reset cooldown
-          console.log(`Cooldown period ended, resuming ETL (${this.config.direction})`);
           this.consecutiveEmptyRuns = 0;
           this.lastEmptyRunTime = undefined;
         }
       }
 
+      this.isEtlJobRunning = true;
       try {
         const result = await this.runEtlJob();
-        
-        // Check if this run processed any data
+
         if (result && result.totalExtracted === 0) {
           this.consecutiveEmptyRuns++;
           this.lastEmptyRunTime = new Date();
-          
-          if (this.config.direction === 'backward') {
-            // For backward direction, log but don't apply aggressive cooldown
-            console.log(`Backward ETL run ${this.consecutiveEmptyRuns} with no data - continuing to search historical data`);
-            
-            // Reset counter more frequently for backward to prevent getting stuck
-            if (this.consecutiveEmptyRuns >= 10) { // Higher threshold for backward
-              console.log(`Backward ETL: ${this.consecutiveEmptyRuns} consecutive empty runs, may have reached historical limit`);
-              // Still don't cooldown, just log the situation
-            }
-          } else {
-            console.log(`Forward ETL run ${this.consecutiveEmptyRuns}/${this.maxEmptyRuns} with no data`);
-          }
         } else if (result && result.totalExtracted > 0) {
-          // Reset counter if we found data
           this.consecutiveEmptyRuns = 0;
           this.lastEmptyRunTime = undefined;
-          console.log(`ETL processed ${result.totalExtracted} transactions (${this.config.direction})`);
+          log.info(`ETL processed ${result.totalExtracted} transactions (${this.config.direction})`);
         }
       } catch (error) {
-        console.error('ETL job failed:', error);
-        // Don't increment empty run counter for errors
+        log.error('ETL job failed:', error);
+      } finally {
+        this.isEtlJobRunning = false;
       }
     }, this.config.etlIntervalMs);
 
     // Run immediately on start
     this.runEtlJob().catch(error => {
-      console.error('Initial ETL job failed:', error);
+      log.error('Initial ETL job failed:', error);
     });
   }
 
@@ -151,21 +142,23 @@ export class ContractEventsScheduler {
     this.processingInterval = setInterval(async () => {
       if (!this.isRunning) return;
 
+      if (this.isProcessingRunning) return;
+
+      this.isProcessingRunning = true;
       try {
         const result = await this.eventProcessor.processUnprocessedEvents();
-        
+
         if (result.processed > 0) {
-          console.log(`Event processing completed: ${result.processed} events processed`);
-          
+          log.info(`Event processing completed: ${result.processed} events processed`);
+
           if (result.errors.length > 0) {
-            console.warn(`Event processing errors: ${result.errors.length} events failed`);
-            result.errors.forEach(error => {
-              console.warn(`Event ${error.eventId}: ${error.error}`);
-            });
+            log.warn(`Event processing errors: ${result.errors.length} events failed`);
           }
         }
       } catch (error) {
-        console.error('Event processing failed:', error);
+        log.error('Event processing failed:', error);
+      } finally {
+        this.isProcessingRunning = false;
       }
     }, this.config.processingIntervalMs);
   }
@@ -244,9 +237,9 @@ export class ContractEventsScheduler {
    * Force run ETL job immediately
    */
   async runEtlNow(): Promise<any> {
-    console.log('Running ETL job manually...');
+    log.info('Running ETL job manually...');
     const result = await this.runEtlJob();
-    console.log('Manual ETL job completed:', result);
+    log.info('Manual ETL job completed');
     
     return result;
   }
@@ -255,9 +248,9 @@ export class ContractEventsScheduler {
    * Force process events immediately
    */
   async processEventsNow(): Promise<any> {
-    console.log('Processing events manually...');
+    log.info('Processing events manually...');
     const result = await this.eventProcessor.processUnprocessedEvents();
-    console.log('Manual event processing completed:', result);
+    log.info('Manual event processing completed');
     
     return result;
   }
@@ -266,9 +259,9 @@ export class ContractEventsScheduler {
    * Reprocess failed events
    */
   async reprocessFailedEvents(eventIds?: number[]): Promise<void> {
-    console.log('Reprocessing failed events...');
+    log.info('Reprocessing failed events...');
     await this.eventProcessor.reprocessFailedEvents(eventIds);
-    console.log('Failed events reprocessing completed');
+    log.info('Failed events reprocessing completed');
   }
 
   /**
@@ -276,7 +269,7 @@ export class ContractEventsScheduler {
    */
   updateConfig(newConfig: Partial<ContractEventsSchedulerConfig>): void {
     this.config = { ...this.config, ...newConfig };
-    console.log('Contract events scheduler configuration updated');
+    log.info('Configuration updated');
   }
 
   /**

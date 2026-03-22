@@ -401,69 +401,66 @@ export class SolanaTransactionEtlJob<TSchema extends SchemaWithSignature = any> 
 
   // New method: Fetch transaction details with better error handling
   private async fetchTransactionDetails(signatures: ConfirmedSignatureInfo[]): Promise<SolanaTransactionData[]> {
-    const transactionPromises = signatures.map(async (sigInfo): Promise<SolanaTransactionData | null> => {
-      try {
-        const config: GetVersionedTransactionConfig = {
-          commitment: this.solanaConfig.commitment as Finality,
-          maxSupportedTransactionVersion: 0,
-        };
-
-        const transaction = await this.connection.getParsedTransaction(
-          sigInfo.signature,
-          config
-        );
-
-        // Extract program IDs and account keys
-        const programIds: string[] = [];
-        const accountKeys: string[] = [];
-
-        if (transaction?.transaction) {
-          transaction.transaction.message.accountKeys.forEach(key => {
-            accountKeys.push(key.pubkey.toString());
-          });
-
-          transaction.transaction.message.instructions.forEach(ix => {
-            const programId = ix.programId.toString();
-            if (!programIds.includes(programId)) {
-              programIds.push(programId);
-            }
-          });
-        }
-
-        return {
-          signature: sigInfo.signature,
-          blockTime: sigInfo.blockTime,
-          slot: sigInfo.slot,
-          err: sigInfo.err,
-          memo: sigInfo.memo,
-          fee: transaction?.meta?.fee || 0,
-          transaction,
-          confirmationStatus: sigInfo.confirmationStatus,
-          programIds,
-          accountKeys,
-        };
-      } catch (error) {
-        console.warn(`Failed to fetch transaction ${sigInfo.signature}:`, error);
-        return null;
-      }
-    });
-
-    // Execute transaction fetches with some concurrency control
     const batchSize = 10;
     const transactionData: SolanaTransactionData[] = [];
-    
-    for (let i = 0; i < transactionPromises.length; i += batchSize) {
-      const batch = transactionPromises.slice(i, i + batchSize);
-      const batchResults = await Promise.all(batch);
-      
+
+    for (let i = 0; i < signatures.length; i += batchSize) {
+      const batch = signatures.slice(i, i + batchSize);
+      const batchResults = await Promise.all(
+        batch.map(async (sigInfo): Promise<SolanaTransactionData | null> => {
+          try {
+            const config: GetVersionedTransactionConfig = {
+              commitment: this.solanaConfig.commitment as Finality,
+              maxSupportedTransactionVersion: 0,
+            };
+
+            const transaction = await this.connection.getParsedTransaction(
+              sigInfo.signature,
+              config
+            );
+
+            const programIds: string[] = [];
+            const accountKeys: string[] = [];
+
+            if (transaction?.transaction) {
+              transaction.transaction.message.accountKeys.forEach(key => {
+                accountKeys.push(key.pubkey.toString());
+              });
+
+              transaction.transaction.message.instructions.forEach(ix => {
+                const programId = ix.programId.toString();
+                if (!programIds.includes(programId)) {
+                  programIds.push(programId);
+                }
+              });
+            }
+
+            return {
+              signature: sigInfo.signature,
+              blockTime: sigInfo.blockTime,
+              slot: sigInfo.slot,
+              err: sigInfo.err,
+              memo: sigInfo.memo,
+              fee: transaction?.meta?.fee || 0,
+              transaction,
+              confirmationStatus: sigInfo.confirmationStatus,
+              programIds,
+              accountKeys,
+            };
+          } catch (error) {
+            console.warn(`Failed to fetch transaction ${sigInfo.signature}:`, error);
+            return null;
+          }
+        })
+      );
+
       batchResults.forEach(result => {
         if (result) {
           transactionData.push(result);
         }
       });
 
-      // Rate limiting between batches
-      if (i + batchSize < transactionPromises.length) {
+      if (i + batchSize < signatures.length) {
         await this.delay(this.solanaConfig.delayMs!);
       }
     }

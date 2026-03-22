@@ -18,6 +18,9 @@ import {
   estimateDeploymentCost,
   getRecommendedPriorityFee,
 } from "../../solana/services/contract.service";
+import { createLogger } from "../../utils/logger";
+
+const log = createLogger("ObfuscationService");
 
 // Configuration constants
 const MIN_INTERMEDIATE_WALLETS = 5;
@@ -94,8 +97,8 @@ async function getDynamicFees(): Promise<DynamicFeeCache> {
 
     return feeCache;
   } catch (error) {
-    console.warn(
-      "[ObfuscationService] Failed to fetch dynamic fees, using fallbacks:",
+    log.warn(
+      "Failed to fetch dynamic fees, using fallbacks:",
       error,
     );
     // Return fallback values

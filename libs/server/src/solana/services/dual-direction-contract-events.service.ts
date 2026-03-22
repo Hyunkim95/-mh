@@ -5,6 +5,9 @@ import {
 import { db } from "../../db";
 import { MULTI_HOPPER_PROGRAM_ID } from "./contract-utils";
 import { config } from "../../config/config";
+import { createLogger } from "../../utils/logger";
+
+const log = createLogger("DualETL");
 
 export interface DualDirectionConfig {
   rpcUrl: string;
@@ -56,52 +59,52 @@ export class DualDirectionContractEventsService {
    */
   async initialize(): Promise<void> {
     if (this.isInitialized) {
-      console.log("Dual direction contract events service already initialized");
+      log.info("Dual direction contract events service already initialized");
       return;
     }
 
     try {
-      console.log("🚀 Initializing dual direction contract events service...");
+      log.info("Initializing dual direction contract events service...");
 
       // Start forward scheduler (always enabled for real-time processing)
       if (this.forwardScheduler.config.enabled) {
-        console.log("🔄 Starting forward scheduler (newest → oldest)...");
+        log.info("Starting forward scheduler (newest → oldest)...");
         await this.forwardScheduler.start();
-        console.log("✅ Forward scheduler started");
+        log.info("Forward scheduler started");
       } else {
-        console.log("⏭️ Forward scheduler disabled");
+        log.info("Forward scheduler disabled");
       }
 
       // Start backward scheduler if enabled
       if (this.backwardScheduler.config.enabled) {
         // Add delay between starting schedulers to prevent simultaneous RPC load
-        console.log(
-          "⏳ Waiting 5 seconds before starting backward scheduler..."
+        log.info(
+          "Waiting 5 seconds before starting backward scheduler..."
         );
         await new Promise((resolve) => setTimeout(resolve, 5000));
 
-        console.log("🔄 Starting backward scheduler (oldest → newest)...");
+        log.info("Starting backward scheduler (oldest → newest)...");
         await this.backwardScheduler.start();
-        console.log("✅ Backward scheduler started");
+        log.info("Backward scheduler started");
       } else {
-        console.log(
-          "⏭️ Backward scheduler disabled (set CONTRACT_EVENTS_BACKWARD_ENABLED=true to enable)"
+        log.info(
+          "Backward scheduler disabled (set CONTRACT_EVENTS_BACKWARD_ENABLED=true to enable)"
         );
       }
 
       this.isInitialized = true;
 
-      console.log(
-        "🎯 Dual direction contract events service initialized successfully"
+      log.info(
+        "Dual direction contract events service initialized successfully"
       );
-      console.log("📊 Configuration:");
-      console.log(
-        `   • Forward: ${
+      log.info("Configuration:");
+      log.info(
+        `   Forward: ${
           this.forwardScheduler.config.enabled ? "ENABLED" : "DISABLED"
         } - Catches new transactions`
       );
-      console.log(
-        `   • Backward: ${
+      log.info(
+        `   Backward: ${
           this.backwardScheduler.config.enabled ? "ENABLED" : "DISABLED"
         } - Fills historical gaps`
       );
@@ -109,11 +112,11 @@ export class DualDirectionContractEventsService {
         this.forwardScheduler.config.enabled &&
         this.backwardScheduler.config.enabled
       ) {
-        console.log("   • Sequential startup prevents RPC rate limiting");
+        log.info("   Sequential startup prevents RPC rate limiting");
       }
     } catch (error) {
-      console.error(
-        "❌ Failed to initialize dual direction contract events service:",
+      log.error(
+        "Failed to initialize dual direction contract events service:",
         error
       );
       throw error;
@@ -125,12 +128,12 @@ export class DualDirectionContractEventsService {
    */
   async shutdown(): Promise<void> {
     if (!this.isInitialized) {
-      console.log("Dual direction contract events service not initialized");
+      log.info("Dual direction contract events service not initialized");
       return;
     }
 
     try {
-      console.log("🛑 Shutting down dual direction contract events service...");
+      log.info("Shutting down dual direction contract events service...");
 
       await Promise.all([
         this.forwardScheduler.stop(),
@@ -138,12 +141,12 @@ export class DualDirectionContractEventsService {
       ]);
 
       this.isInitialized = false;
-      console.log(
-        "✅ Dual direction contract events service shut down successfully"
+      log.info(
+        "Dual direction contract events service shut down successfully"
       );
     } catch (error) {
-      console.error(
-        "❌ Failed to shutdown dual direction contract events service:",
+      log.error(
+        "Failed to shutdown dual direction contract events service:",
         error
       );
       throw error;
@@ -184,7 +187,7 @@ export class DualDirectionContractEventsService {
    * Manually trigger ETL for both directions
    */
   async runEtlNow() {
-    console.log("🔄 Running ETL manually for both directions...");
+    log.info("Running ETL manually for both directions...");
 
     const [forwardResult, backwardResult] = await Promise.all([
       this.forwardScheduler.runEtlNow().catch((error) => ({
@@ -209,7 +212,7 @@ export class DualDirectionContractEventsService {
    * Process events for both directions
    */
   async processEventsNow() {
-    console.log("⚡ Processing events manually for both directions...");
+    log.info("Processing events manually for both directions...");
 
     const [forwardResult, backwardResult] = await Promise.all([
       this.forwardScheduler.processEventsNow().catch((error) => ({
@@ -276,7 +279,7 @@ export class DualDirectionContractEventsService {
       });
     }
 
-    console.log("📝 Dual direction configuration updated");
+    log.info("Dual direction configuration updated");
   }
 }
 
@@ -310,25 +313,25 @@ export const dualDirectionContractEventsService =
 
 // Graceful shutdown handling
 process.on("SIGTERM", async () => {
-  console.log(
+  log.info(
     "SIGTERM received, shutting down dual direction contract events service..."
   );
   try {
     await dualDirectionContractEventsService.shutdown();
   } catch (error) {
-    console.error("Error during dual direction service shutdown:", error);
+    log.error("Error during dual direction service shutdown:", error);
   }
   process.exit(0);
 });
 
 process.on("SIGINT", async () => {
-  console.log(
+  log.info(
     "SIGINT received, shutting down dual direction contract events service..."
   );
   try {
     await dualDirectionContractEventsService.shutdown();
   } catch (error) {
-    console.error("Error during dual direction service shutdown:", error);
+    log.error("Error during dual direction service shutdown:", error);
   }
   process.exit(0);
 });
