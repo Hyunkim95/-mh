@@ -182,7 +182,8 @@ async function buildFundingTransaction(
     // 1. Aggregation transaction fees (per wallet)
     // 2. SOL to forward to Wallet X for route deployment (split among all wallets)
     // 3. Cleanup reservation (tx fee + rent exempt) that gets held back during aggregation
-    const { AGGREGATION_FEE_PER_WALLET, FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS, BASE_TX_FEE_LAMPORTS } =
+    // 4. Wallet X cleanup buffer — ensures Wallet X has SOL for its own cleanup tx after deployment
+    const { AGGREGATION_FEE_PER_WALLET, FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS, BASE_TX_FEE_LAMPORTS, WALLET_X_CLEANUP_BUFFER_LAMPORTS } =
       obfuscationService.constants;
     const dynamicDeploymentCost = obfuscationService.getDeploymentCost(hopCount, amountLamports);
     const deploymentSharePerWallet = Math.ceil(
@@ -192,8 +193,10 @@ async function buildFundingTransaction(
     // This comes out of the wallet balance, reducing what reaches Wallet X.
     // We must fund enough to cover this leakage.
     const cleanupReservationPerWallet = BASE_TX_FEE_LAMPORTS * 2 + FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS;
+    // Extra buffer split across wallets so Wallet X can always pay its own cleanup tx
+    const walletXCleanupSharePerWallet = Math.ceil(WALLET_X_CLEANUP_BUFFER_LAMPORTS / totalWalletCount);
     const totalSolFunding =
-      deploymentSharePerWallet + AGGREGATION_FEE_PER_WALLET + cleanupReservationPerWallet;
+      deploymentSharePerWallet + AGGREGATION_FEE_PER_WALLET + cleanupReservationPerWallet + walletXCleanupSharePerWallet;
 
     transaction.add(
       SystemProgram.transfer({
@@ -205,8 +208,8 @@ async function buildFundingTransaction(
   } else {
     // SOL transfer: allocated amount + extra SOL for Wallet X deployment costs
     // Uses dynamic deployment cost based on actual hop count + 15% buffer
-    // Plus per-wallet aggregation fees and cleanup reservation overhead
-    const { AGGREGATION_FEE_PER_WALLET, FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS, BASE_TX_FEE_LAMPORTS } =
+    // Plus per-wallet aggregation fees, cleanup reservation, and Wallet X cleanup buffer
+    const { AGGREGATION_FEE_PER_WALLET, FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS, BASE_TX_FEE_LAMPORTS, WALLET_X_CLEANUP_BUFFER_LAMPORTS } =
       obfuscationService.constants;
     const dynamicDeploymentCost = obfuscationService.getDeploymentCost(hopCount, amountLamports);
     const deploymentSharePerWallet = Math.ceil(
@@ -215,8 +218,10 @@ async function buildFundingTransaction(
     // Each wallet reserves ~1.1M during aggregation for cleanup (tx fee + rent exempt).
     // This comes out of the wallet balance, reducing what reaches Wallet X.
     const cleanupReservationPerWallet = BASE_TX_FEE_LAMPORTS * 2 + FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS;
+    // Extra buffer split across wallets so Wallet X can always pay its own cleanup tx
+    const walletXCleanupSharePerWallet = Math.ceil(WALLET_X_CLEANUP_BUFFER_LAMPORTS / totalWalletCount);
     const extraSolForDeployment =
-      deploymentSharePerWallet + AGGREGATION_FEE_PER_WALLET + cleanupReservationPerWallet;
+      deploymentSharePerWallet + AGGREGATION_FEE_PER_WALLET + cleanupReservationPerWallet + walletXCleanupSharePerWallet;
     const totalFunding = amount.toNumber() + extraSolForDeployment;
 
     transaction.add(

@@ -174,6 +174,7 @@ const calculateDelaysFromTimestamps = (
     return {
       recipient: hop.recipient,
       scheduledAt: hop.scheduledAt,
+      executedAt: hop.executedAt ?? null,
       delayMinutes,
       delaySeconds,
     };
@@ -241,6 +242,7 @@ const getRoutesByCreatorPaginated = async ({
         hops: hopsWithDelays.map((hop) => ({
           recipient: hop.recipient,
           scheduledAt: new Date(hop.scheduledAt).toUTCString(),
+          executedAt: hop.executedAt ? new Date(hop.executedAt).toUTCString() : null,
           delayMinutes: hop.delayMinutes,
           delaySeconds: hop.delaySeconds,
         })),
@@ -299,6 +301,11 @@ const getRoute = async (
         hop.scheduledAt instanceof Date
           ? hop.scheduledAt.toISOString()
           : hop.scheduledAt,
+      executedAt: hop.executedAt
+        ? (hop.executedAt instanceof Date
+            ? hop.executedAt.toISOString()
+            : hop.executedAt)
+        : null,
       delayMinutes: hop.delayMinutes,
       delaySeconds: hop.delaySeconds,
     })),

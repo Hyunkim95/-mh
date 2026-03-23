@@ -15,8 +15,11 @@ import {
   addHopsFromWalletX,
   isRouteDeployedOnChain,
   getRouteStateAccount,
+  isExtraAccountMetasInitialized,
+  initializeExtraAccountMetasForRoute,
 } from "../../solana/services/contract.service";
 import routesService from "../../routes/services/routes.service";
+import { hopsService } from "../../hops/services/hops.service";
 import { createLogger } from "../../utils/logger";
 
 const log = createLogger("ObfuscationScheduler");
@@ -447,6 +450,28 @@ async function processDeploymentAndCleanup(): Promise<void> {
         );
       }
 
+      // If route is on-chain, verify ExtraAccountMetaList is initialized.
+      // The setup tx (ExtraAccountMetaList init) can fail independently of the main
+      // deployment tx. Without it, TransferChecked fails with InvalidAccountData.
+      if (isDeployedOnChain) {
+        const hasExtraMetas = await isExtraAccountMetasInitialized(route.routeId);
+        if (!hasExtraMetas) {
+          log.warn(`[Deployment] Route ${route.routeId}: ExtraAccountMetaList missing — initializing`);
+          const walletXKeypair = await walletXService.getKeypair(session.id);
+          if (walletXKeypair) {
+            try {
+              await initializeExtraAccountMetasForRoute(route.routeId, walletXKeypair);
+              log.info(`[Deployment] Route ${route.routeId}: ExtraAccountMetaList initialized`);
+            } catch (metaError: any) {
+              log.error(`[Deployment] Route ${route.routeId}: Failed to init ExtraAccountMetaList: ${metaError.message}`);
+              await recordFailureToDb(session.id, `ExtraAccountMetaList init failed: ${metaError.message}`);
+              await releaseSessionLock(session.id);
+              continue;
+            }
+          }
+        }
+      }
+
       const isDeployed = isDeployedInDb || isDeployedOnChain;
 
       // Check if route is deployed but missing hops on-chain (incomplete deployment)
@@ -535,6 +560,9 @@ async function processDeploymentAndCleanup(): Promise<void> {
               { deploymentTxHash: route.deploymentTxHash || "recovered-from-chain" },
             );
 
+            // Shift hop schedules to account for obfuscation delay
+            await hopsService.shiftHopSchedulesAfterDeployment(route.id);
+
             log.info(`Successfully added hops to route ${route.routeId} for session ${session.id}`);
           } else {
           // Initialize route from Wallet X
@@ -571,6 +599,9 @@ async function processDeploymentAndCleanup(): Promise<void> {
             "deployed",
             { deploymentTxHash: signature },
           );
+
+          // Shift hop schedules to account for obfuscation delay
+          await hopsService.shiftHopSchedulesAfterDeployment(route.id);
 
           log.info(`Successfully deployed route ${route.routeId} for session ${session.id}, tx: ${signature}`);
           } // end else (full deployment)

@@ -11,6 +11,7 @@ export interface Route {
   hops?: Array<{
     recipient: string;
     scheduledAt: string; // ISO string from database
+    executedAt?: string | null; // actual execution time
     delayMinutes?: number;
     delaySeconds?: number;
     status?: "completed" | "active" | "upcoming";

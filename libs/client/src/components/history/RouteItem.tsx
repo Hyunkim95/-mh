@@ -123,11 +123,11 @@ export const RouteItem = ({ route }: RouteItemProps) => {
         )
       : null;
 
-  // Get expected arrival time (last hop's scheduledAt)
+  // Get expected/actual arrival time (last hop's executedAt if available, else scheduledAt)
   const expectedArrival = useMemo(() => {
     if (!route.hops || route.hops.length === 0) return null;
     const lastHop = route.hops[route.hops.length - 1];
-    return lastHop?.scheduledAt || null;
+    return lastHop?.executedAt || lastHop?.scheduledAt || null;
   }, [route.hops]);
 
   const handleReplay = async () => {
@@ -741,7 +741,9 @@ export const RouteItem = ({ route }: RouteItemProps) => {
                         }`}
                       >
                         {isCompleted
-                          ? "Completed"
+                          ? step.executedAt
+                            ? `Received: ${formatScheduledTime(step.executedAt)}`
+                            : "Completed"
                           : isCurrentHop
                           ? "Scheduled: "
                           : "ETA: "}

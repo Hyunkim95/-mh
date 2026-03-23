@@ -473,6 +473,12 @@ describe("ObfuscationService", () => {
       expect(constants.AGGREGATION_FEE_PER_WALLET).toBe(2_500_000);
     });
 
+    it("should export wallet X cleanup buffer constant", () => {
+      const { constants } = obfuscationService;
+
+      expect(constants.WALLET_X_CLEANUP_BUFFER_LAMPORTS).toBe(3_000_000);
+    });
+
     it("should provide dynamic deployment cost via getDeploymentCost()", () => {
       // Dynamic deployment cost should be positive for any valid route
       const cost = obfuscationService.getDeploymentCost(3, 100_000_000);

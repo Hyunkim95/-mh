@@ -303,6 +303,9 @@ async function estimateObfuscationFees(
   const cleanupReservationPerWallet = (BASE_TX_FEE_LAMPORTS * 2) + fees.rentExemptMinimumLamports;
   const totalCleanupReservation = intermediateCount * cleanupReservationPerWallet;
 
+  // Wallet X cleanup buffer: extra SOL so Wallet X can always pay its own cleanup tx after deployment
+  const walletXCleanupBuffer = 3_000_000; // matches WALLET_X_CLEANUP_BUFFER_LAMPORTS
+
   const netObfuscationCost =
     intermediateAtaCreation +
     walletXAtaCreation +
@@ -310,7 +313,8 @@ async function estimateObfuscationFees(
     aggregationTxFees +
     cleanupTxFees +
     deploymentCost +
-    totalCleanupReservation -
+    totalCleanupReservation +
+    walletXCleanupBuffer -
     rentRecovery -
     dustRefund;
 
@@ -625,5 +629,8 @@ export const obfuscationService = {
     ESTIMATED_PRIORITY_FEE_LAMPORTS: FALLBACK_PRIORITY_FEE_LAMPORTS,
     // Per-wallet aggregation fee
     AGGREGATION_FEE_PER_WALLET: 2_500_000, // 0.0025 SOL per wallet (covers tx fees + rent-exempt reserve)
+    // Total buffer added to funding so Wallet X can always pay its own cleanup tx after deployment.
+    // Split evenly across intermediate wallets — flows through aggregation to Wallet X.
+    WALLET_X_CLEANUP_BUFFER_LAMPORTS: 3_000_000, // 0.003 SOL (covers cleanup fee + margin)
   },
 };

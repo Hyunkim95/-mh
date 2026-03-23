@@ -1856,6 +1856,49 @@ export const getRouteStateAccount = async (routeId: number) => {
   }
 };
 
+// Check if ExtraAccountMetaList PDA exists for a route's mint
+// This is required for the transfer hook to work during hops
+export const isExtraAccountMetasInitialized = async (
+  routeId: number,
+): Promise<boolean> => {
+  try {
+    const routeConfigPda = await getRouteConfigPda(new BN(routeId));
+    const program = buildProgram(params);
+    const routeConfig = await program.account.routeConfig.fetch(routeConfigPda);
+    const extraAccountMetasPda = getExtraAccountMetasPda(routeConfig.routeTokenMint);
+    const accountInfo = await params.connection.getAccountInfo(extraAccountMetasPda);
+    return accountInfo !== null && accountInfo.data.length > 0;
+  } catch {
+    return false;
+  }
+};
+
+// Initialize ExtraAccountMetaList for a route if missing.
+// Uses the provided keypair as payer.
+export const initializeExtraAccountMetasForRoute = async (
+  routeId: number,
+  payerKeypair: Keypair,
+): Promise<string | null> => {
+  const routeConfigPda = await getRouteConfigPda(new BN(routeId));
+  const program = buildProgram(params);
+  const routeConfig = await program.account.routeConfig.fetch(routeConfigPda);
+  const mint = routeConfig.routeTokenMint;
+
+  const extraAccountMetasPda = getExtraAccountMetasPda(mint);
+  const existing = await params.connection.getAccountInfo(extraAccountMetasPda);
+  if (existing) return null; // Already exists
+
+  const ix = await initializeExtraAccountMetaList(payerKeypair.publicKey, mint);
+  const transaction = new Transaction().add(ix);
+
+  return await sendAndConfirmTransaction(
+    params.connection,
+    transaction,
+    [payerKeypair],
+    { commitment: "confirmed" },
+  );
+};
+
 // Check if a route is actually deployed on-chain by verifying the route config PDA exists
 export const isRouteDeployedOnChain = async (
   routeId: number,

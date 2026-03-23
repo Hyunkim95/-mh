@@ -77,6 +77,7 @@ vi.mock("../obfuscation/services/obfuscation.service", () => ({
       FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS: 890880,
       RENT_EXEMPT_MINIMUM_LAMPORTS: 890880,
       ATA_RENT_LAMPORTS: 2039280,
+      WALLET_X_CLEANUP_BUFFER_LAMPORTS: 3_000_000,
     },
   },
 }));

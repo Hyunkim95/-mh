@@ -276,6 +276,39 @@ const getOverdueHops = async (
   return hops;
 };
 
+// Shift all unexecuted hop schedules forward to account for deployment delay.
+// Called after obfuscation deployment completes — anchors hop #1 to `now`
+// and shifts all subsequent hops by the same offset.
+const shiftHopSchedulesAfterDeployment = async (
+  routeId: number,
+): Promise<number> => {
+  const hops = await getHopsByRoute(routeId);
+  if (hops.length === 0) return 0;
+
+  // Find the first unexecuted hop
+  const firstUnexecuted = hops.find((h) => !h.executedAt && !h.txHash);
+  if (!firstUnexecuted) return 0; // all hops already executed
+
+  const now = utcNow();
+  const originalFirst = new Date(firstUnexecuted.scheduledAt).getTime();
+  const offsetMs = now.getTime() - originalFirst;
+
+  // Only shift forward (don't move hops earlier if deployment was fast)
+  if (offsetMs <= 0) return 0;
+
+  let shifted = 0;
+  for (const hop of hops) {
+    if (hop.executedAt || hop.txHash) continue; // skip already-executed hops
+    const oldTime = new Date(hop.scheduledAt).getTime();
+    const newTime = new Date(oldTime + offsetMs);
+    await updateHopScheduleByIndex(routeId, hop.hopIndex, newTime);
+    shifted++;
+  }
+
+  log.info(`Shifted ${shifted} hop schedules for route ${routeId} forward by ${Math.round(offsetMs / 1000)}s`);
+  return shifted;
+};
+
 export const hopsService = {
   getHopById,
   getHopsByRoute,
@@ -291,4 +324,5 @@ export const hopsService = {
   getExecutedHops,
   getHopsInTimeRange,
   getOverdueHops,
+  shiftHopSchedulesAfterDeployment,
 };
