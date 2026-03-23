@@ -58,10 +58,15 @@ async function buildCleanupTxCore(
   );
   const exactTxFee = BASE_TX_FEE_LAMPORTS + priorityFeeLamports;
 
-  // Need at least the tx fee + 1 lamport to transfer
-  if (balance <= exactTxFee) {
+  // Skip cleanup if balance is too low to be worth recovering.
+  // If balance is near rent-exempt minimum (~890K), there's only dust above it,
+  // and any fee estimation mismatch can leave the account below rent-exempt,
+  // causing "insufficient funds for rent" simulation errors.
+  const { FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS } = obfuscationService.constants;
+  const minRecoverableBalance = FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS + exactTxFee + exactTxFee; // need enough above rent-exempt to cover fee + transfer
+  if (balance <= exactTxFee || balance <= minRecoverableBalance) {
     log.info(
-      `Skipping cleanup for ${ownerPublicKey.toBase58()} - balance ${balance} <= tx fee ${exactTxFee}`,
+      `Skipping cleanup for ${ownerPublicKey.toBase58()} - balance ${balance} too low (need > ${minRecoverableBalance})`,
     );
     return null;
   }
