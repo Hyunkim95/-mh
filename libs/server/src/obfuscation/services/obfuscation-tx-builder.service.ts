@@ -22,6 +22,9 @@ import {
   getRecommendedPriorityFee,
 } from "../../solana/services/contract.service";
 import { createLogger } from "../../utils/logger";
+import { db } from "../../db";
+import { hopsSchema } from "../../hops/schema/hops.schema";
+import { eq } from "drizzle-orm";
 
 const log = createLogger("ObfuscationTxBuilder");
 
@@ -114,6 +117,8 @@ async function buildCleanupTxCore(
  *
  * @param totalWalletCount - Total number of intermediate wallets in the session
  *   Used to calculate per-wallet share of deployment costs
+ * @param hopCount - Number of hops in the route (for dynamic deployment cost)
+ * @param amountLamports - Route amount in lamports (for dynamic deployment cost)
  */
 async function buildFundingTransaction(
   sourceWallet: PublicKey,
@@ -121,6 +126,8 @@ async function buildFundingTransaction(
   amount: BN,
   tokenMint?: PublicKey, // null for SOL
   totalWalletCount: number = 2, // Default to 2 for backwards compatibility
+  hopCount: number = 1,
+  amountLamports: number = 100_000_000,
 ): Promise<{ transaction: Transaction; serialized: string }> {
   const transaction = new Transaction();
   const connection = getConnection();
@@ -169,14 +176,19 @@ async function buildFundingTransaction(
     // ALSO send SOL to intermediate wallet for:
     // 1. Aggregation transaction fees (per wallet)
     // 2. SOL to forward to Wallet X for route deployment (split among all wallets)
-    // The deployment cost is FIXED (~80M total), so we divide by wallet count
-    const { TOTAL_DEPLOYMENT_COST_LAMPORTS, AGGREGATION_FEE_PER_WALLET } =
+    // 3. Cleanup reservation (tx fee + rent exempt) that gets held back during aggregation
+    const { AGGREGATION_FEE_PER_WALLET, FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS, BASE_TX_FEE_LAMPORTS } =
       obfuscationService.constants;
+    const dynamicDeploymentCost = obfuscationService.getDeploymentCost(hopCount, amountLamports);
     const deploymentSharePerWallet = Math.ceil(
-      TOTAL_DEPLOYMENT_COST_LAMPORTS / totalWalletCount,
+      dynamicDeploymentCost / totalWalletCount,
     );
+    // Each wallet reserves ~1.1M during aggregation for cleanup (tx fee + rent exempt).
+    // This comes out of the wallet balance, reducing what reaches Wallet X.
+    // We must fund enough to cover this leakage.
+    const cleanupReservationPerWallet = BASE_TX_FEE_LAMPORTS * 2 + FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS;
     const totalSolFunding =
-      deploymentSharePerWallet + AGGREGATION_FEE_PER_WALLET;
+      deploymentSharePerWallet + AGGREGATION_FEE_PER_WALLET + cleanupReservationPerWallet;
 
     transaction.add(
       SystemProgram.transfer({
@@ -187,15 +199,19 @@ async function buildFundingTransaction(
     );
   } else {
     // SOL transfer: allocated amount + extra SOL for Wallet X deployment costs
-    // The deployment cost is FIXED (~80M total), so we divide by wallet count
-    // Plus per-wallet aggregation fees
-    const { TOTAL_DEPLOYMENT_COST_LAMPORTS, AGGREGATION_FEE_PER_WALLET } =
+    // Uses dynamic deployment cost based on actual hop count + 15% buffer
+    // Plus per-wallet aggregation fees and cleanup reservation overhead
+    const { AGGREGATION_FEE_PER_WALLET, FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS, BASE_TX_FEE_LAMPORTS } =
       obfuscationService.constants;
+    const dynamicDeploymentCost = obfuscationService.getDeploymentCost(hopCount, amountLamports);
     const deploymentSharePerWallet = Math.ceil(
-      TOTAL_DEPLOYMENT_COST_LAMPORTS / totalWalletCount,
+      dynamicDeploymentCost / totalWalletCount,
     );
+    // Each wallet reserves ~1.1M during aggregation for cleanup (tx fee + rent exempt).
+    // This comes out of the wallet balance, reducing what reaches Wallet X.
+    const cleanupReservationPerWallet = BASE_TX_FEE_LAMPORTS * 2 + FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS;
     const extraSolForDeployment =
-      deploymentSharePerWallet + AGGREGATION_FEE_PER_WALLET;
+      deploymentSharePerWallet + AGGREGATION_FEE_PER_WALLET + cleanupReservationPerWallet;
     const totalFunding = amount.toNumber() + extraSolForDeployment;
 
     transaction.add(
@@ -249,6 +265,14 @@ async function buildAllFundingTransactions(
 
   const totalWalletCount = session.intermediateWallets.length;
 
+  // Query hop count for dynamic deployment cost calculation
+  const hops = await db
+    .select()
+    .from(hopsSchema)
+    .where(eq(hopsSchema.routeId, session.routeId));
+  const hopCount = hops.length || 1;
+  const routeAmountLamports = parseInt(session.totalAmount, 10);
+
   for (const wallet of session.intermediateWallets) {
     // Skip already funded wallets (for idempotency)
     if (wallet.fundingStatus === "funded") {
@@ -263,7 +287,9 @@ async function buildAllFundingTransactions(
       destinationAddress,
       amount,
       tokenMint,
-      totalWalletCount, // Pass wallet count for deployment cost calculation
+      totalWalletCount,
+      hopCount,
+      routeAmountLamports,
     );
 
     results.push({

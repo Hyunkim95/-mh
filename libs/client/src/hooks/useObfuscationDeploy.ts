@@ -131,9 +131,11 @@ export const useObfuscationDeploy = () => {
       }
 
       if (successCount === totalTransactions) {
-        // Aggregation happens in background - hop scheduler waits for it before executing hops
-        toast.success("Funding complete! Route will activate automatically.", {
+        // Aggregation + deployment happens in background — don't claim success yet
+        toast("Funding complete. Route deployment will begin shortly...", {
           id: "obfuscation",
+          icon: "\u23F3",
+          duration: 5000,
         });
       } else if (successCount > 0) {
         toast.success(

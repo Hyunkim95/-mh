@@ -298,13 +298,19 @@ async function estimateObfuscationFees(
   // Get dynamic deployment cost based on hop count
   const deploymentCost = getDeploymentCost(hopCount, amountLamports);
 
+  // Cleanup reservation: each intermediate wallet holds back tx fees + rent-exempt minimum
+  // during aggregation. This reduces what reaches Wallet X and must be accounted for.
+  const cleanupReservationPerWallet = (BASE_TX_FEE_LAMPORTS * 2) + fees.rentExemptMinimumLamports;
+  const totalCleanupReservation = intermediateCount * cleanupReservationPerWallet;
+
   const netObfuscationCost =
     intermediateAtaCreation +
     walletXAtaCreation +
     fundingTxFees +
     aggregationTxFees +
     cleanupTxFees +
-    deploymentCost -
+    deploymentCost +
+    totalCleanupReservation -
     rentRecovery -
     dustRefund;
 
@@ -617,8 +623,6 @@ export const obfuscationService = {
     ATA_RENT_LAMPORTS: FALLBACK_ATA_RENT_LAMPORTS,
     RENT_EXEMPT_MINIMUM_LAMPORTS: FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS,
     ESTIMATED_PRIORITY_FEE_LAMPORTS: FALLBACK_PRIORITY_FEE_LAMPORTS,
-    // Deployment cost - use getDeploymentCost() for dynamic calculation
-    TOTAL_DEPLOYMENT_COST_LAMPORTS: 80_000_000, // 0.08 SOL fallback
     // Per-wallet aggregation fee
     AGGREGATION_FEE_PER_WALLET: 2_500_000, // 0.0025 SOL per wallet (covers tx fees + rent-exempt reserve)
   },

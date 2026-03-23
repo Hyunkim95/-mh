@@ -467,11 +467,16 @@ describe("ObfuscationService", () => {
       );
     });
 
-    it("should export deployment cost and aggregation fee constants", () => {
+    it("should export aggregation fee constant", () => {
       const { constants } = obfuscationService;
 
-      expect(constants.TOTAL_DEPLOYMENT_COST_LAMPORTS).toBe(80_000_000);
-      expect(constants.AGGREGATION_FEE_PER_WALLET).toBe(1_500_000);
+      expect(constants.AGGREGATION_FEE_PER_WALLET).toBe(2_500_000);
+    });
+
+    it("should provide dynamic deployment cost via getDeploymentCost()", () => {
+      // Dynamic deployment cost should be positive for any valid route
+      const cost = obfuscationService.getDeploymentCost(3, 100_000_000);
+      expect(cost).toBeGreaterThan(0);
     });
   });
 

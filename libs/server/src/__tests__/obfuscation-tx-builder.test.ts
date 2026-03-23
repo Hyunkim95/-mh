@@ -24,6 +24,7 @@ const {
   mockGetAccount,
   mockCreateDynamicPriorityInstructions,
   mockSerialize,
+  mockDbSelect,
 } = vi.hoisted(() => ({
   mockGetSessionWithWallets: vi.fn(),
   mockGetSession: vi.fn(),
@@ -39,6 +40,7 @@ const {
   mockGetAccount: vi.fn(),
   mockCreateDynamicPriorityInstructions: vi.fn(),
   mockSerialize: vi.fn(),
+  mockDbSelect: vi.fn(),
 }));
 
 // Mock connection class
@@ -49,19 +51,39 @@ class MockConnection {
   confirmTransaction = mockConfirmTransaction;
 }
 
+// Mock db module (used for hop count query)
+vi.mock("../db", () => ({
+  db: {
+    select: mockDbSelect,
+  },
+}));
+
+// Mock hops schema
+vi.mock("../hops/schema/hops.schema", () => ({
+  hopsSchema: { routeId: "route_id" },
+}));
+
 // Mock obfuscation service
 vi.mock("../obfuscation/services/obfuscation.service", () => ({
-  default: {
+  obfuscationService: {
     getConnection: () => new MockConnection(),
     getSessionWithWallets: mockGetSessionWithWallets,
     getSession: mockGetSession,
     getWalletManager: () => ({}),
+    getDeploymentCost: () => 100_000_000, // 0.1 SOL mock
+    constants: {
+      BASE_TX_FEE_LAMPORTS: 5000,
+      AGGREGATION_FEE_PER_WALLET: 2_500_000,
+      FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS: 890880,
+      RENT_EXEMPT_MINIMUM_LAMPORTS: 890880,
+      ATA_RENT_LAMPORTS: 2039280,
+    },
   },
 }));
 
 // Mock intermediate wallet service
 vi.mock("../obfuscation/services/intermediate-wallet.service", () => ({
-  default: {
+  intermediateWalletService: {
     getIntermediateWalletWithCustodial: mockGetIntermediateWalletWithCustodial,
     getKeypairForWallet: mockGetKeypairForWallet,
   },
@@ -69,7 +91,7 @@ vi.mock("../obfuscation/services/intermediate-wallet.service", () => ({
 
 // Mock wallet X service
 vi.mock("../obfuscation/services/wallet-x.service", () => ({
-  default: {
+  walletXService: {
     getWalletX: mockGetWalletX,
     getKeypair: mockGetKeypair,
   },
@@ -97,13 +119,14 @@ vi.mock("@solana/spl-token", () => ({
 }));
 
 // Mock contract service
-vi.mock("../../solana/services/contract.service", () => ({
+vi.mock("../solana/services/contract.service", () => ({
   createDynamicPriorityInstructions: mockCreateDynamicPriorityInstructions,
   serialize: mockSerialize,
+  getRecommendedPriorityFee: vi.fn().mockResolvedValue(50000),
 }));
 
 // Import after mocks
-import obfuscationTxBuilder from "../obfuscation/services/obfuscation-tx-builder.service";
+import { obfuscationTxBuilder } from "../obfuscation/services/obfuscation-tx-builder.service";
 
 // Mock session data
 const mockSession = {
@@ -163,6 +186,12 @@ describe("ObfuscationTxBuilder", () => {
     vi.clearAllMocks();
 
     // Setup default mock returns
+    // Mock db.select().from().where() chain for hop count query
+    mockDbSelect.mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue([{ id: 1 }, { id: 2 }, { id: 3 }]),
+      }),
+    });
     mockGetLatestBlockhash.mockResolvedValue({
       blockhash: "GpRvVHUxJqJcLwBsFBF8j8xNuAmMdAkPjVGJLu8LLNDB",
       lastValidBlockHeight: 100,
