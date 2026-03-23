@@ -128,8 +128,9 @@ async function getMinLamportsPerWallet(): Promise<number> {
  */
 function getDeploymentCost(hopCount: number, amountLamports: number): number {
   const costEstimate = estimateDeploymentCost(hopCount, amountLamports);
-  // Add 10% buffer for safety
-  return Math.ceil(costEstimate.totalCost * 1.1);
+  // 3x multiplier — estimateDeploymentCost underestimates on-chain rent;
+  // excess is refunded to user during Wallet X cleanup
+  return Math.ceil(costEstimate.totalCost * 3);
 }
 
 /**
