@@ -212,15 +212,10 @@ async function generateRandomSplit(total: BN, count: number): Promise<BN[]> {
     }
 
     // Distribute leftover lamports from rounding to random wallets
-    const leftover = remainder.sub(distributed).toNumber(); // at most count-1, safe
-    if (leftover > 0) {
-      const indices = new Set<number>();
-      while (indices.size < leftover) {
-        indices.add(crypto.randomInt(0, count));
-      }
-      for (const idx of indices) {
-        splits[idx] = splits[idx].add(new BN(1));
-      }
+    const leftover = remainder.sub(distributed).toNumber();
+    for (let l = 0; l < leftover; l++) {
+      const idx = crypto.randomInt(0, count);
+      splits[idx] = splits[idx].add(new BN(1));
     }
   }
 
