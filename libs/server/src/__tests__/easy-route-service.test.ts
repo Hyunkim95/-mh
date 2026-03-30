@@ -9,18 +9,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
  * 3. Create the route with appropriate isEasyRoute flag
  */
 
-// Use vi.hoisted() so mock objects are available when vi.mock factories execute (hoisted above imports)
-const { mockBusyWalletsService, mockRoutesService } = vi.hoisted(() => ({
-  mockBusyWalletsService: {
-    getRandomWallets: vi.fn(),
-    markWalletsUsed: vi.fn(),
-    getActiveCount: vi.fn(),
-  },
-  mockRoutesService: {
-    createRoute: vi.fn(),
-    getRoute: vi.fn(),
-  },
-}));
+// Define mock objects before vi.mock calls (hoisted)
+const mockBusyWalletsService = {
+  getRandomWallets: vi.fn(),
+  markWalletsUsed: vi.fn(),
+  getActiveCount: vi.fn(),
+};
+
+const mockRoutesService = {
+  createRoute: vi.fn(),
+  getRoute: vi.fn(),
+};
 
 // Mock the busy wallets service factory
 vi.mock("../busy-wallets/services/busy-wallets.service", () => ({
@@ -244,10 +243,6 @@ describe("EasyRouteService", () => {
 
     describe("Hop Timing Calculation", () => {
       it("should throw error when arrival time is in the past", async () => {
-        // Must set up wallet mock since getRandomWallets is called before the time check
-        const mockWallets = createMockWallets(2);
-        mockBusyWalletsService.getRandomWallets.mockResolvedValue(mockWallets);
-
         const pastTime = new Date(Date.now() - 1000); // 1 second ago
         const input = createTestInput({ arrivalTime: pastTime });
 
@@ -446,15 +441,15 @@ describe("EasyRouteService", () => {
           tokenType: "SPL",
         };
 
-      mockRoutesService.createRoute.mockResolvedValue(routeFromCreate);
-      mockRoutesService.getRoute.mockResolvedValue(routeFromGet);
+        mockRoutesService.createRoute.mockResolvedValue(routeFromCreate);
+        mockRoutesService.getRoute.mockResolvedValue(routeFromGet);
 
-      const input = createTestInput({ hopCount: 3 });
+        const input = createTestInput({ hopCount: 3 });
 
-      const result = await service.createEasyRoute(input);
+        const result = await service.createEasyRoute(input);
 
-      // Should fetch the route after creation
-      expect(mockRoutesService.getRoute).toHaveBeenCalledWith(42, "test");
+        // Should fetch the route after creation
+        expect(mockRoutesService.getRoute).toHaveBeenCalledWith(42, "test");
 
         // Result should include hops
         expect(result.hops).toBeDefined();
@@ -497,7 +492,7 @@ describe("EasyRouteService", () => {
           destinationWallet,
         });
 
-        await service.createEasyRoute(input);
+        const result = await service.createEasyRoute(input);
 
         expect(mockBusyWalletsService.getRandomWallets).not.toHaveBeenCalled();
         expect(mockBusyWalletsService.markWalletsUsed).not.toHaveBeenCalled();

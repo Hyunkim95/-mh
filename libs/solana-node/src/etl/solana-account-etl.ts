@@ -10,7 +10,7 @@ import {
   SolanaAccountData,
   SolanaSchemaMapper
 } from './types';
-import { createLogger } from "@libs/logger";
+import { createLogger } from '../utils/logger';
 
 const log = createLogger('SolanaAcctETL');
 

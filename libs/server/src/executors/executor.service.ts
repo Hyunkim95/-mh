@@ -8,18 +8,14 @@ import {
 } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import crypto from "crypto";
-import bs58 from "bs58";
-import { createLogger } from "@libs/logger";
+import { createLogger } from "../utils/logger";
 
 const log = createLogger("ExecutorService");
 
-if (!process.env.SOLANA_RPC_URL) {
-  throw new Error("SOLANA_RPC_URL environment variable is required");
-}
-
 // Connection for Solana operations
 const connection = new Connection(
-  process.env.SOLANA_RPC_URL,
+  process.env.SOLANA_RPC_URL ||
+    "https://mainnet.helius-rpc.com/?api-key=f6d0c03a-562f-4784-8b78-ebb084b72514",
   { commitment: "confirmed" }
 );
 
@@ -44,11 +40,18 @@ const getWalletByRouteId = (routeId: number): Keypair => {
 };
 
 const getSigner = (): Keypair => {
-  const signerPrivateKey = process.env.SIGNER_PRIVATE_KEY;
-  if (!signerPrivateKey) {
-    throw new Error("SIGNER_PRIVATE_KEY environment variable is required");
+  const executorSeed = process.env.EXECUTOR_SEED || "executor_seed";
+  if (!executorSeed) {
+    throw new Error("EXECUTOR_SEED environment variable is required");
   }
-  return Keypair.fromSecretKey(bs58.decode(signerPrivateKey));
+
+  // Create deterministic seed from routeId and env seed
+  const seedString = `${executorSeed}_signer`;
+  const hash = crypto.createHash("sha256").update(seedString).digest();
+
+  // Create keypair from the first 32 bytes of the hash
+  const seed = hash.slice(0, 32);
+  return Keypair.fromSeed(seed);
 }
 
 /**

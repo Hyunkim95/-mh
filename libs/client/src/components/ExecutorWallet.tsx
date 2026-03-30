@@ -45,6 +45,7 @@ export const ExecutorWallet: React.FC<ExecutorWalletProps> = ({
   };
 
   const formatPublicKey = (key: string | null) => {
+    console.log("key", key);
     if (!key) return "Loading...";
     return key;
   };

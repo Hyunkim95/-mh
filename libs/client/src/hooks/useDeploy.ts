@@ -112,6 +112,7 @@ export const useDeploy = () => {
           routeId: data.routeId,
           hops: hopsData,
           hopAmount: data.hopAmount,
+          creator: publicKey.toBase58(),
           splMint: data.splMint,
         });
       } else {
@@ -119,6 +120,7 @@ export const useDeploy = () => {
           routeId: data.routeId,
           hops: hopsData,
           hopAmount: data.hopAmount,
+          creator: publicKey.toBase58(),
           splMint: "So11111111111111111111111111111111111111112", // Native SOL mint
         });
       }
@@ -188,6 +190,7 @@ export const useDeploy = () => {
           blockhash: setupBlockhash,
           lastValidBlockHeight: setupBlockHeight,
         });
+        console.log("Setup transaction confirmed:", setupSig);
       }
 
       toast.success(
@@ -210,6 +213,7 @@ export const useDeploy = () => {
 
   const addHopsMutation = async (
     routeId: number,
+    creator: string,
     hops: { recipient: string; scheduledAt: number }[],
   ) => {
     if (!sendTransaction) {
@@ -220,6 +224,7 @@ export const useDeploy = () => {
       // Use batched endpoint to get all transactions
       const result = await addHopsBatched.mutateAsync({
         routeId,
+        creator,
         hops,
       });
 
@@ -381,7 +386,7 @@ export const useDeploy = () => {
           { id: "deploy" },
         );
 
-        await addHopsMutation(data.routeId, freshHops);
+        await addHopsMutation(data.routeId, publicKey.toBase58(), freshHops);
 
         // CRITICAL: Verify all hops were actually added on-chain before marking as deployed
         // Add retry logic with delays to handle RPC propagation delay
@@ -420,6 +425,7 @@ export const useDeploy = () => {
         // Mark as deployed in database only after verification
         await markDeployed.mutateAsync({
           id: data.databaseId,
+          creator: publicKey.toBase58(),
           deploymentTxHash: initSignature,
         });
 
@@ -443,7 +449,7 @@ export const useDeploy = () => {
           { id: "deploy" },
         );
 
-        await addHopsMutation(data.routeId, freshHops);
+        await addHopsMutation(data.routeId, publicKey.toBase58(), freshHops);
 
         // Verify hops were actually added on-chain with retry logic
         let verifyAttempts = 0;

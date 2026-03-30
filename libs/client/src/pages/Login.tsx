@@ -36,9 +36,6 @@ export const Login: React.FC = () => {
 
   const desiredWallets = useMemo(() => {
     const allowedWallets = ['phantom', 'backpack', 'magic eden'];
-    if (import.meta.env.VITE_TEST_WALLET === 'true') {
-      allowedWallets.push('test wallet');
-    }
     return wallets
       .filter((w) => allowedWallets.some((name) => w.adapter.name.toLowerCase().includes(name)))
       .map((w) => ({
@@ -89,7 +86,6 @@ export const Login: React.FC = () => {
             <button
               key={`${label}-${i}`}
               type="button"
-              data-testid={`wallet-tile-${label.toLowerCase().replace(/\s+/g, '-')}`}
               disabled={disabled || connecting}
               onClick={() => handleSelectWallet(wallet?.adapter?.name)}
               className={`w-full rounded-3xl px-5  py-5 md:py-4 flex items-center gap-4 border border-[var(--dark-charcoal-500-transparency-58)] transition ${
@@ -174,8 +170,11 @@ export const Login: React.FC = () => {
       </div>
       <button
         type="button"
-        data-testid="sign-message-btn"
         onClick={() => {
+          console.log("Login clicked", {
+            connected,
+            publicKey: publicKey?.toString(),
+          });
           authenticate();
         }}
         disabled={

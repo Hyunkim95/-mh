@@ -1,5 +1,5 @@
 import { Connection, clusterApiUrl } from "@solana/web3.js";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import crypto from "crypto";
 import BN from "bn.js";
 import { db } from "../../db";
@@ -18,17 +18,15 @@ import {
   estimateDeploymentCost,
   getRecommendedPriorityFee,
 } from "../../solana/services/contract.service";
-import { hopsSchema } from "../../hops/schema/hops.schema";
-import { tokenConfigsService } from "../../token-configs/services/token-configs.service";
-import { createLogger } from "@libs/logger";
+import { createLogger } from "../../utils/logger";
 
 const log = createLogger("ObfuscationService");
 
-// Configuration constants (configurable via env vars for e2e testing with shorter values)
-const MIN_INTERMEDIATE_WALLETS = Number(process.env.OBFUSCATION_MIN_WALLETS) || 5;
-const MAX_INTERMEDIATE_WALLETS = Number(process.env.OBFUSCATION_MAX_WALLETS) || 8;
-const MIN_AGGREGATION_DELAY_MS = Number(process.env.OBFUSCATION_MIN_AGG_DELAY_MS) || 5 * 1000; // default 5 seconds
-const MAX_AGGREGATION_DELAY_MS = Number(process.env.OBFUSCATION_MAX_AGG_DELAY_MS) || 30 * 1000; // default 30 seconds
+// Configuration constants
+const MIN_INTERMEDIATE_WALLETS = 5;
+const MAX_INTERMEDIATE_WALLETS = 8;
+const MIN_AGGREGATION_DELAY_MS = 1 * 1000; // 1 second min delay (fast for user experience)
+const MAX_AGGREGATION_DELAY_MS = 3 * 1000; // 3 seconds max delay (must complete before first hop)
 
 // Base transaction fee
 const BASE_TX_FEE_LAMPORTS = 5000;
@@ -46,7 +44,7 @@ interface DynamicFeeCache {
 }
 
 let feeCache: DynamicFeeCache | null = null;
-const FEE_CACHE_TTL_MS = 10 * 1000; // 10 second cache TTL (short to limit staleness across concurrent sessions)
+const FEE_CACHE_TTL_MS = 60 * 1000; // 1 minute cache TTL
 
 // Initialize Solana connection
 const connection = new Connection(
@@ -103,19 +101,13 @@ async function getDynamicFees(): Promise<DynamicFeeCache> {
       "Failed to fetch dynamic fees, using fallbacks:",
       error,
     );
-    // Return stale cached values if available (better than a discontinuous
-    // jump to hardcoded fallbacks). Cache the result either way to avoid
-    // hammering the failing RPC on every subsequent call.
-    const fallback: DynamicFeeCache = feeCache
-      ? { ...feeCache, lastUpdated: now }
-      : {
-          ataRentLamports: FALLBACK_ATA_RENT_LAMPORTS,
-          rentExemptMinimumLamports: FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS,
-          priorityFeeLamports: FALLBACK_PRIORITY_FEE_LAMPORTS,
-          lastUpdated: now,
-        };
-    feeCache = fallback;
-    return feeCache;
+    // Return fallback values
+    return {
+      ataRentLamports: FALLBACK_ATA_RENT_LAMPORTS,
+      rentExemptMinimumLamports: FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS,
+      priorityFeeLamports: FALLBACK_PRIORITY_FEE_LAMPORTS,
+      lastUpdated: now,
+    };
   }
 }
 
@@ -174,9 +166,7 @@ async function generateRandomSplit(total: BN, count: number): Promise<BN[]> {
   }
 
   const minLamportsPerWallet = await getMinLamportsPerWallet();
-  // 2x safety margin so splits stay valid even if fees spike before aggregation
-  const FEE_SAFETY_MULTIPLIER = 2;
-  const minPerWallet = new BN(minLamportsPerWallet * FEE_SAFETY_MULTIPLIER);
+  const minPerWallet = new BN(minLamportsPerWallet);
   const minTotal = minPerWallet.mul(new BN(count));
 
   // Check if we have enough funds for the minimum per wallet
@@ -186,92 +176,69 @@ async function generateRandomSplit(total: BN, count: number): Promise<BN[]> {
     );
   }
 
-  // Generate random weights using exponential distribution for natural variation
-  // This produces varied splits instead of near-identical amounts obvious on chain explorers
-  const MAX_SHARE_PCT = 0.5; // Cap: no wallet gets more than 50% of remainder
-  const weights: number[] = Array.from({ length: count }, () => {
-    const rand = crypto.randomInt(0, 1_000_000) / 1_000_000;
-    return Math.max(0.1, -Math.log(1 - rand * 0.9));
-  });
-  const weightSum = weights.reduce((acc, w) => acc + w, 0);
+  // Allocate minimum to each wallet first
+  const splits: BN[] = Array(count)
+    .fill(null)
+    .map(() => minPerWallet.clone());
 
-  // Clamp normalized weights so no single wallet exceeds MAX_SHARE_PCT.
-  // After clamping, re-normalize so they still sum to 1.
-  // Converges in ≤ count iterations (each pass clamps at least one new wallet).
-  let normalized = weights.map((w) => w / weightSum);
-  let clamped = true;
-  let maxIter = count;
-  while (clamped && maxIter-- > 0) {
-    clamped = false;
-    let excess = 0;
-    let unclamped = 0;
-    for (let i = 0; i < normalized.length; i++) {
-      if (normalized[i] > MAX_SHARE_PCT) {
-        excess += normalized[i] - MAX_SHARE_PCT;
-        normalized[i] = MAX_SHARE_PCT;
-        clamped = true;
-      } else {
-        unclamped += normalized[i];
-      }
-    }
-    if (clamped && unclamped > 0) {
-      // Redistribute excess proportionally to unclamped wallets
-      for (let i = 0; i < normalized.length; i++) {
-        if (normalized[i] < MAX_SHARE_PCT) {
-          normalized[i] += excess * (normalized[i] / unclamped);
-        }
-      }
-    }
-  }
-
-  // Allocate minimum + weight-proportional share of remainder for ALL wallets.
-  // The last wallet is computed from its weight like everyone else;
-  // any BN rounding dust (a few lamports) is added to wallet 0.
+  // Calculate remainder to distribute randomly
   const remainder = total.sub(minTotal);
-  const splits: BN[] = [];
-  let distributed = new BN(0);
-  const SCALE = 1_000_000_000;
 
-  for (let i = 0; i < count; i++) {
-    const weightScaled = Math.floor(normalized[i] * SCALE);
-    const extra = remainder.mul(new BN(weightScaled)).div(new BN(SCALE));
-    splits.push(minPerWallet.add(extra));
-    distributed = distributed.add(extra);
-  }
+  if (remainder.gt(new BN(0))) {
+    // Generate random weights using exponential distribution for natural variation
+    // This produces splits like [0.032, 0.008, 0.025, 0.011, 0.024] instead of
+    // near-identical amounts that are obvious on chain explorers
+    const weights: number[] = Array.from({ length: count }, () => {
+      // Use crypto.randomInt for secure randomness, scaled to [0, 1)
+      const rand = crypto.randomInt(0, 1_000_000) / 1_000_000;
+      // Exponential distribution: -ln(1 - rand * 0.9), floored at 0.1 to prevent extremes
+      return Math.max(0.1, -Math.log(1 - rand * 0.9));
+    });
 
-  // Fix rounding dust: add any undistributed lamports to the first wallet
-  const dust = remainder.sub(distributed);
-  if (!dust.isZero()) {
-    splits[0] = splits[0].add(dust);
+    // Normalize weights to sum to 1.0
+    const weightSum = weights.reduce((acc, w) => acc + w, 0);
+    const normalizedWeights = weights.map((w) => w / weightSum);
+
+    // Multiply each weight by remainder to get extra share per wallet
+    // Use high-precision integer math: multiply first, then divide
+    const SCALE = 1_000_000_000;
+    let distributed = new BN(0);
+
+    for (let i = 0; i < count; i++) {
+      const weightScaled = Math.floor(normalizedWeights[i] * SCALE);
+      const extra = remainder.mul(new BN(weightScaled)).div(new BN(SCALE));
+      splits[i] = splits[i].add(extra);
+      distributed = distributed.add(extra);
+    }
+
+    // Distribute leftover lamports from rounding to random wallets
+    const leftover = remainder.sub(distributed).toNumber();
+    for (let l = 0; l < leftover; l++) {
+      const idx = crypto.randomInt(0, count);
+      splits[idx] = splits[idx].add(new BN(1));
+    }
   }
 
   return splits;
 }
 
 /**
- * Generate random aggregation schedule times.
- * Each wallet gets an evenly-spaced slot within [MIN, MAX] with small jitter,
- * guaranteeing at least BLOCK_TIME_MS separation between any two wallets
- * so no two transactions land in the same Solana block.
+ * Generate random aggregation schedule times
+ * Each wallet gets a random delay before it transfers to Wallet X
  */
-const BLOCK_TIME_MS = 400;
-
 function generateAggregationSchedule(
   count: number,
   baseTime: Date = new Date(),
 ): Date[] {
-  const baseMs = baseTime.getTime();
-  const window = MAX_AGGREGATION_DELAY_MS - MIN_AGGREGATION_DELAY_MS;
-  // Slot spacing: divide the window evenly, but at least one block time apart
-  const slotSpacing = Math.max(BLOCK_TIME_MS, Math.floor(window / count));
-  // Max jitter per slot: half the gap minus block time, floored at 0
-  const maxJitter = Math.max(0, Math.floor((slotSpacing - BLOCK_TIME_MS) / 2));
-
   const schedules: Date[] = [];
+  const baseMs = baseTime.getTime();
+
   for (let i = 0; i < count; i++) {
-    const slotBase = MIN_AGGREGATION_DELAY_MS + i * slotSpacing;
-    const jitter = maxJitter > 0 ? crypto.randomInt(0, maxJitter + 1) : 0;
-    schedules.push(new Date(baseMs + slotBase + jitter));
+    const delayMs = crypto.randomInt(
+      MIN_AGGREGATION_DELAY_MS,
+      MAX_AGGREGATION_DELAY_MS + 1,
+    );
+    schedules.push(new Date(baseMs + delayMs));
   }
 
   return schedules;
@@ -327,10 +294,9 @@ async function estimateObfuscationFees(
   // Get dynamic deployment cost based on hop count
   const deploymentCost = getDeploymentCost(hopCount, amountLamports);
 
-  // Cleanup reservation: each intermediate wallet holds back agg fee + 2x cleanup fee + rent-exempt
+  // Cleanup reservation: each intermediate wallet holds back tx fees + rent-exempt minimum
   // during aggregation. This reduces what reaches Wallet X and must be accounted for.
-  // Matches the dynamic formula in buildFundingTransaction.
-  const cleanupReservationPerWallet = txFee + 2 * cleanupTxFeePerWallet + fees.rentExemptMinimumLamports;
+  const cleanupReservationPerWallet = (BASE_TX_FEE_LAMPORTS * 2) + fees.rentExemptMinimumLamports;
   const totalCleanupReservation = intermediateCount * cleanupReservationPerWallet;
 
   // Wallet X cleanup buffer: extra SOL so Wallet X can always pay its own cleanup tx after deployment
@@ -380,41 +346,14 @@ async function createSession(
     if (existingSession.status !== "failed") {
       return existingSession;
     }
-    // Failed session — reset it so the scheduler retries from where it left off.
-    // Wallets & splits are preserved; only the error state is cleared.
-    log.info(`[Recovery] Session ${existingSession.id} for route ${input.routeId} is failed — resetting to pending`);
-    await db
-      .update(obfuscationSessionsSchema)
-      .set({
-        status: "pending" as ObfuscationSessionStatus,
-        lastError: null,
-        failureCount: 0,
-        lastFailureAt: null,
-        nextRetryAt: null,
-      })
-      .where(eq(obfuscationSessionsSchema.id, existingSession.id));
-    return { ...existingSession, status: "pending" as ObfuscationSessionStatus };
+    // For failed sessions, we could reset or create new - for now, return existing
+    // The caller can decide to handle failed sessions differently
+    return existingSession;
   }
 
   const intermediateCount = getRandomIntermediateCount();
-  // Query actual hop count from DB instead of trusting input (which may be 0 for draft routes)
-  const hops = await db.select().from(hopsSchema).where(eq(hopsSchema.routeId, input.routeId));
-  const hopCount = hops.length || input.hopCount || 1;
-  // Inflate total by protocol fee so route receives user's intended amount after on-chain deduction.
-  // Look up feeBps from token config; fall back to 50 bps (0.5%) if not found.
-  let protocolFeeBps = 50;
-  if (input.tokenMint) {
-    const configs = await tokenConfigsService.findIn([input.tokenMint]);
-    if (configs.length > 0 && configs[0].feeBps != null) {
-      protocolFeeBps = configs[0].feeBps;
-    }
-  }
-  const userAmountBN = new BN(input.totalAmount);
-  const feeInflation = userAmountBN.mul(new BN(protocolFeeBps)).div(new BN(10000));
-  const totalAmountBN = userAmountBN.add(feeInflation);
-  const amountLamports = totalAmountBN.bitLength() <= 53
-    ? totalAmountBN.toNumber()
-    : Number.MAX_SAFE_INTEGER;
+  const hopCount = input.hopCount || 1; // Default to 1 hop if not provided
+  const amountLamports = parseInt(input.totalAmount, 10);
 
   // Generate Wallet X first (outside transaction since it involves external wallet creation)
   const walletXIdentifier = `obfuscation_wallet_x_route_${input.routeId}`;
@@ -435,9 +374,10 @@ async function createSession(
   });
   const intermediateWallets = await Promise.all(walletPromises);
 
-  // Generate split amounts (totalAmountBN already created above)
+  // Generate split amounts
+  const totalAmount = new BN(input.totalAmount);
   const splitAmounts = await generateRandomSplit(
-    totalAmountBN,
+    totalAmount,
     intermediateCount,
   );
 
@@ -454,7 +394,7 @@ async function createSession(
           intermediateCount,
           tokenMint: input.tokenMint,
           tokenType: input.tokenType,
-          totalAmount: totalAmountBN.toString(),
+          totalAmount: input.totalAmount,
           estimatedFeesLamports: feeEstimate.totalFeesLamports.toString(),
         })
         .returning();
@@ -549,9 +489,8 @@ async function updateSessionStatus(
 
   if (error) {
     updates.lastError = error;
-    // Atomic increment — avoids read-then-write race under concurrency.
-    // Matches the pattern used by recordFailureToDb in the scheduler.
-    (updates as any).retryCount = sql`COALESCE(${obfuscationSessionsSchema.retryCount}, 0) + 1`;
+    // Fix operator precedence: wrap in parentheses to ensure correct addition
+    updates.retryCount = ((await getSession(sessionId))?.retryCount || 0) + 1;
   }
 
   if (status === "funding") {
@@ -662,16 +601,12 @@ export const obfuscationService = {
 
   // Utilities
   generateRandomSplit,
-  generateAggregationSchedule,
   estimateObfuscationFees,
   getWalletManager,
   getConnection,
   getDynamicFees,
   getMinLamportsPerWallet,
   getDeploymentCost,
-  _resetFeeCache: () => {
-    feeCache = null;
-  },
 
   // Constants (exported for use by other services)
   constants: {

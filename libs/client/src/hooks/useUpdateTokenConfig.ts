@@ -8,7 +8,7 @@ import { Transaction } from "@solana/web3.js";
 import { extractErrorMessage } from "../utils/extractErrorMessage";
 
 export const useUpdateTokenConfig = ({
-  publicKey: _publicKey,
+  publicKey,
 }: {
   publicKey: PublicKey | null;
 }) => {
@@ -23,11 +23,13 @@ export const useUpdateTokenConfig = ({
       const {  tokenConfig } = data;
       const transactionSignature = await updateTokenConfig.mutateAsync({
         tokenConfig,
+        creator: publicKey?.toBase58() ?? "",
       });
       const transaction = Transaction.from(
         Buffer.from(transactionSignature.data.transaction, "base64")
       );
       const output = await connection.simulateTransaction(transaction);
+      console.log("Simulation output:", output);
       if (output.value.err) {
         throw new Error(`Simulation failed: ${JSON.stringify(output.value.err)}`);
       }
@@ -66,6 +68,7 @@ export const useUpdateTokenConfig = ({
       const { tokenConfig } = data;
       const transactionSignature = await updateTokenConfigSOL.mutateAsync({
         tokenConfig,
+        creator: publicKey?.toBase58() ?? "",
       });
 
       const transaction = Transaction.from(

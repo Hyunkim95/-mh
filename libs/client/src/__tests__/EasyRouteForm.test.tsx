@@ -2,8 +2,8 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import "@testing-library/jest-dom/vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { EasyRouteForm } from "../pages/configureHops/EasyRouteForm";
 import type { TokenAsset } from "../store/atoms";
 
@@ -18,7 +18,7 @@ vi.mock("react-datepicker", () => ({
     selected,
     onChange,
     minDate,
-    dateFormat: _dateFormat,
+    dateFormat,
   }: {
     selected: Date | null;
     onChange: (date: Date | null) => void;
@@ -79,33 +79,33 @@ const INVALID_SOLANA_ADDRESS = "invalid-address";
 const ANOTHER_VALID_ADDRESS = "9WzDXwBbmPdCBoccHLn2yfYsP2oBqREZrR5WGMpqdqCx";
 
 describe("EasyRouteForm", () => {
-  let mockOnAmountChange: ReturnType<typeof vi.fn<(amount: number) => void>>;
-  let mockOnArrivalTimeChange: ReturnType<typeof vi.fn<(date: Date | null) => void>>;
-  let mockOnHopCountChange: ReturnType<typeof vi.fn<(count: number) => void>>;
-  let mockOnDestinationWalletChange: ReturnType<typeof vi.fn<(wallet: string) => void>>;
-  let mockOnWalletValidate: ReturnType<typeof vi.fn<(wallet: string) => void>>;
+  let mockOnAmountChange: ReturnType<typeof vi.fn>;
+  let mockOnArrivalTimeChange: ReturnType<typeof vi.fn>;
+  let mockOnHopCountChange: ReturnType<typeof vi.fn>;
+  let mockOnDestinationWalletChange: ReturnType<typeof vi.fn>;
+  let mockOnWalletValidate: ReturnType<typeof vi.fn>;
 
   const defaultProps = {
     selectedAsset: createMockAsset(),
     selectedAmount: 500,
-    onAmountChange: vi.fn<(amount: number) => void>(),
+    onAmountChange: vi.fn(),
     arrivalTime: null as Date | null,
-    onArrivalTimeChange: vi.fn<(date: Date | null) => void>(),
+    onArrivalTimeChange: vi.fn(),
     hopCount: 3,
-    onHopCountChange: vi.fn<(count: number) => void>(),
+    onHopCountChange: vi.fn(),
     destinationWallet: "",
-    onDestinationWalletChange: vi.fn<(wallet: string) => void>(),
+    onDestinationWalletChange: vi.fn(),
     walletError: null as string | null,
-    onWalletValidate: vi.fn<(wallet: string) => void>(),
+    onWalletValidate: vi.fn(),
     feePercentage: 0.005,
   };
 
   beforeEach(() => {
-    mockOnAmountChange = vi.fn<(amount: number) => void>();
-    mockOnArrivalTimeChange = vi.fn<(date: Date | null) => void>();
-    mockOnHopCountChange = vi.fn<(count: number) => void>();
-    mockOnDestinationWalletChange = vi.fn<(wallet: string) => void>();
-    mockOnWalletValidate = vi.fn<(wallet: string) => void>();
+    mockOnAmountChange = vi.fn();
+    mockOnArrivalTimeChange = vi.fn();
+    mockOnHopCountChange = vi.fn();
+    mockOnDestinationWalletChange = vi.fn();
+    mockOnWalletValidate = vi.fn();
   });
 
   afterEach(() => {
@@ -456,7 +456,7 @@ describe("EasyRouteForm", () => {
       const dateInput = screen.getByTestId("date-input");
       fireEvent.change(dateInput, { target: { value: "2025-07-20T16:00" } });
 
-      const calledDate = mockOnArrivalTimeChange.mock.calls[0][0] as Date;
+      const calledDate = mockOnArrivalTimeChange.mock.calls[0][0];
       expect(calledDate.getFullYear()).toBe(2025);
       expect(calledDate.getMonth()).toBe(6); // July (0-indexed)
       expect(calledDate.getDate()).toBe(20);

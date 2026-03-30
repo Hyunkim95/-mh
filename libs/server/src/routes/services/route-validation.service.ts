@@ -3,7 +3,7 @@ import {
   getTokenConfigSPL,
   getTokenConfigSOL,
 } from "../../solana/services/contract.service";
-import { createLogger } from "@libs/logger";
+import { createLogger } from "../../utils/logger";
 
 const log = createLogger("RouteValidation");
 
@@ -40,7 +40,7 @@ export async function validateRouteAgainstTokenConfig(
         return { isValid: false, errors };
       }
 
-      const result = await getTokenConfigSPL();
+      const result = await getTokenConfigSPL(routeInput.tokenMint);
       if (!result) {
         errors.push(
           `Token configuration not found for SPL token: ${routeInput.tokenMint}`
@@ -76,7 +76,7 @@ export async function validateRouteAgainstTokenConfig(
     }
 
     // Validate hop delays against maximum delay
-    const maxDelaySeconds = parseInt((tokenConfig as any).maxDelaySeconds);
+    const maxDelaySeconds = parseInt(tokenConfig.maxDelaySeconds);
 
     // Calculate delays between consecutive hops
     for (let i = 1; i < routeInput.hops.length; i++) {

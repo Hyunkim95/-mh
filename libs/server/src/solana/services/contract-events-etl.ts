@@ -26,7 +26,7 @@ import {
   MULTI_HOPPER_PROGRAM_ID,
 } from "./contract-utils";
 import * as IDLJson from "../idl/multi_hopper_project.json";
-import { createLogger } from "@libs/logger";
+import { createLogger } from "../../utils/logger";
 
 const log = createLogger("ContractETL");
 
@@ -111,9 +111,10 @@ function getCachedEventParser() {
 class ContractEventsSchemaMapper
   implements SolanaSchemaMapper<ContractTransactionData>
 {
+  private eventCoder: BorshEventCoder;
+
   constructor() {
-    // BorshEventCoder initialized for future event parsing
-    void new BorshEventCoder(IDL);
+    this.eventCoder = new BorshEventCoder(IDL);
   }
 
   mapTransactionToSchema(

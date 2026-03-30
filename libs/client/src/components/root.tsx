@@ -12,7 +12,6 @@ import {
 } from '@solana/wallet-adapter-wallets'
 import { BackpackWalletAdapter } from '@solana/wallet-adapter-backpack'
 import { MagicEdenWalletAdapter } from '@solana/wallet-adapter-magiceden'
-import { TestWalletAdapter } from '../adapters/TestWalletAdapter'
 import { useMemo } from 'react'
 import { Toaster } from 'react-hot-toast'
 const endpoint =
@@ -22,17 +21,14 @@ interface RootProps {
 }
 
 export const Root = ({ children }: RootProps) => {
-  const wallets = useMemo(() => {
-    const base = [
+  const wallets = useMemo(
+    () => [
       new PhantomWalletAdapter(),
       new BackpackWalletAdapter(),
       new MagicEdenWalletAdapter(),
-    ];
-    if (import.meta.env.VITE_TEST_WALLET === 'true') {
-      base.push(new TestWalletAdapter() as any);
-    }
-    return base;
-  }, []);
+    ],
+    []
+  );
 
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>

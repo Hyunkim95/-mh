@@ -49,7 +49,6 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
         {/* Easy Route Card */}
         <button
           type='button'
-          data-testid='mode-easy'
           onClick={() => onModeChange('easy')}
           className={clsx(
             'group relative flex-1 sm:min-w-[240px] sm:max-w-[260px] h-[140px] sm:h-[298px] flex flex-col items-center justify-center rounded-3xl transition-all border-2 overflow-hidden',
@@ -100,7 +99,6 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({
         {/* Custom Route Card */}
         <button
           type='button'
-          data-testid='mode-custom'
           onClick={() => onModeChange('custom')}
           className={clsx(
             'group relative flex-1 sm:min-w-[240px] sm:max-w-[260px] h-[140px] sm:h-[298px] flex flex-col items-center justify-between rounded-3xl transition-all border-2 overflow-hidden',

@@ -62,8 +62,6 @@ export type NewRoute = typeof routesSchema.$inferInsert;
 export interface RouteHopData {
     recipient: string;
     scheduledAt: string; // When this hop should execute
-    delayMinutes?: number; // Optional delay metadata for recalculation
-    isCustomTime?: boolean; // Whether this hop uses a custom time vs delay-based
 }
 
 // Legacy type for backwards compatibility with delay-based systems

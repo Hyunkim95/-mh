@@ -5,7 +5,7 @@ import {
 import { db } from "../../db";
 import { MULTI_HOPPER_PROGRAM_ID } from "./contract-utils";
 import { config } from "../../config/config";
-import { createLogger } from "@libs/logger";
+import { createLogger } from "../../utils/logger";
 
 const log = createLogger("DualETL");
 

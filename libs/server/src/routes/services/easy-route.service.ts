@@ -1,7 +1,7 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { createBusyWalletsService } from '../../busy-wallets/services/busy-wallets.service';
 import routesService from './routes.service';
-import { type CreateRouteInput, type RouteHopData } from '../schema/route.schema';
+import { type Routes, type CreateRouteInput, type RouteHopData } from '../schema/route.schema';
 
 export interface EasyRouteInput {
   // User-provided fields
@@ -20,7 +20,7 @@ export interface EasyRouteInput {
 export class EasyRouteService {
   private busyWalletsService: any;
 
-  constructor(db: NodePgDatabase<any>) {
+  constructor(private db: NodePgDatabase<any>) {
     this.busyWalletsService = createBusyWalletsService(db);
   }
 
@@ -61,15 +61,7 @@ export class EasyRouteService {
       creator,
     } = input;
 
-    // 1. Validate arrival time before doing expensive operations
-    const now = new Date();
-    const totalDurationMs = arrivalTime.getTime() - now.getTime();
-
-    if (totalDurationMs <= 0) {
-      throw new Error('Arrival time must be in the future');
-    }
-
-    // 2. Get N-1 random busy wallets for intermediate hops
+    // 1. Get N-1 random busy wallets for intermediate hops
     const intermediateWalletCount = hopCount - 1;
     let intermediateWallets: any[] = [];
 
@@ -79,6 +71,14 @@ export class EasyRouteService {
       if (intermediateWallets.length < intermediateWalletCount) {
         throw new Error(`Not enough active wallets available. Need ${intermediateWalletCount}, found ${intermediateWallets.length}`);
       }
+    }
+
+    // 2. Calculate randomized hop timestamps
+    const now = new Date();
+    const totalDurationMs = arrivalTime.getTime() - now.getTime();
+
+    if (totalDurationMs <= 0) {
+      throw new Error('Arrival time must be in the future');
     }
 
     // Generate random weights for time distribution
@@ -115,7 +115,7 @@ export class EasyRouteService {
       });
     }
 
-    // 3. Create route input for standard route creation
+    // 4. Create route input for standard route creation
     const routeInput: CreateRouteInput = {
       name: `Easy Route - ${hopCount} hops to ${destinationWallet.slice(0, 4)}...${destinationWallet.slice(-4)}`,
       description: `Auto-generated Easy Route with ${hopCount} hops, arriving at ${arrivalTime.toISOString()}`,
@@ -129,19 +129,19 @@ export class EasyRouteService {
       creator,
     };
 
-    // 4. Call standard routes service with isEasyRoute flag
+    // 5. Call standard routes service with isEasyRoute flag
     const route = await routesService.createRoute({
       ...routeInput,
       isEasyRoute: true, // Mark this as an Easy Route
     });
 
-    // 5. Mark the intermediate wallets as used
+    // 6. Mark the intermediate wallets as used
     if (intermediateWallets.length > 0) {
       const walletIds = intermediateWallets.map(w => w.id);
       await this.busyWalletsService.markWalletsUsed(walletIds);
     }
 
-    // 6. Return the route with hop details for debugging/display
+    // 7. Return the route with hop details for debugging/display
     const routeWithHops = await routesService.getRoute(route.id, route.creator);
     return {
       ...(routeWithHops || route),

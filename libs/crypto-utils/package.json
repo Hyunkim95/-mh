@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Shared cryptographic utilities for custodial wallets",
   "module": "dist/index.mjs",
-  "peerDependencies": {
+  "dependencies": {
     "drizzle-orm": "^0.29.3"
   },
   "devDependencies": {

@@ -8,17 +8,9 @@ import { utcNow } from "../../utils/timezone";
 import BN from "bn.js";
 import { getRouteConfiguration } from "../../solana/services/contract-utils";
 import { obfuscationService } from "../../obfuscation";
-import { createLogger } from "@libs/logger";
-import { trace, SpanKind, SpanStatusCode } from "@opentelemetry/api";
-import {
-  hopExecutionCounter,
-  hopExecutionDuration,
-  hopFailureCounter,
-  routeCompletedCounter,
-} from "../../telemetry/metrics";
+import { createLogger } from "../../utils/logger";
 
 const log = createLogger("HopScheduler");
-const tracer = trace.getTracer("multihopper.scheduler.hops");
 
 interface HopExecutionAttempt {
   routeId: number;
@@ -30,14 +22,10 @@ interface HopExecutionAttempt {
 // Track failed hop execution attempts
 const failedRoutes = new Map<number, HopExecutionAttempt>();
 const MAX_RETRY_ATTEMPTS = 3;
-const RETRY_COOLDOWN_MINUTES = Number(process.env.HOP_RETRY_COOLDOWN_MINUTES) || 5; // default 5 minutes
+const RETRY_COOLDOWN_MINUTES = 5; // Wait 5 minutes before retrying
 const MAX_PERMANENT_FAILURES = 10; // After this many total failures, mark route as failed in DB
 
 const _triggerHop = async () => {
-  await tracer.startActiveSpan(
-    "scheduler.hops.tick",
-    { kind: SpanKind.INTERNAL, attributes: { "scheduler.name": "hops" } },
-    async (tickSpan) => {
   // Run every 10 seconds
   try {
     const currentTime = utcNow();
@@ -65,9 +53,6 @@ const _triggerHop = async () => {
         `${readyHops.length} overdue hops, ${uniqueRoutes.size} routes to process, ${skippedCount} in cooldown`
       );
     }
-
-    tickSpan.setAttribute("hops.overdue_count", readyHops.length);
-    tickSpan.setAttribute("hops.route_count", uniqueRoutes.size);
 
     for (const routeId of uniqueRoutes) {
       let currentHop;
@@ -110,7 +95,6 @@ const _triggerHop = async () => {
           await hopsService.markAllHopsCompleted(routeId);
           // Also update route status to completed
           await routesService.updateRouteStatus(routeId, routeDB.creator, 'completed');
-          routeCompletedCounter.add(1);
           continue;
         }
 
@@ -149,12 +133,9 @@ const _triggerHop = async () => {
         }
 
         // Attempt to trigger the hop
-        const hopStart = performance.now();
         const txSignature = await contractService.executeHop(
           new BN(onChainRouteId)
         );
-        hopExecutionDuration.record(Math.round(performance.now() - hopStart), { "route.id": String(routeId) });
-        hopExecutionCounter.add(1, { "route.id": String(routeId) });
 
         // If route already ended, mark hops as completed
         if (txSignature === null) {
@@ -182,20 +163,10 @@ const _triggerHop = async () => {
         );
 
         log.info(`Hop ${currentHop} for route ${routeId} executed: ${txSignature}`);
-
-        // Check if this was the last hop — mark route completed immediately
-        // (otherwise getOverdueHops won't return this route on the next tick
-        //  since all hops now have txHash set, and the completion check never runs)
-        if (currentHop >= lastHopIndex) {
-          log.info(`Route ${routeId} completed final hop (${currentHop + 1}/${lastHopIndex + 1})`);
-          await hopsService.markAllHopsCompleted(routeId);
-          await routesService.updateRouteStatus(routeId, routeDB.creator, 'completed');
-        }
       } catch (error: any) {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
         log.error(`Failed to trigger hop ${routeId}: ${errorMessage}`);
-        hopFailureCounter.add(1, { "route.id": String(routeId) });
 
         // Record the failure
         recordHopFailure(routeId, errorMessage);
@@ -213,15 +184,9 @@ const _triggerHop = async () => {
     }
 
     log.debug("Hop scan completed");
-    tickSpan.setStatus({ code: SpanStatusCode.OK });
   } catch (error) {
     log.error("Critical error during hop scan:", error);
-    tickSpan.setStatus({ code: SpanStatusCode.ERROR, message: error instanceof Error ? error.message : "unknown" });
-    if (error instanceof Error) tickSpan.recordException(error);
-  } finally {
-    tickSpan.end();
   }
-  }); // end tracer.startActiveSpan
 };
 
 /**

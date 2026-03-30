@@ -11,7 +11,9 @@ export const useSubmitRoute = ({
 }) => {
   const createRoute = trpc.routes.create.useMutation();
   const getRoutes = trpc.routes.getByCreator.useQuery(
-    {},
+    {
+      creator: publicKey?.toBase58() ?? "",
+    },
     {
       enabled: !!publicKey,
     }
@@ -21,6 +23,7 @@ export const useSubmitRoute = ({
     data: any,
     type: "SPL" | "SOL"
   ): Promise<DeployModalRoute | null> => {
+    console.log("Received route data:", data);
     try {
       const result = await createRoute.mutateAsync({
         name: data.name,
@@ -31,6 +34,7 @@ export const useSubmitRoute = ({
         hopAmountTokens: data.hopAmountTokens,
         hopAmountRaw: data.hopAmountRaw,
         hops: data.hops,
+        creator: publicKey?.toBase58() ?? "",
       });
 
       toast.success(`${type} Route created successfully!`);

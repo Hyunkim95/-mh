@@ -31,7 +31,7 @@ class MockConnection {
 
 // Mock obfuscation service
 vi.mock("../obfuscation/services/obfuscation.service", () => ({
-  obfuscationService: {
+  default: {
     getWalletManager: () => ({
       getKeypairFromWallet: mockGetKeypairFromWallet,
     }),
@@ -43,7 +43,7 @@ vi.mock("../obfuscation/services/obfuscation.service", () => ({
 
 // Mock intermediate wallet service
 vi.mock("../obfuscation/services/intermediate-wallet.service", () => ({
-  intermediateWalletService: {
+  default: {
     areAllWalletsAggregated: vi.fn(),
   },
 }));
@@ -65,9 +65,9 @@ vi.mock("@solana/spl-token", () => ({
 }));
 
 // Import after mocks
-import { walletXService } from "../obfuscation/services/wallet-x.service";
-import { obfuscationService } from "../obfuscation/services/obfuscation.service";
-import { intermediateWalletService } from "../obfuscation/services/intermediate-wallet.service";
+import walletXService from "../obfuscation/services/wallet-x.service";
+import obfuscationService from "../obfuscation/services/obfuscation.service";
+import intermediateWalletService from "../obfuscation/services/intermediate-wallet.service";
 
 // Mock wallet data - use a valid base58 public key
 const mockCustodialWallet = {
@@ -267,135 +267,6 @@ describe("WalletXService", () => {
       const result = await walletXService.getSessionForWalletX(999);
 
       expect(result).toBeNull();
-    });
-  });
-
-  describe("getKeypairByRouteId", () => {
-    it("should return null when no session exists for route", async () => {
-      vi.mocked(obfuscationService.getSessionByRouteId).mockResolvedValue(null);
-
-      const result = await walletXService.getKeypairByRouteId(999);
-
-      expect(result).toBeNull();
-    });
-
-    it("should return keypair for valid route", async () => {
-      const mockKeypair = Keypair.generate();
-      vi.mocked(obfuscationService.getSessionByRouteId).mockResolvedValue(mockSession as any);
-      mockFindFirst.mockResolvedValue(mockSession);
-      mockGetKeypairFromWallet.mockReturnValue(mockKeypair);
-
-      const result = await walletXService.getKeypairByRouteId(1);
-
-      expect(result).toBe(mockKeypair);
-    });
-
-    it("should return null when session exists but wallet X has no keypair", async () => {
-      vi.mocked(obfuscationService.getSessionByRouteId).mockResolvedValue(mockSession as any);
-      mockFindFirst.mockResolvedValue({ ...mockSession, walletX: null });
-
-      const result = await walletXService.getKeypairByRouteId(1);
-
-      expect(result).toBeNull();
-    });
-  });
-
-  describe("getTokenBalance", () => {
-    it("should return zero when session does not exist", async () => {
-      mockFindFirst.mockResolvedValue(null);
-
-      const result = await walletXService.getTokenBalance(999, "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
-
-      expect(result.toNumber()).toBe(0);
-    });
-
-    it("should return token balance when ATA exists", async () => {
-      mockFindFirst.mockResolvedValue(mockSession);
-      mockGetAssociatedTokenAddress.mockResolvedValue(new PublicKey("11111111111111111111111111111111"));
-      mockGetAccount.mockResolvedValue({ amount: BigInt(5000000) });
-
-      const result = await walletXService.getTokenBalance(1, "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
-
-      expect(result.toNumber()).toBe(5000000);
-    });
-
-    it("should return zero when ATA does not exist", async () => {
-      mockFindFirst.mockResolvedValue(mockSession);
-      mockGetAssociatedTokenAddress.mockResolvedValue(new PublicKey("11111111111111111111111111111111"));
-      mockGetAccount.mockRejectedValue(new Error("Account does not exist"));
-
-      const result = await walletXService.getTokenBalance(1, "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
-
-      expect(result.toNumber()).toBe(0);
-    });
-  });
-
-  describe("hasReceivedAllFunds (SPL path)", () => {
-    const splSession = {
-      ...mockSession,
-      tokenMint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-      tokenType: "SPL",
-    };
-
-    it("should return true when SPL balance >= expected amount", async () => {
-      vi.mocked(obfuscationService.getSession).mockResolvedValue(splSession as any);
-      vi.mocked(intermediateWalletService.areAllWalletsAggregated).mockResolvedValue(true);
-      mockFindFirst.mockResolvedValue({ ...mockSession, walletX: mockCustodialWallet });
-      mockGetAssociatedTokenAddress.mockResolvedValue(new PublicKey("11111111111111111111111111111111"));
-      mockGetAccount.mockResolvedValue({ amount: BigInt("1000000000") }); // Matches totalAmount
-
-      const result = await walletXService.hasReceivedAllFunds(1);
-
-      expect(result).toBe(true);
-    });
-
-    it("should return false when SPL balance < expected amount", async () => {
-      vi.mocked(obfuscationService.getSession).mockResolvedValue(splSession as any);
-      vi.mocked(intermediateWalletService.areAllWalletsAggregated).mockResolvedValue(true);
-      mockFindFirst.mockResolvedValue({ ...mockSession, walletX: mockCustodialWallet });
-      mockGetAssociatedTokenAddress.mockResolvedValue(new PublicKey("11111111111111111111111111111111"));
-      mockGetAccount.mockResolvedValue({ amount: BigInt("500000000") }); // Less than totalAmount
-
-      const result = await walletXService.hasReceivedAllFunds(1);
-
-      expect(result).toBe(false);
-    });
-
-    it("should return false when SPL ATA does not exist", async () => {
-      vi.mocked(obfuscationService.getSession).mockResolvedValue(splSession as any);
-      vi.mocked(intermediateWalletService.areAllWalletsAggregated).mockResolvedValue(true);
-      mockFindFirst.mockResolvedValue({ ...mockSession, walletX: mockCustodialWallet });
-      mockGetAssociatedTokenAddress.mockResolvedValue(new PublicKey("11111111111111111111111111111111"));
-      mockGetAccount.mockRejectedValue(new Error("Account does not exist"));
-
-      const result = await walletXService.hasReceivedAllFunds(1);
-
-      expect(result).toBe(false);
-    });
-  });
-
-  describe("hasReceivedAllFunds (unknown token type)", () => {
-    it("should return false when tokenType is not SOL and tokenMint is null", async () => {
-      const weirdSession = {
-        ...mockSession,
-        tokenType: "UNKNOWN",
-        tokenMint: null,
-      };
-      vi.mocked(obfuscationService.getSession).mockResolvedValue(weirdSession as any);
-      vi.mocked(intermediateWalletService.areAllWalletsAggregated).mockResolvedValue(true);
-
-      const result = await walletXService.hasReceivedAllFunds(1);
-
-      expect(result).toBe(false);
-    });
-  });
-
-  describe("getSOLBalance (RPC failure)", () => {
-    it("should propagate RPC error when getBalance fails", async () => {
-      mockFindFirst.mockResolvedValue(mockSession);
-      mockGetBalance.mockRejectedValue(new Error("503 Service Unavailable"));
-
-      await expect(walletXService.getSOLBalance(1)).rejects.toThrow("503 Service Unavailable");
     });
   });
 

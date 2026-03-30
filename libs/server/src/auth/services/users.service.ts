@@ -15,14 +15,7 @@ export const findUserByPublicKey = async (publicKey: string) => {
 };
 
 export const createUser = async (publicKey: string) => {
-  const user = await db
-    .insert(userSchema)
-    .values({ publicKey })
-    .onConflictDoUpdate({
-      target: userSchema.publicKey,
-      set: { updatedAt: new Date() },
-    })
-    .returning();
+  const user = await db.insert(userSchema).values({ publicKey }).returning();
   return user[0];
 };
 

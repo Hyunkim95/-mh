@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { publicProcedure, router } from '../trpc';
 import { createEasyRouteService } from '../routes/services/easy-route.service';
 import { db } from '../db';
-import { createLogger } from "@libs/logger";
+import { createLogger } from '../utils/logger';
 
 const log = createLogger("EasyRoutesRouter");
 

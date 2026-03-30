@@ -1,11 +1,9 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { ContractEventsEtlJob } from './contract-events-etl';
 import { ContractEventProcessor } from './contract-event-processor';
-import { createLogger } from "@libs/logger";
-import { trace, SpanKind, SpanStatusCode } from "@opentelemetry/api";
+import { createLogger } from '../../utils/logger';
 
 const log = createLogger('ETLScheduler');
-const tracer = trace.getTracer("multihopper.scheduler.contract-events");
 
 export interface ContractEventsSchedulerConfig {
   rpcUrl: string;
@@ -113,16 +111,6 @@ export class ContractEventsScheduler {
       }
 
       this.isEtlJobRunning = true;
-      await tracer.startActiveSpan(
-        "scheduler.etl.tick",
-        {
-          kind: SpanKind.INTERNAL,
-          attributes: {
-            "scheduler.name": "contract-events",
-            "etl.direction": this.config.direction,
-          },
-        },
-        async (etlSpan) => {
       try {
         const result = await this.runEtlJob();
 
@@ -132,19 +120,13 @@ export class ContractEventsScheduler {
         } else if (result && result.totalExtracted > 0) {
           this.consecutiveEmptyRuns = 0;
           this.lastEmptyRunTime = undefined;
-          etlSpan.setAttribute("etl.extracted_count", result.totalExtracted);
           log.info(`ETL processed ${result.totalExtracted} transactions (${this.config.direction})`);
         }
-        etlSpan.setStatus({ code: SpanStatusCode.OK });
       } catch (error) {
         log.error('ETL job failed:', error);
-        etlSpan.setStatus({ code: SpanStatusCode.ERROR, message: error instanceof Error ? error.message : "unknown" });
-        if (error instanceof Error) etlSpan.recordException(error);
       } finally {
-        etlSpan.end();
         this.isEtlJobRunning = false;
       }
-      }); // end tracer.startActiveSpan
     }, this.config.etlIntervalMs);
 
     // Run immediately on start

@@ -2,7 +2,6 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import "@testing-library/jest-dom/vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AmountSelector } from "../pages/configureHops/AmountSelector";
@@ -80,10 +79,10 @@ function calculateExpectedMaxAmount(
 }
 
 describe("AmountSelector", () => {
-  let mockOnAmountChange: ReturnType<typeof vi.fn<(amount: number) => void>>;
+  let mockOnAmountChange: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    mockOnAmountChange = vi.fn<(amount: number) => void>();
+    mockOnAmountChange = vi.fn();
   });
 
   describe("Rendering with asset info and balance", () => {
@@ -408,13 +407,14 @@ describe("AmountSelector", () => {
     });
 
     it("should highlight active percentage button", async () => {
+      const user = userEvent.setup();
       const balance = 1000;
       const feePercentage = 0.01;
       const asset = createMockAsset({ amount: balance.toString() });
       const maxAmount = calculateExpectedMaxAmount(balance, feePercentage);
       const expectedAmount25 = Math.round(maxAmount * 0.25 * 1e6) / 1e6;
 
-      render(
+      const { rerender } = render(
         <AmountSelector
           asset={asset}
           amount={expectedAmount25}

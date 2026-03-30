@@ -10,12 +10,13 @@
     "dev": "tsup --watch",
     "type-check": "tsc --noEmit"
   },
-  "peerDependencies": {
+  "dependencies": {
     "drizzle-orm": "^0.29.3",
     "pg": "^8.11.3"
   },
   "devDependencies": {
     "@types/node": "^20.11.24",
+    "@types/pg": "^8.10.9",
     "tsup": "^7.0.0",
     "typescript": "^5.0.0"
   },

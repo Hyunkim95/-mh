@@ -2,7 +2,7 @@ import { PublicKey, Connection, clusterApiUrl } from "@solana/web3.js";
 import { Program, AnchorProvider, BN, EventParser } from "@coral-xyz/anchor";
 import { MultiHopperProject } from "../idl/multi_hopper_project";
 import * as IDLJson from "../idl/multi_hopper_project.json";
-import { createLogger } from "@libs/logger";
+import { createLogger } from "../../utils/logger";
 
 const log = createLogger("ContractUtils");
 
@@ -20,7 +20,7 @@ export interface SolanaInstructionParams {
 let cachedConnection: Connection | null = null;
 let cachedProgram: Program<MultiHopperProject> | null = null;
 
-export function getCachedConnection(): Connection {
+function getCachedConnection(): Connection {
   if (!cachedConnection) {
     cachedConnection = new Connection(
       process.env.SOLANA_RPC_URL || clusterApiUrl("mainnet-beta")

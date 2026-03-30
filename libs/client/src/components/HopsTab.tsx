@@ -61,7 +61,7 @@ export const HopsTab: React.FC = () => {
     isLoading,
     refetch,
   } = trpc.routes.getByCreator.useQuery(
-    {},
+    { creator: userData?.publicKey ?? "" },
     { enabled: !!userData?.publicKey }
   );
 
@@ -128,6 +128,7 @@ export const HopsTab: React.FC = () => {
           routeId: route.routeId,
           hops: formattedHops,
           hopAmount: route.hopAmountRaw,
+          creator: publicKey.toBase58(),
           splMint: route.tokenMint,
         });
       } else {
@@ -135,6 +136,7 @@ export const HopsTab: React.FC = () => {
           routeId: route.routeId,
           hops: formattedHops,
           hopAmount: route.hopAmountRaw,
+          creator: publicKey.toBase58(),
           splMint: "So11111111111111111111111111111111111111112", // Native SOL mint
         });
       }
@@ -170,6 +172,7 @@ export const HopsTab: React.FC = () => {
       // Mark route as deployed in the database
       await markDeployed.mutateAsync({
         id: route.id,
+        creator: publicKey.toBase58(),
         deploymentTxHash: signature,
       });
 

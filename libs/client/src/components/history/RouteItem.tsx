@@ -137,7 +137,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
       return;
     }
     // fromWallet is rendered as the wallet in this component; assume it's the creator
-    await replay({ id: numericId });
+    await replay({ id: numericId, creator: route.creator });
   };
 
   const handleDeploy = async () => {
@@ -185,7 +185,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
         route.tokenType as "SPL" | "SOL"
       );
       // Refresh the list after successful deploy to update status/button
-      await utils.routes.getByCreator.invalidate();
+      await utils.routes.getByCreator.invalidate({ creator: route.creator });
     } finally {
       setIsDeploying(false);
     }
@@ -223,6 +223,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
     } catch (error) {
       // Even if deploy() throws (e.g., verification timeout),
       // the hops may have been added on-chain. Update DB timestamps anyway.
+      console.log("Deploy threw but attempting to update timestamps:", error);
     }
 
     try {
@@ -230,6 +231,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
       // This runs even if deploy() threw, because hops may have been added successfully
       await updateHopTimestamps.mutateAsync({
         routeId: route.id,
+        creator: route.creator,
         hops: formattedHops.map((hop) => ({
           recipient: hop.recipient,
           scheduledAt: hop.scheduledAt,
@@ -237,7 +239,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
       });
 
       // Refresh queries after successful completion
-      await utils.routes.getByCreator.invalidate();
+      await utils.routes.getByCreator.invalidate({ creator: route.creator });
       await routeStateQuery.refetch();
     } catch (updateError) {
       console.error("Failed to update hop timestamps:", updateError);
@@ -271,6 +273,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
       // Get the batch transactions for adding missing hops
       const result = await addHopsBatched.mutateAsync({
         routeId: route.routeId,
+        creator: route.creator,
         hops: formattedMissingHops,
       });
 
@@ -306,6 +309,9 @@ export const RouteItem = ({ route }: RouteItemProps) => {
           lastValidBlockHeight: batchData.lastValidBlockHeight,
         });
 
+        console.log(
+          `Batch ${batchNum}/${totalBatches} confirmed: ${signature}`
+        );
       }
 
       // Update database: recalculate ALL hop timestamps (existing + new)
@@ -333,11 +339,12 @@ export const RouteItem = ({ route }: RouteItemProps) => {
 
       await updateHopTimestamps.mutateAsync({
         routeId: route.id,
+        creator: route.creator,
         hops: allHops,
       });
 
       // Refresh queries after successful completion
-      await utils.routes.getByCreator.invalidate();
+      await utils.routes.getByCreator.invalidate({ creator: route.creator });
       await routeStateQuery.refetch();
 
       toast.success(
@@ -362,7 +369,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
   };
 
   return (
-    <div className="relative flex flex-col bg-[var(--dark-jungle-green-500)] rounded-xl shadow-sm overflow-hidden mb-3 md:mb-0" data-testid={`route-item-${route.id}`}>
+    <div className="relative flex flex-col bg-[var(--dark-jungle-green-500)] rounded-xl shadow-sm overflow-hidden mb-3 md:mb-0">
       {/* Header */}
       <button
         onClick={onToggle}
@@ -503,7 +510,6 @@ export const RouteItem = ({ route }: RouteItemProps) => {
           <div className="flex flex-col items-start text-left min-w-0 flex-1 max-w-[100px]">
           <div className="text-xs text-gray-400">Status</div>
           <div
-            data-testid={`route-status-${route.id}`}
             className={`text-xs font-medium ${
               hasMissingHops
                 ? "text-red-400"
@@ -652,7 +658,7 @@ export const RouteItem = ({ route }: RouteItemProps) => {
 
       {/* Expanded section */}
       {open && (
-        <div className="relative bg-[var(--dark-jungle-green-500)] pl-10 pr-4 pb-4 space-y-4" data-testid={`route-detail-${route.id}`}>
+        <div className="relative bg-[var(--dark-jungle-green-500)] pl-10 pr-4 pb-4 space-y-4">
           {(route.hops ?? []).map((step, index, steps) => {
             const isLast = index === steps.length - 1;
 

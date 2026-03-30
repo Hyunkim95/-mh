@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { protectedProcedure, router } from "../trpc";
+import { router, publicProcedure } from "../trpc";
 import contractService, {
   routeHasHops,
   initializeCompleteTokenConfig,
@@ -24,7 +24,7 @@ import bs58 from "bs58";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
 import executorService from "../executors/executor.service";
-import { createLogger } from "@libs/logger";
+import { createLogger } from "../utils/logger";
 
 const log = createLogger("ContractRouter");
 
@@ -46,11 +46,13 @@ const tokenConfigSchema = z.object({
 });
 
 const initializeTokenConfigInputSchema = z.object({
+  creator: publicKeySchema,
   tokenConfig: tokenConfigSchema,
 });
 
 const addHopsInputSchema = z.object({
   routeId: z.number(),
+  creator: publicKeySchema,
   hops: z.array(
     z.object({
       recipient: publicKeySchema,
@@ -60,18 +62,23 @@ const addHopsInputSchema = z.object({
 });
 
 const initializeTokenConfigSolInputSchema = z.object({
+  creator: publicKeySchema,
   tokenConfig: tokenConfigSchema,
 });
 
 const updateTokenConfigInputSchema = z.object({
+  creator: publicKeySchema,
   tokenConfig: tokenConfigSchema,
 });
 
 const updateTokenConfigSolInputSchema = z.object({
+  creator: publicKeySchema,
   tokenConfig: tokenConfigSchema,
 });
 
-const getTokenConfigSolInputSchema = z.object({});
+const getTokenConfigSolInputSchema = z.object({
+  creator: publicKeySchema,
+});
 
 // Route validation schemas
 const hopSchema = z.object({
@@ -82,12 +89,14 @@ const hopSchema = z.object({
 const initializeRouteInputSchema = z.object({
   routeId: z.number(),
   splMint: publicKeySchema,
+  creator: publicKeySchema,
   hopAmount: z.string(),
   hops: z.array(hopSchema),
 });
 
 const initializeRouteSolInputSchema = z.object({
   routeId: z.number(),
+  creator: publicKeySchema,
   hopAmount: z.string(),
   hops: z.array(hopSchema),
   splMint: publicKeySchema,
@@ -116,8 +125,15 @@ const withdrawOnBehalfInputSchema = z.object({
   amount: z.string(),
 });
 
+const withdrawFromSignerInputSchema = z.object({
+  to: publicKeySchema,
+  amount: z.string(),
+});
+
 const triggerHopInputSchema = z.object({
   routeId: z.number(),
+  creator: publicKeySchema,
+  splMint: publicKeySchema,
 });
 
 // Helper to convert string values to BN and PublicKey for TokenConfig
@@ -146,12 +162,12 @@ export const contractRouter = router({
    * Initialize token config for SPL token
    * POST /contract/initialize-token-config
    */
-  initializeTokenConfig: protectedProcedure
+  initializeTokenConfig: publicProcedure
     .input(initializeTokenConfigInputSchema)
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ input }) => {
       try {
-        const { tokenConfig } = input;
-        const payer = new PublicKey(ctx.user.publicKey);
+        const { tokenConfig, creator } = input;
+        const payer = new PublicKey(creator);
         const parsedConfig = parseTokenConfig(tokenConfig);
 
         const { transaction } = await initializeCompleteTokenConfig(
@@ -185,12 +201,12 @@ export const contractRouter = router({
    * Initialize token config for SOL
    * POST /contract/initialize-token-config-sol
    */
-  initializeTokenConfigSOL: protectedProcedure
+  initializeTokenConfigSOL: publicProcedure
     .input(initializeTokenConfigSolInputSchema)
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ input }) => {
       try {
-        const { tokenConfig } = input;
-        const creatorKey = new PublicKey(ctx.user.publicKey);
+        const { creator, tokenConfig } = input;
+        const creatorKey = new PublicKey(creator);
         const parsedConfig = parseTokenConfig(tokenConfig);
 
         const { transaction } =
@@ -223,12 +239,12 @@ export const contractRouter = router({
    * Update token config for SPL token
    * POST /contract/update-token-config
    */
-  updateTokenConfig: protectedProcedure
+  updateTokenConfig: publicProcedure
     .input(updateTokenConfigInputSchema)
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ input }) => {
       try {
-        const { tokenConfig } = input;
-        const payer = new PublicKey(ctx.user.publicKey);
+        const { tokenConfig, creator } = input;
+        const payer = new PublicKey(creator);
         const parsedConfig = parseTokenConfig(tokenConfig);
 
         const transaction = await updateTokenConfigWithTransaction(
@@ -236,13 +252,9 @@ export const contractRouter = router({
           parsedConfig
         );
 
-        // The update instruction requires both payer and executor signatures.
-        // Partial-sign with the executor on the server; client adds payer signature.
-        const signer = executorService.getSigner();
-        const serializedTransaction = await signAndSerialize(
+        const serializedTransaction = await serialize(
           transaction,
           payer,
-          signer,
           params.connection
         );
 
@@ -267,12 +279,12 @@ export const contractRouter = router({
    * Update token config for SOL
    * POST /contract/update-token-config-sol
    */
-  updateTokenConfigSOL: protectedProcedure
+  updateTokenConfigSOL: publicProcedure
     .input(updateTokenConfigSolInputSchema)
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ input }) => {
       try {
-        const { tokenConfig } = input;
-        const creatorKey = new PublicKey(ctx.user.publicKey);
+        const { creator, tokenConfig } = input;
+        const creatorKey = new PublicKey(creator);
         const parsedConfig = parseTokenConfig(tokenConfig);
 
         const transaction = await updateSolTokenConfigWithTransaction(
@@ -280,13 +292,9 @@ export const contractRouter = router({
           parsedConfig
         );
 
-        // The update instruction requires both payer and executor signatures.
-        // Partial-sign with the executor on the server; client adds payer signature.
-        const signer = executorService.getSigner();
-        const serializedTransaction = await signAndSerialize(
+        const serializedTransaction = await serialize(
           transaction,
           creatorKey,
-          signer,
           params.connection
         );
 
@@ -311,7 +319,7 @@ export const contractRouter = router({
    * Get token config for SPL token
    * GET /contract/get-token-config-spl
    */
-  getTokenConfigSPL: protectedProcedure
+  getTokenConfigSPL: publicProcedure
     .query(async () => {
       try {
         const result = await getTokenConfigSPL();
@@ -335,10 +343,11 @@ export const contractRouter = router({
    * Get token config for SOL
    * GET /contract/get-token-config-sol
    */
-  getTokenConfigSOL: protectedProcedure
+  getTokenConfigSOL: publicProcedure
     .input(getTokenConfigSolInputSchema)
-    .query(async () => {
+    .query(async ({ input }) => {
       try {
+        const { creator } = input;
         const result = await getTokenConfigSOL();
 
         return {
@@ -360,12 +369,12 @@ export const contractRouter = router({
    * Initialize route for SPL token
    * POST /contract/initialize-route
    */
-  initializeRoute: protectedProcedure
+  initializeRoute: publicProcedure
     .input(initializeRouteInputSchema)
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ input }) => {
       try {
         const { routeId, hops } = input;
-        const creatorKey = new PublicKey(ctx.user.publicKey);
+        const creatorKey = new PublicKey(input.creator);
         const parsedHops = parseHops(hops);
 
         const {
@@ -422,12 +431,12 @@ export const contractRouter = router({
    * Initialize route for SOL
    * POST /contract/initialize-route-sol
    */
-  initializeRouteSOL: protectedProcedure
+  initializeRouteSOL: publicProcedure
     .input(initializeRouteSolInputSchema)
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ input }) => {
       try {
         const { routeId, hops, hopAmount } = input;
-        const creatorKey = new PublicKey(ctx.user.publicKey);
+        const creatorKey = new PublicKey(input.creator);
         const parsedHops = parseHops(hops);
 
         const {
@@ -478,7 +487,7 @@ export const contractRouter = router({
       }
     }),
 
-  routeHasHops: protectedProcedure
+  routeHasHops: publicProcedure
     .input(z.object({ routeId: z.number() }))
     .query(async ({ input }) => {
       try {
@@ -501,16 +510,15 @@ export const contractRouter = router({
       }
     }),
   
-  addHops: protectedProcedure
+  addHops: publicProcedure
     .input(addHopsInputSchema)
     .mutation(async ({
-      ctx,
       input
     }) => {
       try {
-        const { routeId, hops } = input;
+        const { routeId, creator, hops } = input;
         const parsedHops = parseHops(hops);
-        const creatorKey = new PublicKey(ctx.user.publicKey);
+        const creatorKey = new PublicKey(creator);
 
         const result = await contractService.addHops(
           creatorKey,
@@ -520,7 +528,7 @@ export const contractRouter = router({
 
         const serialized = await serialize(
           result,
-          creatorKey,
+          new PublicKey(creator),
           params.connection
         );
 
@@ -544,13 +552,13 @@ export const contractRouter = router({
    * Returns multiple serialized transactions for routes with many hops
    * POST /contract/add-hops-batched
    */
-  addHopsBatched: protectedProcedure
+  addHopsBatched: publicProcedure
     .input(addHopsInputSchema)
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ input }) => {
       try {
-        const { routeId, hops } = input;
+        const { routeId, creator, hops } = input;
         const parsedHops = parseHops(hops);
-        const creatorKey = new PublicKey(ctx.user.publicKey);
+        const creatorKey = new PublicKey(creator);
 
         // Get all batch transactions
         const transactions = await contractService.addHopsBatched(
@@ -588,7 +596,7 @@ export const contractRouter = router({
    * Get route configuration
    * GET /contract/get-route-config
    */
-  getRouteConfig: protectedProcedure
+  getRouteConfig: publicProcedure
     .input(getRouteConfigInputSchema)
     .query(async ({ input }) => {
       try {
@@ -622,7 +630,7 @@ export const contractRouter = router({
    * Get route state
    * GET /contract/get-route-state
    */
-  getRouteState: protectedProcedure
+  getRouteState: publicProcedure
     .input(getRouteStateInputSchema)
     .query(async ({ input }) => {
       try {
@@ -655,7 +663,7 @@ export const contractRouter = router({
    * Get executor public key for a route
    * GET /contract/get-executor-info
    */
-  getExecutorInfo: protectedProcedure
+  getExecutorInfo: publicProcedure
     .input(getExecutorInfoInputSchema)
     .query(async ({ input }) => {
       try {
@@ -684,7 +692,7 @@ export const contractRouter = router({
    * Get executor balance for a route
    * GET /contract/get-executor-balance
    */
-  getExecutorBalance: protectedProcedure
+  getExecutorBalance: publicProcedure
     .input(getExecutorBalanceInputSchema)
     .query(async ({ input }) => {
       try {
@@ -714,40 +722,16 @@ export const contractRouter = router({
    * Withdraw funds from executor wallet
    * POST /contract/withdraw-on-behalf
    */
-  withdrawOnBehalf: protectedProcedure
+  withdrawOnBehalf: publicProcedure
     .input(withdrawOnBehalfInputSchema)
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ input }) => {
       try {
         const { routeId, to, amount } = input;
         const amountBN = new BN(amount);
-        const routeConfig = await getRouteConfiguration(routeId);
-
-        if (!routeConfig) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Route not found",
-          });
-        }
-
-        if (routeConfig.creator !== ctx.user.publicKey) {
-          throw new TRPCError({
-            code: "FORBIDDEN",
-            message: "Only the route owner can withdraw executor funds",
-          });
-        }
-
-        const withdrawDestination = routeConfig.sourceOwner;
-
-        if (to !== withdrawDestination) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Withdraw destination must match the route owner",
-          });
-        }
 
         const signature = await executorService.withdrawOnBehalf(
           routeId,
-          withdrawDestination,
+          to,
           amountBN
         );
 
@@ -756,7 +740,7 @@ export const contractRouter = router({
           data: {
             signature,
             routeId,
-            to: withdrawDestination,
+            to,
             amount: amount,
           },
         };
@@ -775,7 +759,7 @@ export const contractRouter = router({
    * Trigger next hop for a route
    * POST /contract/trigger-hop
    */
-  triggerHop: protectedProcedure
+  triggerHop: publicProcedure
     .input(triggerHopInputSchema)
     .mutation(async ({ input }) => {
       try {
@@ -807,7 +791,7 @@ export const contractRouter = router({
    * Estimate deployment costs for a route
    * GET /contract/estimate-deployment-cost
    */
-  estimateDeploymentCost: protectedProcedure
+  estimateDeploymentCost: publicProcedure
     .input(
       z.object({
         hopCount: z.number().min(1).max(50),

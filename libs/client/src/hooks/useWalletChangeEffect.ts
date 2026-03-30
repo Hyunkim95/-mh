@@ -26,8 +26,12 @@ export const useWalletChangeEffect = (options?: {
     const currentWallet = publicKey?.toBase58() || null;
     const previousWallet = previousWalletRef.current;
 
+    console.log('Current wallet:', currentWallet);
+    console.log('Previous wallet:', previousWallet);
     // If wallet changed (and it's not the initial load)
     if (previousWallet !== null && previousWallet !== currentWallet) {
+      console.log('Wallet changed from', previousWallet, 'to', currentWallet);
+      
       // Call custom callback if provided
       if (onWalletChange) {
         onWalletChange(previousWallet, currentWallet);

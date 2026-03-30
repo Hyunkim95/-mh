@@ -23,7 +23,7 @@ import bs58 from "bs58";
 import executorService from "../../executors/executor.service";
 import { fetchTokenMetadata } from "@libs/solana-node";
 import { config } from "../../config/config";
-import { createLogger } from "@libs/logger";
+import { createLogger } from "../../utils/logger";
 
 const log = createLogger("ContractService");
 
@@ -934,7 +934,6 @@ const initializeRouteSolWithWrap = async (
   // Add dynamic priority fee instructions
   const priorityInstructions = await createDynamicPriorityInstructions(
     params.connection,
-    600_000,
   );
   priorityInstructions.forEach((ix) => transaction.add(ix));
 
@@ -1007,7 +1006,6 @@ const initializeRouteWithWrap = async (
   // Add dynamic priority fee instructions
   const priorityInstructions = await createDynamicPriorityInstructions(
     params.connection,
-    600_000,
   );
   priorityInstructions.forEach((ix) => transaction.add(ix));
 
@@ -1079,7 +1077,6 @@ const initializeRouteSplWithoutWrap = async (
   // Add dynamic priority fee instructions
   const priorityInstructions = await createDynamicPriorityInstructions(
     params.connection,
-    600_000,
   );
   priorityInstructions.forEach((ix) => transaction.add(ix));
 
