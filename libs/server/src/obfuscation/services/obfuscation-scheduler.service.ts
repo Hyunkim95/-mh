@@ -44,6 +44,18 @@ const SERVER_ID = `server_${uuidv4()}`;
 // Lock to prevent concurrent job execution within this server instance
 let isProcessorRunning = false;
 
+function logPermanentFailure(
+  message: string,
+  lockedLamports?: number | null,
+): void {
+  if ((lockedLamports ?? 0) > 0) {
+    log.error(message);
+    return;
+  }
+
+  log.warn(message);
+}
+
 /**
  * Record a failed operation to database for persistence across restarts
  */
@@ -73,18 +85,21 @@ async function recordFailureToDb(
 
     if (updatedWallet?.failureCount === MAX_PERMANENT_FAILURES) {
       let balanceInfo = "";
+      let lockedLamports = 0;
       try {
         const pubkey = await intermediateWalletService.getPublicKeyForWallet(walletId);
         if (pubkey) {
           const balance = await obfuscationService.getConnection().getBalance(pubkey);
+          lockedLamports = balance;
           balanceInfo = ` — ${balance} lamports (${(balance / 1_000_000_000).toFixed(4)} SOL) locked`;
         }
       } catch {
         // Do not let balance lookup interfere with failure persistence.
       }
 
-      log.error(
-        `[PERMANENT_FAILURE] Session ${sessionId} wallet ${walletId}: exceeded ${MAX_PERMANENT_FAILURES} failures${balanceInfo} — manual intervention required.`
+      logPermanentFailure(
+        `[PERMANENT_FAILURE] Session ${sessionId} wallet ${walletId}: exceeded ${MAX_PERMANENT_FAILURES} failures${balanceInfo} — manual intervention required.`,
+        lockedLamports,
       );
     }
   } else {
@@ -104,15 +119,18 @@ async function recordFailureToDb(
 
     if (updatedSession?.failureCount === MAX_PERMANENT_FAILURES) {
       let balanceInfo = "";
+      let lockedLamports = 0;
       try {
         const walletXBalance = await walletXService.getSOLBalance(sessionId);
+        lockedLamports = walletXBalance.toNumber();
         balanceInfo = ` — Wallet X: ${walletXBalance.toString()} lamports (${(walletXBalance.toNumber() / 1_000_000_000).toFixed(4)} SOL) locked`;
       } catch {
         // Do not let balance lookup interfere with failure persistence.
       }
 
-      log.error(
-        `[PERMANENT_FAILURE] Session ${sessionId}: exceeded ${MAX_PERMANENT_FAILURES} failures${balanceInfo} — manual intervention required.`
+      logPermanentFailure(
+        `[PERMANENT_FAILURE] Session ${sessionId}: exceeded ${MAX_PERMANENT_FAILURES} failures${balanceInfo} — manual intervention required.`,
+        lockedLamports,
       );
     }
   }
@@ -196,7 +214,7 @@ async function shouldRetryFromDb(
     const nextRetryAt = session.nextRetryAt;
 
     // Permanently stop retrying after too many failures
-    if (failureCount >= MAX_PERMANENT_FAILURES) {
+    if (failureCount === MAX_PERMANENT_FAILURES) {
       let balanceInfo = "";
       try {
         const walletXBalance = await walletXService.getSOLBalance(sessionId);
