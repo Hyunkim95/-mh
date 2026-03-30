@@ -56,7 +56,7 @@ export const AdminHopsTab: React.FC = () => {
     isLoading,
     refetch,
   } = trpc.routes.getByCreator.useQuery(
-    { creator: userData?.publicKey ?? '' },
+    {},
     { enabled: !!userData?.publicKey }
   )
 
@@ -97,7 +97,6 @@ export const AdminHopsTab: React.FC = () => {
           routeId: route.routeId,
           routes: formattedHops,
           hopAmount: route.hopAmountRaw,
-          creator: publicKey.toBase58(),
           splMint: route.tokenMint,
         })
       } else {
@@ -105,7 +104,6 @@ export const AdminHopsTab: React.FC = () => {
           routeId: route.routeId,
           routes: formattedHops,
           hopAmount: route.hopAmountRaw,
-          creator: publicKey.toBase58(),
           splMint: 'So11111111111111111111111111111111111111112',
         })
       }
@@ -131,7 +129,6 @@ export const AdminHopsTab: React.FC = () => {
       }
       await markDeployed.mutateAsync({
         id: route.id,
-        creator: publicKey.toBase58(),
         deploymentTxHash: signature,
       })
       toast.success(

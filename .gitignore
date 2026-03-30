@@ -86,20 +86,13 @@ jspm_packages/
 # Git worktrees
 .worktrees/
 
+# Solana test validator
+test-ledger/
+
+# Playwright test results
+e2e-browser/test-results/
+
 # Temporary folders
 tmp/
 temp/
-node_modules/
-node_modules/
-node_modules/
-node_modules/
-node_modules/
-node_modules/
-node_modules/
-node_modules/
-node_modules/
-node_modules/
-node_modules/
-node_modules/
-node_modules/
 node_modules/

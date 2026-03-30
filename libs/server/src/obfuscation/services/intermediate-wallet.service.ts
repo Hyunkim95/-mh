@@ -312,6 +312,35 @@ async function getWalletBySessionAndIndex(
   return wallet || null;
 }
 
+/**
+ * Atomically claim a wallet for aggregation processing.
+ * Uses conditional UPDATE to prevent two servers from processing
+ * the same wallet concurrently. Only succeeds if the wallet is
+ * still in a claimable state ("scheduled" or "failed").
+ *
+ * @returns true if this server successfully claimed the wallet
+ */
+async function claimWalletForAggregation(walletId: number): Promise<boolean> {
+  const result = await db
+    .update(intermediateWalletsSchema)
+    .set({
+      aggregationStatus: "sent" as AggregationStatus,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(intermediateWalletsSchema.id, walletId),
+        or(
+          eq(intermediateWalletsSchema.aggregationStatus, "scheduled"),
+          eq(intermediateWalletsSchema.aggregationStatus, "failed"),
+        ),
+      ),
+    )
+    .returning();
+
+  return result.length > 0;
+}
+
 const intermediateWalletService = {
   // Get operations
   getIntermediateWalletWithCustodial,
@@ -326,6 +355,9 @@ const intermediateWalletService = {
   updateAggregationStatus,
   updateCleanupStatus,
   setError,
+
+  // Atomic claims (multi-server safety)
+  claimWalletForAggregation,
 
   // Query operations
   getWalletsReadyForAggregation,

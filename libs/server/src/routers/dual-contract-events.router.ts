@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
-import { router, publicProcedure } from '../trpc';
+import { adminProcedure, protectedProcedure, router } from '../trpc';
 import { dualDirectionContractEventsService } from '../solana/services/dual-direction-contract-events.service';
 
 export const dualContractEventsRouter = router({
   // Get the current status of both forward and backward schedulers
-  getStatus: publicProcedure
+  getStatus: protectedProcedure
     .query(async () => {
       try {
         return await dualDirectionContractEventsService.getStatus();
@@ -19,7 +19,7 @@ export const dualContractEventsRouter = router({
     }),
 
   // Manually trigger ETL job for both directions
-  runEtlNow: publicProcedure
+  runEtlNow: adminProcedure
     .input(z.object({
       direction: z.enum(['forward', 'backward', 'both']).optional().default('both'),
     }))
@@ -55,7 +55,7 @@ export const dualContractEventsRouter = router({
     }),
 
   // Manually process events for both directions
-  processEventsNow: publicProcedure
+  processEventsNow: adminProcedure
     .input(z.object({
       direction: z.enum(['forward', 'backward', 'both']).optional().default('both'),
     }))
@@ -91,7 +91,7 @@ export const dualContractEventsRouter = router({
     }),
 
   // Update configuration for both directions
-  updateConfig: publicProcedure
+  updateConfig: adminProcedure
     .input(z.object({
       forwardConfig: z.object({
         etlIntervalMs: z.number(),
@@ -106,7 +106,7 @@ export const dualContractEventsRouter = router({
     }))
     .mutation(async ({ input }) => {
       try {
-        dualDirectionContractEventsService.updateConfig(input);
+        dualDirectionContractEventsService.updateConfig(input as any);
         return {
           success: true,
           message: 'Configuration updated successfully',
@@ -121,7 +121,7 @@ export const dualContractEventsRouter = router({
     }),
 
   // Get processing statistics for both directions
-  getProcessingStats: publicProcedure
+  getProcessingStats: protectedProcedure
     .query(async () => {
       try {
         const forwardScheduler = dualDirectionContractEventsService.getForwardScheduler();
@@ -165,7 +165,7 @@ export const dualContractEventsRouter = router({
     }),
 
   // Check if service is ready
-  isReady: publicProcedure
+  isReady: protectedProcedure
     .query(() => {
       return {
         ready: dualDirectionContractEventsService.isReady(),
@@ -173,7 +173,7 @@ export const dualContractEventsRouter = router({
     }),
 
   // Get cursor information for both directions
-  getCursors: publicProcedure
+  getCursors: protectedProcedure
     .query(async () => {
       try {
         // This would require adding a method to get cursor info from the schedulers
@@ -199,7 +199,7 @@ export const dualContractEventsRouter = router({
     }),
 
   // Reset cursors for specific direction
-  resetCursor: publicProcedure
+  resetCursor: adminProcedure
     .input(z.object({
       direction: z.enum(['forward', 'backward']),
       confirm: z.boolean(),

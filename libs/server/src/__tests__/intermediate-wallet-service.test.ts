@@ -26,7 +26,7 @@ vi.mock("../db", () => ({
 
 // Mock obfuscation service
 vi.mock("../obfuscation/services/obfuscation.service", () => ({
-  default: {
+  obfuscationService: {
     getWalletManager: () => ({
       getKeypairFromWallet: vi.fn(),
     }),
@@ -40,7 +40,7 @@ vi.mock("@libs/crypto-utils", () => ({
 }));
 
 // Import after mocks
-import intermediateWalletService from "../obfuscation/services/intermediate-wallet.service";
+import { intermediateWalletService } from "../obfuscation/services/intermediate-wallet.service";
 
 // Helper to create mock wallet data
 function createMockWallet(
@@ -357,6 +357,48 @@ describe("IntermediateWalletService", () => {
 
       expect(mockUpdate).toHaveBeenCalled();
     });
+
+    it("should update without txHash when not provided", async () => {
+      mockUpdate.mockResolvedValue(undefined);
+
+      await intermediateWalletService.updateFundingStatus(1, "pending");
+
+      expect(mockUpdate).toHaveBeenCalled();
+    });
+
+    it("should propagate database errors", async () => {
+      mockUpdate.mockRejectedValue(new Error("Connection refused"));
+
+      await expect(
+        intermediateWalletService.updateFundingStatus(1, "funded")
+      ).rejects.toThrow("Connection refused");
+    });
+  });
+
+  describe("updateFundingStatusByIndex", () => {
+    it("should update funding status by session and wallet index", async () => {
+      mockUpdate.mockResolvedValue(undefined);
+
+      await intermediateWalletService.updateFundingStatusByIndex(1, 0, "funded", "txhash789");
+
+      expect(mockUpdate).toHaveBeenCalled();
+    });
+
+    it("should update without txHash when not provided", async () => {
+      mockUpdate.mockResolvedValue(undefined);
+
+      await intermediateWalletService.updateFundingStatusByIndex(1, 2, "pending");
+
+      expect(mockUpdate).toHaveBeenCalled();
+    });
+
+    it("should propagate database errors", async () => {
+      mockUpdate.mockRejectedValue(new Error("Deadlock detected"));
+
+      await expect(
+        intermediateWalletService.updateFundingStatusByIndex(1, 0, "funded")
+      ).rejects.toThrow("Deadlock detected");
+    });
   });
 
   describe("updateAggregationStatus", () => {
@@ -370,6 +412,27 @@ describe("IntermediateWalletService", () => {
       );
 
       expect(mockUpdate).toHaveBeenCalled();
+    });
+
+    it("should update with error message for failed status", async () => {
+      mockUpdate.mockResolvedValue(undefined);
+
+      await intermediateWalletService.updateAggregationStatus(
+        1,
+        "failed",
+        undefined,
+        "Transaction simulation failed"
+      );
+
+      expect(mockUpdate).toHaveBeenCalled();
+    });
+
+    it("should propagate database errors", async () => {
+      mockUpdate.mockRejectedValue(new Error("Connection lost"));
+
+      await expect(
+        intermediateWalletService.updateAggregationStatus(1, "confirmed")
+      ).rejects.toThrow("Connection lost");
     });
   });
 
@@ -386,6 +449,28 @@ describe("IntermediateWalletService", () => {
 
       expect(mockUpdate).toHaveBeenCalled();
     });
+
+    it("should update with error message for failed status", async () => {
+      mockUpdate.mockResolvedValue(undefined);
+
+      await intermediateWalletService.updateCleanupStatus(
+        1,
+        "failed",
+        undefined,
+        undefined,
+        "Insufficient funds for rent"
+      );
+
+      expect(mockUpdate).toHaveBeenCalled();
+    });
+
+    it("should propagate database errors", async () => {
+      mockUpdate.mockRejectedValue(new Error("Serialization failure"));
+
+      await expect(
+        intermediateWalletService.updateCleanupStatus(1, "completed")
+      ).rejects.toThrow("Serialization failure");
+    });
   });
 
   describe("setError", () => {
@@ -395,6 +480,86 @@ describe("IntermediateWalletService", () => {
       await intermediateWalletService.setError(1, "Test error message");
 
       expect(mockUpdate).toHaveBeenCalled();
+    });
+
+    it("should propagate database errors", async () => {
+      mockUpdate.mockRejectedValue(new Error("Connection pool exhausted"));
+
+      await expect(
+        intermediateWalletService.setError(1, "some error")
+      ).rejects.toThrow("Connection pool exhausted");
+    });
+  });
+
+  describe("areAllWalletsFunded (DB error)", () => {
+    it("should propagate database errors", async () => {
+      mockFindMany.mockRejectedValue(new Error("Query timeout"));
+
+      await expect(
+        intermediateWalletService.areAllWalletsFunded(1)
+      ).rejects.toThrow("Query timeout");
+    });
+  });
+
+  describe("areAllWalletsAggregated (DB error)", () => {
+    it("should propagate database errors", async () => {
+      mockFindMany.mockRejectedValue(new Error("Query timeout"));
+
+      await expect(
+        intermediateWalletService.areAllWalletsAggregated(1)
+      ).rejects.toThrow("Query timeout");
+    });
+  });
+
+  describe("areAllWalletsCleanedUp (DB error)", () => {
+    it("should propagate database errors", async () => {
+      mockFindMany.mockRejectedValue(new Error("Query timeout"));
+
+      await expect(
+        intermediateWalletService.areAllWalletsCleanedUp(1)
+      ).rejects.toThrow("Query timeout");
+    });
+  });
+
+  describe("getKeypairForWallet", () => {
+    it("should return null when wallet not found", async () => {
+      mockFindFirst.mockResolvedValue(null);
+
+      const result = await intermediateWalletService.getKeypairForWallet(999);
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("getPublicKeyForWallet", () => {
+    it("should return null when wallet not found", async () => {
+      mockFindFirst.mockResolvedValue(null);
+
+      const result = await intermediateWalletService.getPublicKeyForWallet(999);
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("getIntermediateWalletsWithCustodial", () => {
+    it("should return all wallets for a session", async () => {
+      const mockWallets = [
+        createMockWallet({ id: 1, walletIndex: 0 }),
+        createMockWallet({ id: 2, walletIndex: 1 }),
+      ];
+      mockFindMany.mockResolvedValue(mockWallets);
+
+      const result = await intermediateWalletService.getIntermediateWalletsWithCustodial(1);
+
+      expect(result).toHaveLength(2);
+    });
+
+    it("should return empty array for non-existent session", async () => {
+      mockFindMany.mockResolvedValue([]);
+
+      const result = await intermediateWalletService.getIntermediateWalletsWithCustodial(999);
+
+      expect(result).toHaveLength(0);
     });
   });
 });

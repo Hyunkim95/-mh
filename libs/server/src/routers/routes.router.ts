@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { PublicKey } from '@solana/web3.js';
 import { eq } from 'drizzle-orm';
-import { publicProcedure, router } from '../trpc';
+import { protectedProcedure, router } from '../trpc';
 import routesService from '../routes/services/routes.service';
 import { validateRoute } from '../routes/services/route-validation.service';
 import {
@@ -11,7 +11,8 @@ import {
 } from '../obfuscation';
 import { db } from '../db';
 import { routesSchema } from '../db/schema';
-import { createLogger } from '../utils/logger';
+import { createLogger } from "@libs/logger";
+import { TRPCError } from "@trpc/server";
 
 const log = createLogger("RoutesRouter");
 
@@ -30,17 +31,14 @@ const createRouteSchema = z.object({
   hopAmountTokens: z.string(),
   hopAmountRaw: z.string(),
   hops: z.array(routeHopSchema),
-  creator: z.string(),
 });
 
 const routeIdSchema = z.object({
   id: z.number(),
-  creator: z.string(),
 });
 
 const updateRouteSchema = z.object({
   id: z.number(),
-  creator: z.string(),
   updates: z.object({
     name: z.string().optional(),
     description: z.string().optional(),
@@ -52,11 +50,12 @@ const updateRouteSchema = z.object({
 
 export const routesRouter = router({
   // Validate a route against token config constraints (without creating it)
-  validate: publicProcedure
+  validate: protectedProcedure
     .input(createRouteSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       try {
-        const validation = await validateRoute(input);
+        const creator = ctx.user.publicKey;
+        const validation = await validateRoute({ ...input, creator });
         return {
           success: true,
           data: {
@@ -79,17 +78,18 @@ export const routesRouter = router({
     }),
 
   // Create a new route (save to database)
-  create: publicProcedure
+  create: protectedProcedure
     .input(createRouteSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       try {
+        const creator = ctx.user.publicKey;
         // Validate route against token config constraints
-        const validation = await validateRoute(input);
+        const validation = await validateRoute({ ...input, creator });
         if (!validation.isValid) {
           throw new Error(`Route validation failed: ${validation.errors.join('; ')}`);
         }
 
-        const route = await routesService.createRoute(input);
+        const route = await routesService.createRoute({ ...input, creator });
         return {
           success: true,
           data: route,
@@ -108,11 +108,12 @@ export const routesRouter = router({
     }),
 
   // Replay a route: clone it with hop deltas applied relative to now
-  replay: publicProcedure
+  replay: protectedProcedure
     .input(routeIdSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       try {
-        const cloned = await routesService.replayRoute(input.id, input.creator);
+        const creator = ctx.user.publicKey;
+        const cloned = await routesService.replayRoute(input.id, creator);
         return {
           success: true,
           data: cloned,
@@ -127,17 +128,17 @@ export const routesRouter = router({
     }),
 
   // Get all routes for a creator
-  getByCreator: publicProcedure
+  getByCreator: protectedProcedure
     .input(
     z.object({
-      creator: z.string(),
       cursor: z.number().nullable().optional(),
       limit: z.number().optional().default(5),
     })
   )
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       try {
-        const { creator, cursor, limit } = input;
+        const creator = ctx.user.publicKey;
+        const { cursor, limit } = input;
         const routes = await routesService.getRoutesByCreatorPaginated({ creator, cursor, limit });
         return {
           success: true,
@@ -146,16 +147,20 @@ export const routesRouter = router({
         };
       } catch (error) {
         log.error('Error fetching routes:', error);
+        if (error instanceof TRPCError) {
+          throw error;
+        }
         throw new Error('Failed to fetch routes');
       }
     }),
 
   // Get a specific route
-  getById: publicProcedure
+  getById: protectedProcedure
     .input(routeIdSchema)
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       try {
-        const route = await routesService.getRoute(input.id, input.creator);
+        const creator = ctx.user.publicKey;
+        const route = await routesService.getRoute(input.id, creator);
         if (!route) {
           throw new Error('Route not found');
         }
@@ -170,14 +175,15 @@ export const routesRouter = router({
     }),
 
   // Update a route (only if not deployed)
-  update: publicProcedure
+  update: protectedProcedure
     .input(updateRouteSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       try {
+        const creator = ctx.user.publicKey;
         // If hops are being updated, validate the entire route
         if (input.updates.hops || input.updates.hopAmountRaw) {
           // Get the existing route to build the complete updated route
-          const existingRoute = await routesService.getRoute(input.id, input.creator);
+          const existingRoute = await routesService.getRoute(input.id, creator);
           if (!existingRoute) {
             throw new Error('Route not found');
           }
@@ -188,7 +194,7 @@ export const routesRouter = router({
             tokenMint: existingRoute.tokenMint || undefined,
             hopAmountRaw: input.updates.hopAmountRaw || existingRoute.hopAmountRaw,
             hops: input.updates.hops || existingRoute.hops || [],
-            creator: input.creator
+            creator
           };
 
           // Validate the updated route
@@ -198,7 +204,7 @@ export const routesRouter = router({
           }
         }
 
-        const route = await routesService.updateRoute(input.id, input.creator, input.updates);
+        const route = await routesService.updateRoute(input.id, creator, input.updates);
         if (!route) {
           throw new Error('Route not found or cannot be updated');
         }
@@ -220,11 +226,12 @@ export const routesRouter = router({
     }),
 
   // Delete a route (only if not deployed)
-  delete: publicProcedure
+  delete: protectedProcedure
     .input(routeIdSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       try {
-        const success = await routesService.deleteRoute(input.id, input.creator);
+        const creator = ctx.user.publicKey;
+        const success = await routesService.deleteRoute(input.id, creator);
         if (!success) {
           throw new Error('Route not found or cannot be deleted');
         }
@@ -241,20 +248,20 @@ export const routesRouter = router({
 
 
   // Update hop timestamps in database (for fixing incomplete deployments)
-  updateHopTimestamps: publicProcedure
+  updateHopTimestamps: protectedProcedure
     .input(z.object({
       routeId: z.number(),
-      creator: z.string(),
       hops: z.array(z.object({
         recipient: z.string(),
         scheduledAt: z.number(), // Unix timestamp in milliseconds
       })),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       try {
+        const creator = ctx.user.publicKey;
         await routesService.updateHopTimestamps(
           input.routeId,
-          input.creator,
+          creator,
           input.hops
         );
 
@@ -269,18 +276,18 @@ export const routesRouter = router({
     }),
 
   // Mark route as successfully deployed (called after transaction confirmation)
-  markDeployed: publicProcedure
+  markDeployed: protectedProcedure
     .input(z.object({
       id: z.number(),
-      creator: z.string(),
       deploymentTxHash: z.string(),
       routeConfigPda: z.string().optional(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       try {
+        const creator = ctx.user.publicKey;
         await routesService.updateRouteStatus(
           input.id,
-          input.creator,
+          creator,
           'deployed',
           {
             deploymentTxHash: input.deploymentTxHash,
@@ -289,7 +296,7 @@ export const routesRouter = router({
         );
 
         // Get the updated route
-        const route = await routesService.getRoute(input.id, input.creator);
+        const route = await routesService.getRoute(input.id, creator);
         if (!route) {
           throw new Error('Route not found');
         }
@@ -308,7 +315,7 @@ export const routesRouter = router({
   // ==================== OBFUSCATION ENDPOINTS ====================
 
   // Get obfuscation session for a route
-  getObfuscationSession: publicProcedure
+  getObfuscationSession: protectedProcedure
     .input(z.object({
       routeId: z.number(),
     }))
@@ -337,7 +344,7 @@ export const routesRouter = router({
     }),
 
   // Get obfuscation cost estimate for a route
-  getObfuscationCostEstimate: publicProcedure
+  getObfuscationCostEstimate: protectedProcedure
     .input(z.object({
       routeId: z.number(),
     }))
@@ -401,13 +408,13 @@ export const routesRouter = router({
     }),
 
   // Get funding transactions for obfuscated route (for batch signing)
-  getObfuscationFundingTransactions: publicProcedure
+  getObfuscationFundingTransactions: protectedProcedure
     .input(z.object({
       routeId: z.number(),
-      creator: z.string(),
     }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       try {
+        const creator = ctx.user.publicKey;
         // Get the obfuscation session
         const session = await obfuscationService.getSessionByRouteId(input.routeId);
         if (!session) {
@@ -428,7 +435,7 @@ export const routesRouter = router({
         const amountLamports = BigInt(route.hopAmountRaw);
 
         // Build all funding transactions
-        const sourceWallet = new PublicKey(input.creator);
+        const sourceWallet = new PublicKey(creator);
         const transactions = await obfuscationTxBuilder.buildAllFundingTransactions(
           session.id,
           sourceWallet
@@ -463,7 +470,7 @@ export const routesRouter = router({
     }),
 
   // Confirm funding for an intermediate wallet
-  confirmObfuscationFunding: publicProcedure
+  confirmObfuscationFunding: protectedProcedure
     .input(z.object({
       routeId: z.number(),
       walletIndex: z.number(),
@@ -509,7 +516,7 @@ export const routesRouter = router({
     }),
 
   // Batch confirm all funding transactions
-  confirmAllObfuscationFunding: publicProcedure
+  confirmAllObfuscationFunding: protectedProcedure
     .input(z.object({
       routeId: z.number(),
       fundingResults: z.array(z.object({
@@ -560,7 +567,7 @@ export const routesRouter = router({
     }),
 
   // Get obfuscation status for a route
-  getObfuscationStatus: publicProcedure
+  getObfuscationStatus: protectedProcedure
     .input(z.object({
       routeId: z.number(),
     }))

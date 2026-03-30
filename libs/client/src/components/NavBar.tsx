@@ -69,6 +69,7 @@ export const NavBar = () => {
               router.navigate({ to: '/login' })
             }}
             variant='icon'
+            data-testid="logout-btn"
           >
             <img src={LogOutIcon} className='w-4 sm:w-5 h-4 sm:h-5' />
           </Button>

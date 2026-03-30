@@ -199,10 +199,10 @@ describe("Submission-time fee deduction", () => {
         const feeAmount = calculateFee(hopAmount, fee);
         const total = hopAmount + feeAmount;
 
-        expect(total).toBeLessThanOrEqual(
-          amount,
+        expect(
+          total,
           `Failed for amount=${amount}, fee=${fee}: total ${total} > amount ${amount}`
-        );
+        ).toBeLessThanOrEqual(amount);
       }
     });
 

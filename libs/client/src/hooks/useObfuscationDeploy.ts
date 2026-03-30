@@ -48,7 +48,6 @@ export const useObfuscationDeploy = () => {
       // 1. Get funding transactions from backend (only returns un-funded wallets)
       const result = await getObfuscationFundingTxs.mutateAsync({
         routeId,
-        creator: publicKey.toBase58(),
       });
 
       const { transactions, totalTransactions } = result.data;

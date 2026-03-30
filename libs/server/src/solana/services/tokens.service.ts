@@ -1,6 +1,6 @@
 import axios from "axios";
 import { get } from "lodash";
-import { createLogger } from "../../utils/logger";
+import { createLogger } from "@libs/logger";
 
 const log = createLogger("TokensService");
 
@@ -30,9 +30,13 @@ export interface HelisuTokenResponse {
   };
 }
 
-const HELIUS_API =
-  process.env.HELIUS_API ||
-  "https://mainnet.helius-rpc.com/?api-key=f6d0c03a-562f-4784-8b78-ebb084b72514";
+const getHeliusApiUrl = (apiUrl?: string): string => {
+  const resolvedUrl = apiUrl || process.env.HELIUS_API;
+  if (!resolvedUrl) {
+    throw new Error("HELIUS_API environment variable is required");
+  }
+  return resolvedUrl;
+};
 
 const fetchAssets = async (
   owner: string,
@@ -40,7 +44,7 @@ const fetchAssets = async (
   page: number,
   apiUrl?: string
 ) => {
-  const response = await axios.post(`${apiUrl || HELIUS_API}`, {
+  const response = await axios.post(getHeliusApiUrl(apiUrl), {
     jsonrpc: "2.0",
     id: 1,
     method: "getAssetsByOwner",
@@ -132,7 +136,7 @@ export const getTokenPrice = async (
     }
 
     // Fetch asset from Helius to get price info
-    const response = await axios.post(`${apiUrl || HELIUS_API}`, {
+    const response = await axios.post(getHeliusApiUrl(apiUrl), {
       jsonrpc: "2.0",
       id: 1,
       method: "getAsset",

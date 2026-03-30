@@ -11,7 +11,7 @@ import { CreateHopInput } from "../../hops/schema/hops.schema";
 import { parseUserDateToUtc } from "../../utils/timezone";
 import { isRouteDeployedOnChain } from "../../solana/services/contract.service";
 import { obfuscationService } from "../../obfuscation";
-import { createLogger } from "../../utils/logger";
+import { createLogger } from "@libs/logger";
 
 const log = createLogger("RoutesService");
 

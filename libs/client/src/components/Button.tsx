@@ -6,6 +6,8 @@ export interface ButtonProps {
   variant?: 'primary' | 'primarySm' | 'secondary' | 'icon' | 'ghost'
   disabled?: boolean
   className?: string
+  id?: string
+  "data-testid"?: string
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -14,6 +16,8 @@ export const Button: React.FC<ButtonProps> = ({
   variant = "primary",
   disabled = false,
   className = "",
+  id,
+  "data-testid": dataTestId,
 }) => {
   const baseStyles =
     "justify-center items-center font-medium pb-[13px] pt-[10px]";
@@ -42,6 +46,8 @@ export const Button: React.FC<ButtonProps> = ({
       onClick={onClick}
       disabled={disabled}
       style={shadowStyle}
+      id={id}
+      data-testid={dataTestId}
     >
       {children}
     </button>

@@ -101,8 +101,6 @@ export const RouteDetailView: React.FC<RouteDetailViewProps> = ({
       reset();
       await mutateAsync({
         routeId: route.routeId,
-        creator: route.creator,
-        splMint: route.tokenMint || NATIVE_MINT.toBase58(),
       });
       routeStateQuery.refetch();
     } catch (error) {

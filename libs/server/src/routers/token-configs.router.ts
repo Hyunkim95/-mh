@@ -9,7 +9,7 @@ export const tokenConfigsRouter = router({
   }),
   getTokenConfigById: adminProcedure
     .input(z.number())
-    .query(async ({ ctx, input }) => {
+    .query(async ({ input }) => {
       return await tokenConfigsService.findById(input);
     }),
 });

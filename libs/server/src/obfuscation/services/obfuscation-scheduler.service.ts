@@ -20,15 +20,22 @@ import {
 } from "../../solana/services/contract.service";
 import routesService from "../../routes/services/routes.service";
 import { hopsService } from "../../hops/services/hops.service";
-import { createLogger } from "../../utils/logger";
+import { createLogger } from "@libs/logger";
+import { trace, SpanKind, SpanStatusCode } from "@opentelemetry/api";
+import {
+  obfuscationSessionCounter,
+  obfuscationDuration,
+} from "../../telemetry/metrics";
 
 const log = createLogger("ObfuscationScheduler");
+const tracer = trace.getTracer("multihopper.scheduler.obfuscation");
 
-// Constants
+// Constants (configurable via env vars for e2e testing with shorter values)
 const MAX_RETRY_ATTEMPTS = 3;
-const RETRY_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+const RETRY_COOLDOWN_MS = Number(process.env.OBFUSCATION_RETRY_COOLDOWN_MS) || 5 * 60 * 1000; // default 5 minutes
 const MAX_PERMANENT_FAILURES = 15; // Stop retrying entirely after this many failures
-const LOCK_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes lock timeout
+const LOCK_TIMEOUT_MS = Number(process.env.OBFUSCATION_LOCK_TIMEOUT_MS) || 5 * 60 * 1000; // default 5 minutes
+const PER_SESSION_TIMEOUT_MS = Number(process.env.OBFUSCATION_SESSION_TIMEOUT_MS) || 4 * 60 * 1000; // default 4 minutes
 const MAX_HOPS_WARNING_THRESHOLD = 30; // Warn if route has more than 30 hops
 
 // Unique server identifier for distributed locking
@@ -127,6 +134,15 @@ async function shouldRetryFromDb(
 
     // Permanently stop retrying after too many failures
     if (failureCount >= MAX_PERMANENT_FAILURES) {
+      let balanceInfo = "";
+      try {
+        const pubkey = await intermediateWalletService.getPublicKeyForWallet(walletId);
+        if (pubkey) {
+          const balance = await obfuscationService.getConnection().getBalance(pubkey);
+          balanceInfo = ` — ${balance} lamports (${(balance / 1_000_000_000).toFixed(4)} SOL) locked`;
+        }
+      } catch { /* don't let RPC failure break retry logic */ }
+      log.error(`[PERMANENT_FAILURE] Session ${sessionId} wallet ${walletId}: exceeded ${MAX_PERMANENT_FAILURES} failures${balanceInfo} — manual intervention required.`);
       return false;
     }
 
@@ -144,6 +160,12 @@ async function shouldRetryFromDb(
 
     // Permanently stop retrying after too many failures
     if (failureCount >= MAX_PERMANENT_FAILURES) {
+      let balanceInfo = "";
+      try {
+        const walletXBalance = await walletXService.getSOLBalance(sessionId);
+        balanceInfo = ` — Wallet X: ${walletXBalance.toString()} lamports (${(walletXBalance.toNumber() / 1_000_000_000).toFixed(4)} SOL) locked`;
+      } catch { /* don't let RPC failure break retry logic */ }
+      log.error(`[PERMANENT_FAILURE] Session ${sessionId}: exceeded ${MAX_PERMANENT_FAILURES} failures${balanceInfo} — manual intervention required.`);
       return false;
     }
 
@@ -278,11 +300,13 @@ async function processAggregations(): Promise<void> {
     }
 
     try {
-      // Mark as sent (in progress)
-      await intermediateWalletService.updateAggregationStatus(
-        wallet.id,
-        "sent",
-      );
+      // Atomically claim wallet — prevents two servers from processing the same wallet.
+      // Returns false if another server already claimed it (status no longer "scheduled"/"failed").
+      const claimed = await intermediateWalletService.claimWalletForAggregation(wallet.id);
+      if (!claimed) {
+        log.info(`[Aggregation] Wallet ${wallet.id} already claimed by another server, skipping`);
+        continue;
+      }
 
       // Build and execute aggregation transaction
       const txData = await obfuscationTxBuilder.buildAggregationTransaction(
@@ -400,14 +424,24 @@ async function processDeploymentAndCleanup(): Promise<void> {
     // Track actual fees for this session
     let actualFeesLamports = 0;
 
+    // Per-session timeout: prevents one slow session from starving all others.
+    // The timeout rejects into the catch block which records the failure and
+    // the finally block releases the lock.
+    let sessionTimeout: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      sessionTimeout = setTimeout(() => {
+        reject(new Error(`Session ${session.id} timed out after ${PER_SESSION_TIMEOUT_MS / 1000}s`));
+      }, PER_SESSION_TIMEOUT_MS);
+    });
+
     try {
+      await Promise.race([timeoutPromise, (async () => {
       // Check if all wallets are aggregated
       const allAggregated =
         await intermediateWalletService.areAllWalletsAggregated(session.id);
 
       if (!allAggregated) {
-        await releaseSessionLock(session.id);
-        continue;
+        return;
       }
 
       // Get the route info with hops
@@ -422,8 +456,7 @@ async function processDeploymentAndCleanup(): Promise<void> {
 
       if (!route) {
         log.error(`[Deployment] Route not found for session ${session.id}`);
-        await releaseSessionLock(session.id);
-        continue;
+        return;
       }
 
       // Validate hops configuration
@@ -431,8 +464,7 @@ async function processDeploymentAndCleanup(): Promise<void> {
       if (!validation.valid) {
         log.error(`Hops validation failed for session ${session.id}: ${validation.error}`);
         await recordFailureToDb(session.id, validation.error!);
-        await releaseSessionLock(session.id);
-        continue;
+        return;
       }
 
       // Check if route is already deployed - verify BOTH database AND on-chain state
@@ -465,8 +497,7 @@ async function processDeploymentAndCleanup(): Promise<void> {
             } catch (metaError: any) {
               log.error(`[Deployment] Route ${route.routeId}: Failed to init ExtraAccountMetaList: ${metaError.message}`);
               await recordFailureToDb(session.id, `ExtraAccountMetaList init failed: ${metaError.message}`);
-              await releaseSessionLock(session.id);
-              continue;
+              return;
             }
           }
         }
@@ -475,14 +506,15 @@ async function processDeploymentAndCleanup(): Promise<void> {
       const isDeployed = isDeployedInDb || isDeployedOnChain;
 
       // Check if route is deployed but missing hops on-chain (incomplete deployment)
-      // This happens when initialization succeeds but addHops fails
+      // This happens when initialization succeeds but addHops fails (partially or fully)
       let needsHopsOnly = false;
       if (isDeployed) {
         try {
           const routeState = await getRouteStateAccount(route.routeId);
-          if (routeState && routeState.hopsCount === 0) {
+          const expectedHops = route.hops?.length || 0;
+          if (routeState && routeState.hopsCount < expectedHops) {
             needsHopsOnly = true;
-            log.info(`[Deployment] Session ${session.id}: Route ${route.routeId} deployed but has 0 hops on-chain — adding hops`);
+            log.info(`[Deployment] Session ${session.id}: Route ${route.routeId} deployed but has ${routeState.hopsCount}/${expectedHops} hops on-chain — adding missing hops`);
           }
         } catch {
           // If we can't read route state, skip
@@ -499,8 +531,7 @@ async function processDeploymentAndCleanup(): Promise<void> {
         const walletXKeypair = await walletXService.getKeypair(session.id);
         if (!walletXKeypair) {
           log.error(`Could not get Wallet X keypair for session ${session.id}`);
-          await releaseSessionLock(session.id);
-          continue;
+          return;
         }
 
         // For SPL routes, verify Wallet X has received all tokens before deployment
@@ -513,8 +544,7 @@ async function processDeploymentAndCleanup(): Promise<void> {
 
           if (tokenBalance.lt(expectedAmount)) {
             log.info(`Session ${session.id} waiting for tokens - have ${tokenBalance.toString()}, need ${expectedAmount.toString()}`);
-            await releaseSessionLock(session.id);
-            continue;
+            return;
           }
         }
 
@@ -529,8 +559,7 @@ async function processDeploymentAndCleanup(): Promise<void> {
 
         if (hops.length === 0) {
           log.error(`No hops found for route ${route.id}`);
-          await releaseSessionLock(session.id);
-          continue;
+          return;
         }
 
         // Log hop count warning for large routes
@@ -611,13 +640,15 @@ async function processDeploymentAndCleanup(): Promise<void> {
 
           // Record failure for retry
           await recordFailureToDb(session.id, errorMessage);
-          await releaseSessionLock(session.id);
-          continue; // Skip cleanup if deployment failed
+          return; // Skip cleanup if deployment failed
         }
       }
 
       // NOW CLEANUP - happens immediately after deployment
       const sourceWallet = new PublicKey(route.creator);
+
+      // Fetch fees once for cleanup fee tracking (cached, essentially free)
+      const cleanupDynamicFees = await obfuscationService.getDynamicFees();
 
       // Cleanup all intermediate wallets
       const walletsPendingCleanup =
@@ -644,8 +675,8 @@ async function processDeploymentAndCleanup(): Promise<void> {
               cleanupSig,
             );
 
-            // Add cleanup tx fee
-            actualFeesLamports += 5000;
+            // Add cleanup tx fee (base + priority, consistent with deployment tracking)
+            actualFeesLamports += 5000 + cleanupDynamicFees.priorityFeeLamports;
             await clearFailureTracking(session.id, wallet.id);
           } else {
             await intermediateWalletService.updateCleanupStatus(
@@ -659,6 +690,44 @@ async function processDeploymentAndCleanup(): Promise<void> {
               ? cleanupError.message
               : "Unknown error";
           log.error(`[Cleanup] Session ${session.id}: Cleanup failed for wallet ${wallet.id}:`, errorMessage);
+
+          // Immediate retry: handles TOCTOU race where balance changed between
+          // getBalance() and on-chain execution (e.g. another server cleaned up).
+          // Re-querying balance now returns 0 → buildCleanup returns null → completed.
+          try {
+            const retryTxData = await obfuscationTxBuilder.buildCleanupTransaction(
+              wallet.id,
+              session.id,
+              sourceWallet,
+            );
+            if (retryTxData) {
+              const retrySig = await obfuscationTxBuilder.executeTransaction(
+                retryTxData.transaction,
+                retryTxData.signer,
+              );
+              await intermediateWalletService.updateCleanupStatus(
+                wallet.id,
+                "completed",
+                retrySig,
+                retrySig,
+              );
+              actualFeesLamports += 5000 + cleanupDynamicFees.priorityFeeLamports;
+              await clearFailureTracking(session.id, wallet.id);
+              continue;
+            } else {
+              // Balance is 0 or below fee — account already drained, mark completed
+              await intermediateWalletService.updateCleanupStatus(
+                wallet.id,
+                "completed",
+              );
+              await clearFailureTracking(session.id, wallet.id);
+              continue;
+            }
+          } catch (retryError) {
+            // Retry also failed — fall through to record failure for next tick
+            log.error(`[Cleanup] Session ${session.id}: Retry also failed for wallet ${wallet.id}`);
+          }
+
           // Combined status + error update (single DB call)
           await intermediateWalletService.updateCleanupStatus(
             wallet.id,
@@ -686,7 +755,17 @@ async function processDeploymentAndCleanup(): Promise<void> {
             walletXCleanupTx.transaction,
             walletXCleanupTx.signer,
           );
-          actualFeesLamports += 5000;
+          actualFeesLamports += 5000 + cleanupDynamicFees.priorityFeeLamports;
+        } else {
+          // Cleanup returned null — balance may be too low to cover tx fee.
+          // Check if Wallet X still holds dust. If so, retry on next tick
+          // when fees may be lower and the cleanup can succeed.
+          const walletXBalance = await walletXService.getSOLBalance(session.id);
+          if (walletXBalance.gtn(0)) {
+            log.warn(`[Cleanup] Session ${session.id}: Wallet X cleanup skipped (balance ${walletXBalance.toString()} below tx fee) — will retry`);
+            walletXCleanupSuccess = false;
+            await recordFailureToDb(session.id, `Wallet X cleanup skipped: balance ${walletXBalance.toString()} lamports below tx fee`);
+          }
         }
       } catch (walletXCleanupError: any) {
         const errorMessage = walletXCleanupError instanceof Error
@@ -704,19 +783,21 @@ async function processDeploymentAndCleanup(): Promise<void> {
       // Only mark session as completed if ALL cleanups succeeded
       if (allCleaned && walletXCleanupSuccess) {
         await obfuscationService.completeSession(session.id, actualFeesLamports.toString());
+        await clearFailureTracking(session.id);
+        obfuscationSessionCounter.add(1, { status: "completed" });
+        log.info(`[Completion] Session ${session.id}: COMPLETED SUCCESSFULLY - Route ${route.routeId} deployed, actual fees: ${actualFeesLamports} lamports (${(actualFeesLamports / 1_000_000_000).toFixed(6)} SOL)`);
       } else {
         log.info(`[Cleanup] Session ${session.id}: Some cleanups failed (wallets: ${allCleaned}, walletX: ${walletXCleanupSuccess}), will retry on next run`);
       }
-
-      // Clear failure tracking on success
-      await clearFailureTracking(session.id);
-      log.info(`[Completion] Session ${session.id}: COMPLETED SUCCESSFULLY - Route ${route.routeId} deployed, actual fees: ${actualFeesLamports} lamports (${(actualFeesLamports / 1_000_000_000).toFixed(6)} SOL)`);
+      })()]); // end Promise.race + async IIFE
     } catch (error: any) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
       log.error(`Critical error processing session ${session.id}:`, errorMessage);
       await recordFailureToDb(session.id, errorMessage);
     } finally {
+      // Clear the timeout to avoid leaking timers
+      if (sessionTimeout) clearTimeout(sessionTimeout);
       // Always release the lock
       await releaseSessionLock(session.id);
     }
@@ -741,12 +822,19 @@ export const obfuscationProcessorJob = new CronJob(
     }
     isProcessorRunning = true;
 
+    await tracer.startActiveSpan(
+      "scheduler.obfuscation.tick",
+      { kind: SpanKind.INTERNAL, attributes: { "scheduler.name": "obfuscation" } },
+      async (tickSpan) => {
+    const tickStart = performance.now();
     try {
       // Phase 1: Process pending aggregations
       await processAggregations();
 
       // Phase 2: Deploy and cleanup for fully aggregated sessions
       await processDeploymentAndCleanup();
+
+      tickSpan.setStatus({ code: SpanStatusCode.OK });
     } catch (error: any) {
       // Log critical errors for debugging - never swallow errors silently
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -755,10 +843,14 @@ export const obfuscationProcessorJob = new CronJob(
       if (errorStack) {
         log.error("Stack trace:", errorStack);
       }
-      // Consider sending to error tracking service (Sentry, etc.) in production
+      tickSpan.setStatus({ code: SpanStatusCode.ERROR, message: errorMessage });
+      if (error instanceof Error) tickSpan.recordException(error);
     } finally {
+      obfuscationDuration.record(Math.round(performance.now() - tickStart));
+      tickSpan.end();
       isProcessorRunning = false;
     }
+    }); // end tracer.startActiveSpan
   },
 );
 

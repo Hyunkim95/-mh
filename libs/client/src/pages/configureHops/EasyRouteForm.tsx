@@ -34,7 +34,7 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
   onDestinationWalletChange,
   walletError,
   onWalletValidate,
-  feePercentage = 0.005, // Default 0.5% fee
+  feePercentage: _feePercentage = 0.005, // Default 0.5% fee
 }) => {
   const [imageError, setImageError] = useState(false)
   const [isEditingAmount, setIsEditingAmount] = useState(false)
@@ -550,6 +550,7 @@ export const EasyRouteForm: React.FC<EasyRouteFormProps> = ({
         <div className='relative'>
           <input
             type='text'
+            data-testid='destination-wallet-input'
             value={destinationWallet}
             onChange={handleWalletChange}
             onBlur={handleWalletBlur}

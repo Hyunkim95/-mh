@@ -254,7 +254,7 @@ export const DeployModal: React.FC<DeployModalProps> = ({
 
             {/* Cost Breakdown */}
             {costEstimate.data?.data && (
-              <div className="bg-[var(--eerie-black-700)] rounded-2xl p-4 mb-6">
+              <div className="bg-[var(--eerie-black-700)] rounded-2xl p-4 mb-6" data-testid="cost-breakdown">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex flex-col">
                     <span className="text-sm text-[var(--philippine-gray-500)]">
@@ -302,7 +302,7 @@ export const DeployModal: React.FC<DeployModalProps> = ({
                   <span className="text-sm font-medium text-[var(--white-100)]">
                     Total Cost
                   </span>
-                  <span className="text-[var(--laser-lemon-500)] font-semibold">
+                  <span className="text-[var(--laser-lemon-500)] font-semibold" data-testid="cost-total-value">
                     {costEstimate.data.data.breakdown.totalCostSOL} SOL
                   </span>
                 </div>
@@ -486,6 +486,7 @@ export const DeployModal: React.FC<DeployModalProps> = ({
               </button>
               <button
                 type="button"
+                data-testid="deploy-now-btn"
                 onClick={handleDeployNow}
                 className="flex-1 h-12 rounded-3xl bg-[var(--laser-lemon-500)] text-[var(--black-900)] font-medium transition hover:brightness-95"
               >
@@ -513,7 +514,7 @@ export const DeployModal: React.FC<DeployModalProps> = ({
         )}
 
         {status === "success" && (
-          <div className="py-8 text-center">
+          <div className="py-8 text-center" data-testid="deploy-success">
             {/* Success checkmark */}
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--laser-lemon-500)] flex items-center justify-center">
               <svg

@@ -124,6 +124,7 @@ export const AmountSelector: React.FC<AmountSelectorProps> = ({
           {isEditing ? (
             <input
               ref={inputRef}
+              data-testid='amount-input'
               type='text'
               value={inputValue}
               onChange={handleInputChange}
@@ -142,6 +143,7 @@ export const AmountSelector: React.FC<AmountSelectorProps> = ({
           ) : (
             <div
               ref={amountDisplayRef}
+              data-testid='amount-display'
               onClick={handleAmountClick}
               className='not-italic font-medium text-3xl sm:text-5xl md:text-6xl leading-tight sm:leading-[72px] text-center text-transparent bg-clip-text tracking-tight drop-shadow-[0_8px_30px_var(--white-100-transparency-15)] overflow-hidden text-ellipsis whitespace-nowrap max-w-full cursor-pointer'
               style={{
@@ -236,6 +238,7 @@ export const AmountSelector: React.FC<AmountSelectorProps> = ({
             <button
               key={b.label}
               type='button'
+              data-testid={`amount-shortcut-${b.label.toLowerCase().replace('%', '')}`}
               onClick={() => {
                 if (maxAmount > 0) {
                   onAmountChange(targetAmount)
