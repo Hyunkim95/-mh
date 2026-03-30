@@ -1,11 +1,15 @@
 import axios from "axios";
 import { get } from "lodash";
-import { createLogger } from "../../utils/logger";
+import { createLogger } from "@libs/logger";
 
 const log = createLogger("TokensService");
 
 const internalCache = new Map<string, any>();
 const userToTimestamp = new Map<string, number>();
+
+if (!process.env.HELIUS_API) {
+  throw new Error("HELIUS_API environment variable is required");
+}
 
 /**
  * Invalidate the token cache for a specific owner.
@@ -30,9 +34,7 @@ export interface HelisuTokenResponse {
   };
 }
 
-const HELIUS_API =
-  process.env.HELIUS_API ||
-  "https://mainnet.helius-rpc.com/?api-key=f6d0c03a-562f-4784-8b78-ebb084b72514";
+const HELIUS_API = process.env.HELIUS_API;
 
 const fetchAssets = async (
   owner: string,

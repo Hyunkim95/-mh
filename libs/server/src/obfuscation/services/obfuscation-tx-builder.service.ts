@@ -20,8 +20,10 @@ import {
   serialize,
   createDynamicPriorityInstructions,
   getRecommendedPriorityFee,
+  createComputeUnitLimitInstruction,
+  createPriorityFeeInstruction,
 } from "../../solana/services/contract.service";
-import { createLogger } from "../../utils/logger";
+import { createLogger } from "@libs/logger";
 import { db } from "../../db";
 import { hopsSchema } from "../../hops/schema/hops.schema";
 import { eq } from "drizzle-orm";
@@ -50,7 +52,10 @@ async function buildCleanupTxCore(
 
   const balance = await connection.getBalance(ownerPublicKey);
 
-  // Calculate the exact tx fee — this is deterministic since we set the priority fee
+  // Query the priority fee ONCE and reuse for both fee calculation and tx instructions.
+  // This avoids a TOCTOU race: if gas spikes between two separate queries,
+  // the fee baked into the tx would differ from exactTxFee, leaving the
+  // account with non-zero dust (below rent-exempt) or causing insufficient funds.
   const CLEANUP_COMPUTE_UNITS = 50_000;
   const recommendedPriorityFee = await getRecommendedPriorityFee(connection);
   const priorityFeeLamports = Math.ceil(
@@ -58,27 +63,22 @@ async function buildCleanupTxCore(
   );
   const exactTxFee = BASE_TX_FEE_LAMPORTS + priorityFeeLamports;
 
-  // Skip cleanup if balance is too low to be worth recovering.
-  // If balance is near rent-exempt minimum (~890K), there's only dust above it,
-  // and any fee estimation mismatch can leave the account below rent-exempt,
-  // causing "insufficient funds for rent" simulation errors.
-  const { FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS } = obfuscationService.constants;
-  const minRecoverableBalance = FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS + exactTxFee + exactTxFee; // need enough above rent-exempt to cover fee + transfer
-  if (balance <= exactTxFee || balance <= minRecoverableBalance) {
+  // Skip cleanup if balance can't cover the tx fee.
+  // The fee is deterministic (we set CU limit + priority fee ourselves),
+  // so transfer = balance - exactTxFee leaves exactly 0 after fee deduction,
+  // and Solana garbage-collects the account.
+  if (balance <= exactTxFee) {
     log.info(
-      `Skipping cleanup for ${ownerPublicKey.toBase58()} - balance ${balance} too low (need > ${minRecoverableBalance})`,
+      `Skipping cleanup for ${ownerPublicKey.toBase58()} - balance ${balance} too low to cover tx fee ${exactTxFee}`,
     );
     return null;
   }
 
   const transaction = new Transaction();
 
-  // Add priority fee instructions with lower compute units for cleanup
-  const priorityInstructions = await createDynamicPriorityInstructions(
-    connection,
-    CLEANUP_COMPUTE_UNITS,
-  );
-  priorityInstructions.forEach((ix) => transaction.add(ix));
+  // Build priority instructions from the SAME fee value used to calculate exactTxFee
+  transaction.add(createComputeUnitLimitInstruction(CLEANUP_COMPUTE_UNITS));
+  transaction.add(createPriorityFeeInstruction(recommendedPriorityFee));
 
   // Close ATA if it's an SPL token
   if (tokenMint) {
@@ -183,16 +183,21 @@ async function buildFundingTransaction(
     // 2. SOL to forward to Wallet X for route deployment (split among all wallets)
     // 3. Cleanup reservation (tx fee + rent exempt) that gets held back during aggregation
     // 4. Wallet X cleanup buffer — ensures Wallet X has SOL for its own cleanup tx after deployment
-    const { AGGREGATION_FEE_PER_WALLET, FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS, BASE_TX_FEE_LAMPORTS, WALLET_X_CLEANUP_BUFFER_LAMPORTS } =
+    const { AGGREGATION_FEE_PER_WALLET, BASE_TX_FEE_LAMPORTS, WALLET_X_CLEANUP_BUFFER_LAMPORTS } =
       obfuscationService.constants;
+    const fees = await obfuscationService.getDynamicFees();
     const dynamicDeploymentCost = obfuscationService.getDeploymentCost(hopCount, amountLamports);
     const deploymentSharePerWallet = Math.ceil(
       dynamicDeploymentCost / totalWalletCount,
     );
-    // Each wallet reserves ~1.1M during aggregation for cleanup (tx fee + rent exempt).
-    // This comes out of the wallet balance, reducing what reaches Wallet X.
-    // We must fund enough to cover this leakage.
-    const cleanupReservationPerWallet = BASE_TX_FEE_LAMPORTS * 2 + FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS;
+    // Each wallet reserves SOL during aggregation for cleanup (tx fees + rent exempt).
+    // Compute actual fees using dynamic priority fee, with 3x buffer for fee spikes.
+    const CLEANUP_COMPUTE_UNITS = 50_000;
+    const AGG_COMPUTE_UNITS = 100_000;
+    const cleanupPriority = Math.ceil((CLEANUP_COMPUTE_UNITS * fees.priorityFeeLamports) / 1_000_000);
+    const aggPriority = Math.ceil((AGG_COMPUTE_UNITS * fees.priorityFeeLamports) / 1_000_000);
+    const dynamicFeeComponent = ((BASE_TX_FEE_LAMPORTS + cleanupPriority) + (BASE_TX_FEE_LAMPORTS + aggPriority)) * 3;
+    const cleanupReservationPerWallet = dynamicFeeComponent + fees.rentExemptMinimumLamports;
     // Extra buffer split across wallets so Wallet X can always pay its own cleanup tx
     const walletXCleanupSharePerWallet = Math.ceil(WALLET_X_CLEANUP_BUFFER_LAMPORTS / totalWalletCount);
     const totalSolFunding =
@@ -209,15 +214,21 @@ async function buildFundingTransaction(
     // SOL transfer: allocated amount + extra SOL for Wallet X deployment costs
     // Uses dynamic deployment cost based on actual hop count + 15% buffer
     // Plus per-wallet aggregation fees, cleanup reservation, and Wallet X cleanup buffer
-    const { AGGREGATION_FEE_PER_WALLET, FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS, BASE_TX_FEE_LAMPORTS, WALLET_X_CLEANUP_BUFFER_LAMPORTS } =
+    const { AGGREGATION_FEE_PER_WALLET, BASE_TX_FEE_LAMPORTS, WALLET_X_CLEANUP_BUFFER_LAMPORTS } =
       obfuscationService.constants;
+    const fees = await obfuscationService.getDynamicFees();
     const dynamicDeploymentCost = obfuscationService.getDeploymentCost(hopCount, amountLamports);
     const deploymentSharePerWallet = Math.ceil(
       dynamicDeploymentCost / totalWalletCount,
     );
-    // Each wallet reserves ~1.1M during aggregation for cleanup (tx fee + rent exempt).
-    // This comes out of the wallet balance, reducing what reaches Wallet X.
-    const cleanupReservationPerWallet = BASE_TX_FEE_LAMPORTS * 2 + FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS;
+    // Each wallet reserves SOL during aggregation for cleanup (tx fees + rent exempt).
+    // Compute actual fees using dynamic priority fee, with 3x buffer for fee spikes.
+    const CLEANUP_COMPUTE_UNITS = 50_000;
+    const AGG_COMPUTE_UNITS = 100_000;
+    const cleanupPriority = Math.ceil((CLEANUP_COMPUTE_UNITS * fees.priorityFeeLamports) / 1_000_000);
+    const aggPriority = Math.ceil((AGG_COMPUTE_UNITS * fees.priorityFeeLamports) / 1_000_000);
+    const dynamicFeeComponent = ((BASE_TX_FEE_LAMPORTS + cleanupPriority) + (BASE_TX_FEE_LAMPORTS + aggPriority)) * 3;
+    const cleanupReservationPerWallet = dynamicFeeComponent + fees.rentExemptMinimumLamports;
     // Extra buffer split across wallets so Wallet X can always pay its own cleanup tx
     const walletXCleanupSharePerWallet = Math.ceil(WALLET_X_CLEANUP_BUFFER_LAMPORTS / totalWalletCount);
     const extraSolForDeployment =
@@ -569,8 +580,17 @@ async function executeTransaction(
     },
   );
 
-  // Wait for confirmation
-  await connection.confirmTransaction(signature, "confirmed");
+  // Wait for confirmation with blockhash-based expiry.
+  // This automatically times out when the blockhash expires (~60-90 blocks),
+  // preventing the scheduler from hanging indefinitely on a stuck RPC.
+  await connection.confirmTransaction(
+    {
+      signature,
+      blockhash: transaction.recentBlockhash!,
+      lastValidBlockHeight: transaction.lastValidBlockHeight!,
+    },
+    "confirmed",
+  );
 
   return signature;
 }

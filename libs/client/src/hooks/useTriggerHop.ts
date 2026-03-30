@@ -2,8 +2,6 @@ import { trpc } from "../trpc";
 
 export interface TriggerHopParams {
   routeId: number;
-  creator: string;
-  splMint: string;
 }
 
 export const useTriggerHop = (onSuccessCallback?: () => void) => {

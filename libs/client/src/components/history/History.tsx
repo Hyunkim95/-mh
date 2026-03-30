@@ -40,7 +40,6 @@ export const History = ({ reloadTrigger }: { reloadTrigger: number }) => {
     isRefetching,
   } = trpc.routes.getByCreator.useInfiniteQuery(
     {
-      creator: userData?.publicKey ?? "",
       limit: 10,
     },
     {
@@ -125,7 +124,7 @@ export const History = ({ reloadTrigger }: { reloadTrigger: number }) => {
               />
             ))
           ) : (
-            <p className="text-gray-400 text-sm text-center">No routes found</p>
+            <p className="text-gray-400 text-sm text-center" data-testid="history-empty">No routes found</p>
           )}
 
           {/* Infinite loading indicator */}
@@ -137,7 +136,7 @@ export const History = ({ reloadTrigger }: { reloadTrigger: number }) => {
         </div>
       </div>
 
-      <div className="text-sm text-gray-400 pt-3 text-center">{summary}</div>
+      <div className="text-sm text-gray-400 pt-3 text-center" data-testid="history-summary">{summary}</div>
     </div>
   );
 };

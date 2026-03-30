@@ -79,7 +79,7 @@ export const ConfigureHops: React.FC = () => {
     }
   )
   const { data: tokenConfigSOL } = trpc.contract.getTokenConfigSOL.useQuery(
-    { creator: publicKey?.toBase58() ?? '' },
+    {},
     { enabled: selectedAsset?.tokenType === 'SOL' && !!publicKey }
   )
 
@@ -908,6 +908,7 @@ walletC,10`
         {!showConfirmButton ? (
           <button
             type='button'
+            data-testid='next-step-btn'
             onClick={handleNextStep}
             disabled={
               (activeKey === 'configure' &&
@@ -935,6 +936,7 @@ walletC,10`
         ) : (
           <button
             type='button'
+            data-testid='confirm-route-btn'
             onClick={
               routeMode === 'easy' ? handleEasyRouteConfirm : handleConfirm
             }

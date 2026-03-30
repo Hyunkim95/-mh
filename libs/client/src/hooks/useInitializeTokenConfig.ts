@@ -30,13 +30,16 @@ export const useInitializeTokenConfig = ({
 
       const transactionSignature = await initializeTokenConfig.mutateAsync({
         tokenConfig,
-        creator: publicKey?.toBase58() ?? "",
       });
       const transaction = Transaction.from(
         Buffer.from(transactionSignature.data.transaction, "base64")
       );
-      const output = await connection.simulateTransaction(transaction);
-      console.log("Simulation output:", output);
+      const simulation = await connection.simulateTransaction(transaction);
+      if (simulation.value.err) {
+        throw new Error(
+          `Simulation failed: ${JSON.stringify(simulation.value.err)}`
+        );
+      }
       const signature = await sendTransaction(transaction, connection);
       const confirmation = await connection.confirmTransaction(
         {
@@ -73,7 +76,6 @@ export const useInitializeTokenConfig = ({
       const { tokenConfig } = data;
       const transactionSignature = await initializeTokenConfigSOL.mutateAsync({
         tokenConfig,
-        creator: publicKey?.toBase58() ?? "",
       });
 
       const transaction = Transaction.from(

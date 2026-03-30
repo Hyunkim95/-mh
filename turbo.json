@@ -4,7 +4,8 @@
       "dev": {
         "cache": false,
         "persistent": true,
-        "dependsOn": ["^build"]
+        "dependsOn": ["^build"],
+        "passThroughEnv": ["DATABASE_URL", "SOLANA_RPC_URL", "EXECUTOR_SEED", "JWT_SECRET", "NODE_ENV", "PORT", "HOST", "SCHEDULER_ENABLED", "DUAL_DIRECTION_ENABLED", "OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_SERVICE_NAME", "OTEL_DEBUG"]
       },
       "build": {
         "dependsOn": ["^build"],
@@ -14,6 +15,7 @@
         "outputs": []
       },
       "type-check": {
+        "dependsOn": ["^build"],
         "outputs": []
       }
     }

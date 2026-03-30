@@ -1,0 +1,28 @@
+FROM --platform=linux/amd64 ubuntu:22.04
+
+RUN apt-get update && apt-get install -y \
+    curl \
+    bzip2 \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Solana CLI
+RUN sh -c "$(curl -sSfL https://release.anza.xyz/v1.18.26/install)"
+
+ENV PATH="/root/.local/share/solana/install/active_release/bin:${PATH}"
+
+# Copy program binaries
+COPY e2e/fixtures/multi_hopper_project.so /programs/multi_hopper_project.so
+COPY e2e/fixtures/transfer_hook_guard.so /programs/transfer_hook_guard.so
+COPY e2e/fixtures/spl_token_2022.so /programs/spl_token_2022.so
+
+EXPOSE 8899 8900
+
+CMD ["solana-test-validator", \
+    "--reset", \
+    "--bind-address", "0.0.0.0", \
+    "--rpc-port", "8899", \
+    "--ticks-per-slot", "16", \
+    "--bpf-program", "3jLoS2wbNgtKzieUUxwg6Xhdv6gbZkHDtPWA9ZAgspFh", "/programs/multi_hopper_project.so", \
+    "--bpf-program", "2JEv3pD6nczEvn1xDXaEzehkJofPPjoQQpnW5nGY3r52", "/programs/transfer_hook_guard.so", \
+    "--bpf-program", "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb", "/programs/spl_token_2022.so"]

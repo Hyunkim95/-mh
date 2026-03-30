@@ -6,7 +6,7 @@ import {
   fetchMetadata,
   findMetadataPda,
 } from '@metaplex-foundation/mpl-token-metadata';
-import { createLogger } from './utils/logger';
+import { createLogger } from "@libs/logger";
 
 const log = createLogger('TokenMetadata');
 

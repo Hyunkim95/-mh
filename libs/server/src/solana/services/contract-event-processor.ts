@@ -15,7 +15,7 @@ import {
   MULTI_HOPPER_PROGRAM_ID,
 } from "./contract-utils";
 import { tokenConfigsService } from "../../token-configs/services/token-configs.service";
-import { createLogger } from "../../utils/logger";
+import { createLogger } from "@libs/logger";
 
 const log = createLogger("EventProcessor");
 

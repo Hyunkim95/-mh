@@ -1,0 +1,92 @@
+services:
+  solana-validator:
+    build:
+      context: .
+      dockerfile: e2e/Dockerfile.validator
+    container_name: multihopper-solana-ci
+    restart: "no"
+    ports:
+      - "8899:8899"
+      - "8900:8900"
+    networks:
+      - ci-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8899/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  postgres-e2e:
+    image: postgres:15-alpine
+    container_name: multihopper-postgres-e2e
+    restart: "no"
+    environment:
+      POSTGRES_DB: trpc_e2e
+      POSTGRES_USER: trpc_user
+      POSTGRES_PASSWORD: trpc_password
+    volumes:
+      - postgres_e2e_data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    networks:
+      - ci-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trpc_user -d trpc_e2e"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api-e2e:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile.dev
+    container_name: multihopper-api-e2e
+    restart: "no"
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://trpc_user:trpc_password@postgres-e2e:5432/trpc_e2e
+      SOLANA_RPC_URL: http://solana-validator:8899
+      EXECUTOR_SEED: e2e_test_executor_seed
+      SIGNER_PRIVATE_KEY: 13XR3o3HYSYx1RGVMTGHD3dFRFWmEPMX8mCLgNawDhJmMUQdr66Y6gagzYZ2A9zPy5uAhfJY9vrjw9eZSZ25F1J
+      JWT_SECRET: e2e-test-secret
+      SCHEDULER_ENABLED: "true"
+      DUAL_DIRECTION_ENABLED: "false"
+      OBFUSCATION_RETRY_COOLDOWN_MS: "10000"
+      OBFUSCATION_LOCK_TIMEOUT_MS: "60000"
+      OBFUSCATION_SESSION_TIMEOUT_MS: "60000"
+      OBFUSCATION_MIN_AGG_DELAY_MS: "1000"
+      OBFUSCATION_MAX_AGG_DELAY_MS: "3000"
+      OBFUSCATION_MIN_WALLETS: "3"
+      OBFUSCATION_MAX_WALLETS: "4"
+      HOP_RETRY_COOLDOWN_MINUTES: "0.25"
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres-e2e:
+        condition: service_healthy
+      solana-validator:
+        condition: service_healthy
+    networks:
+      - ci-network
+    command: >
+      sh -c "
+        yarn workspace @trpc-template/server db:push &&
+        yarn workspace @trpc-template/server db:seed &&
+        yarn workspace @trpc-template/api dev
+      "
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3001/health || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 45s
+
+networks:
+  ci-network:
+    driver: bridge
+
+volumes:
+  postgres_e2e_data:

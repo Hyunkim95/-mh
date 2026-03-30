@@ -3,7 +3,7 @@ import { routesSchema } from "../../routes/schema/route.schema";
 import { and, asc, eq, lte, isNull } from "drizzle-orm";
 import { CreateHopInput, Hop } from "../schema/hops.schema";
 import { utcNow, toUtc } from "../../utils/timezone";
-import { createLogger } from "../../utils/logger";
+import { createLogger } from "@libs/logger";
 
 const log = createLogger("HopsService");
 

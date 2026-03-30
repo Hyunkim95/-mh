@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { PublicKey, Keypair, Transaction } from "@solana/web3.js";
 
 // Mock config first - this must be before other mocks that might use it
@@ -25,6 +25,9 @@ const {
   mockCreateDynamicPriorityInstructions,
   mockSerialize,
   mockDbSelect,
+  mockGetRecommendedPriorityFee,
+  mockCreateComputeUnitLimitInstruction,
+  mockCreatePriorityFeeInstruction,
 } = vi.hoisted(() => ({
   mockGetSessionWithWallets: vi.fn(),
   mockGetSession: vi.fn(),
@@ -41,6 +44,9 @@ const {
   mockCreateDynamicPriorityInstructions: vi.fn(),
   mockSerialize: vi.fn(),
   mockDbSelect: vi.fn(),
+  mockGetRecommendedPriorityFee: vi.fn(),
+  mockCreateComputeUnitLimitInstruction: vi.fn(),
+  mockCreatePriorityFeeInstruction: vi.fn(),
 }));
 
 // Mock connection class
@@ -71,6 +77,12 @@ vi.mock("../obfuscation/services/obfuscation.service", () => ({
     getSession: mockGetSession,
     getWalletManager: () => ({}),
     getDeploymentCost: () => 100_000_000, // 0.1 SOL mock
+    getDynamicFees: vi.fn().mockResolvedValue({
+      ataRentLamports: 2039280,
+      rentExemptMinimumLamports: 890880,
+      priorityFeeLamports: 180000, // 150k * 1.2
+      lastUpdated: new Date(),
+    }),
     constants: {
       BASE_TX_FEE_LAMPORTS: 5000,
       AGGREGATION_FEE_PER_WALLET: 2_500_000,
@@ -123,7 +135,9 @@ vi.mock("@solana/spl-token", () => ({
 vi.mock("../solana/services/contract.service", () => ({
   createDynamicPriorityInstructions: mockCreateDynamicPriorityInstructions,
   serialize: mockSerialize,
-  getRecommendedPriorityFee: vi.fn().mockResolvedValue(50000),
+  getRecommendedPriorityFee: mockGetRecommendedPriorityFee,
+  createComputeUnitLimitInstruction: mockCreateComputeUnitLimitInstruction,
+  createPriorityFeeInstruction: mockCreatePriorityFeeInstruction,
 }));
 
 // Import after mocks
@@ -198,17 +212,22 @@ describe("ObfuscationTxBuilder", () => {
       lastValidBlockHeight: 100,
     });
     mockGetBalance.mockResolvedValue(5000000000); // 5 SOL
-    mockCreateDynamicPriorityInstructions.mockResolvedValue([]);
+    // Return 2 mock priority instructions so cleanup transactions pass the instructions.length > 2 check
+    const mockPriorityIx = {
+      keys: [],
+      programId: new PublicKey("ComputeBudget111111111111111111111111111111"),
+      data: Buffer.from([]),
+    };
+    mockCreateDynamicPriorityInstructions.mockResolvedValue([mockPriorityIx, mockPriorityIx]);
+    mockCreateComputeUnitLimitInstruction.mockReturnValue(mockPriorityIx);
+    mockCreatePriorityFeeInstruction.mockReturnValue(mockPriorityIx);
+    mockGetRecommendedPriorityFee.mockResolvedValue(50000);
     mockSerialize.mockResolvedValue({
       transaction: "serializedTxBase64",
       blockhash: "GpRvVHUxJqJcLwBsFBF8j8xNuAmMdAkPjVGJLu8LLNDB",
     });
     mockSendRawTransaction.mockResolvedValue("mockSignature123");
     mockConfirmTransaction.mockResolvedValue({ value: { err: null } });
-  });
-
-  afterEach(() => {
-    vi.resetAllMocks();
   });
 
   describe("buildAllFundingTransactions", () => {
@@ -364,9 +383,9 @@ describe("ObfuscationTxBuilder", () => {
       expect(result).toBeNull();
     });
 
-    it("should return null when intermediate wallet not found", async () => {
+    it("should return null when signer keypair not found", async () => {
       mockGetSession.mockResolvedValue(mockSession);
-      mockGetIntermediateWalletWithCustodial.mockResolvedValue(null);
+      mockGetKeypairForWallet.mockResolvedValue(null);
 
       const sourceWallet = new PublicKey("11111111111111111111111111111111");
 
@@ -486,9 +505,246 @@ describe("ObfuscationTxBuilder", () => {
       expect(signature).toBe("mockSignature123");
       expect(mockSendRawTransaction).toHaveBeenCalled();
       expect(mockConfirmTransaction).toHaveBeenCalledWith(
-        "mockSignature123",
+        {
+          signature: "mockSignature123",
+          blockhash: "GpRvVHUxJqJcLwBsFBF8j8xNuAmMdAkPjVGJLu8LLNDB",
+          lastValidBlockHeight: undefined,
+        },
         "confirmed"
       );
+    });
+
+    it("should propagate sendRawTransaction failure", async () => {
+      const keypair = Keypair.generate();
+      const transaction = new Transaction();
+      transaction.recentBlockhash = "GpRvVHUxJqJcLwBsFBF8j8xNuAmMdAkPjVGJLu8LLNDB";
+      transaction.feePayer = keypair.publicKey;
+
+      mockSendRawTransaction.mockRejectedValue(new Error("Blockhash not found"));
+
+      await expect(
+        obfuscationTxBuilder.executeTransaction(transaction, keypair)
+      ).rejects.toThrow("Blockhash not found");
+      expect(mockConfirmTransaction).not.toHaveBeenCalled();
+    });
+
+    it("should propagate confirmTransaction failure", async () => {
+      const keypair = Keypair.generate();
+      const transaction = new Transaction();
+      transaction.recentBlockhash = "GpRvVHUxJqJcLwBsFBF8j8xNuAmMdAkPjVGJLu8LLNDB";
+      transaction.feePayer = keypair.publicKey;
+
+      mockConfirmTransaction.mockRejectedValue(new Error("Transaction expired: block height exceeded"));
+
+      await expect(
+        obfuscationTxBuilder.executeTransaction(transaction, keypair)
+      ).rejects.toThrow("Transaction expired");
+    });
+  });
+
+  describe("buildAggregationTransaction (SPL path)", () => {
+    const splSession = {
+      ...mockSession,
+      tokenMint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      tokenType: "SPL",
+    };
+
+    it("should create ATA for wallet X when it does not exist", async () => {
+      const keypair = Keypair.generate();
+      mockGetSession.mockResolvedValue(splSession);
+      mockGetWalletX.mockResolvedValue(mockCustodialWallet);
+      mockGetIntermediateWalletWithCustodial.mockResolvedValue(mockIntermediateWallet);
+      mockGetKeypairForWallet.mockResolvedValue(keypair);
+      mockGetAssociatedTokenAddress.mockResolvedValue(new PublicKey("11111111111111111111111111111111"));
+      mockGetAccount.mockRejectedValue(new Error("Account not found")); // ATA doesn't exist
+
+      const result = await obfuscationTxBuilder.buildAggregationTransaction(1, 1);
+
+      expect(result).not.toBeNull();
+      expect(result?.transaction).toBeInstanceOf(Transaction);
+    });
+
+    it("should skip ATA creation when wallet X ATA already exists", async () => {
+      const keypair = Keypair.generate();
+      mockGetSession.mockResolvedValue(splSession);
+      mockGetWalletX.mockResolvedValue(mockCustodialWallet);
+      mockGetIntermediateWalletWithCustodial.mockResolvedValue(mockIntermediateWallet);
+      mockGetKeypairForWallet.mockResolvedValue(keypair);
+      mockGetAssociatedTokenAddress.mockResolvedValue(new PublicKey("11111111111111111111111111111111"));
+      mockGetAccount.mockResolvedValue({ amount: BigInt(0) }); // ATA exists
+
+      const result = await obfuscationTxBuilder.buildAggregationTransaction(1, 1);
+
+      expect(result).not.toBeNull();
+      expect(result?.transaction).toBeInstanceOf(Transaction);
+    });
+  });
+
+  describe("buildCleanupTransaction (SPL path)", () => {
+    const splSession = {
+      ...mockSession,
+      tokenMint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      tokenType: "SPL",
+    };
+
+    it("should close ATA when token balance is zero", async () => {
+      const keypair = Keypair.generate();
+      mockGetSession.mockResolvedValue(splSession);
+      mockGetKeypairForWallet.mockResolvedValue(keypair);
+      mockGetBalance.mockResolvedValue(5000000000);
+      mockGetAssociatedTokenAddress.mockResolvedValue(new PublicKey("11111111111111111111111111111111"));
+      mockGetAccount.mockResolvedValue({ amount: BigInt(0) }); // Empty ATA
+
+      const sourceWallet = new PublicKey("11111111111111111111111111111111");
+      const result = await obfuscationTxBuilder.buildCleanupTransaction(1, 1, sourceWallet);
+
+      expect(result).not.toBeNull();
+      expect(result?.transaction).toBeInstanceOf(Transaction);
+    });
+
+    it("should not close ATA when token balance is non-zero", async () => {
+      const keypair = Keypair.generate();
+      mockGetSession.mockResolvedValue(splSession);
+      mockGetKeypairForWallet.mockResolvedValue(keypair);
+      mockGetBalance.mockResolvedValue(5000000000);
+      mockGetAssociatedTokenAddress.mockResolvedValue(new PublicKey("11111111111111111111111111111111"));
+      mockGetAccount.mockResolvedValue({ amount: BigInt(1000) }); // ATA has tokens
+
+      const sourceWallet = new PublicKey("11111111111111111111111111111111");
+      const result = await obfuscationTxBuilder.buildCleanupTransaction(1, 1, sourceWallet);
+
+      expect(result).not.toBeNull();
+    });
+
+    it("should handle missing ATA gracefully during cleanup", async () => {
+      const keypair = Keypair.generate();
+      mockGetSession.mockResolvedValue(splSession);
+      mockGetKeypairForWallet.mockResolvedValue(keypair);
+      mockGetBalance.mockResolvedValue(5000000000);
+      mockGetAssociatedTokenAddress.mockResolvedValue(new PublicKey("11111111111111111111111111111111"));
+      mockGetAccount.mockRejectedValue(new Error("Account does not exist")); // No ATA
+
+      const sourceWallet = new PublicKey("11111111111111111111111111111111");
+      const result = await obfuscationTxBuilder.buildCleanupTransaction(1, 1, sourceWallet);
+
+      // Should still succeed - ATA close is skipped
+      expect(result).not.toBeNull();
+    });
+  });
+
+  describe("buildAllFundingTransactions (SPL path)", () => {
+    it("should include ATA creation and SOL funding for SPL tokens", async () => {
+      const splSession = {
+        ...mockSession,
+        tokenMint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        tokenType: "SPL",
+      };
+      mockGetSessionWithWallets.mockResolvedValue(splSession);
+      mockGetAssociatedTokenAddress.mockResolvedValue(new PublicKey("11111111111111111111111111111111"));
+      mockGetAccount.mockRejectedValue(new Error("Account not found")); // ATA doesn't exist
+
+      const sourceWallet = new PublicKey("11111111111111111111111111111111");
+      const results = await obfuscationTxBuilder.buildAllFundingTransactions(1, sourceWallet);
+
+      expect(results.length).toBe(2); // 2 pending wallets
+    });
+  });
+
+  describe("buildCleanupTransaction (edge cases)", () => {
+    it("should return null when balance is at boundary of exactTxFee", async () => {
+      const keypair = Keypair.generate();
+      mockGetSession.mockResolvedValue(mockSession);
+      mockGetKeypairForWallet.mockResolvedValue(keypair);
+      // Set balance to exactly the tx fee - should be too low
+      mockGetBalance.mockResolvedValue(5000);
+
+      const sourceWallet = new PublicKey("11111111111111111111111111111111");
+      const result = await obfuscationTxBuilder.buildCleanupTransaction(1, 1, sourceWallet);
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("gas spike resilience", () => {
+    // After aggregation at 1x fees, the intermediate wallet's remaining balance is:
+    //   reserveForCleanup - aggTxFee
+    // where reserveForCleanup = (aggFee + cleanupFee) + RENT_EXEMPT
+    //
+    // With recommendedPriorityFee = 50000 micro-lamports/CU:
+    //   cleanupPriority = ceil(50000 * 50000 / 1e6) = 2500
+    //   cleanupTxFee (exactTxFee) = 5000 + 2500 = 7500
+    //   Cleanup skips when balance <= exactTxFee (7500)
+
+    const POST_AGG_REMAINING_BALANCE = 905_880;
+
+    it("should succeed at normal fees (post-aggregation remaining balance)", async () => {
+      const keypair = Keypair.generate();
+      mockGetSession.mockResolvedValue(mockSession);
+      mockGetKeypairForWallet.mockResolvedValue(keypair);
+      // Balance after aggregation at 1x fees
+      mockGetBalance.mockResolvedValue(POST_AGG_REMAINING_BALANCE);
+      // Normal priority fee (1x)
+      mockGetRecommendedPriorityFee.mockResolvedValue(50_000);
+
+      const sourceWallet = new PublicKey("11111111111111111111111111111111");
+      const result = await obfuscationTxBuilder.buildCleanupTransaction(1, 1, sourceWallet);
+
+      // exactTxFee = 5000 + 2500 = 7500
+      // 905880 > 7500 → cleanup proceeds
+      expect(result).not.toBeNull();
+      expect(result?.transaction).toBeInstanceOf(Transaction);
+    });
+
+    it("should succeed at 10x fee spike between aggregation and cleanup", async () => {
+      const keypair = Keypair.generate();
+      mockGetSession.mockResolvedValue(mockSession);
+      mockGetKeypairForWallet.mockResolvedValue(keypair);
+      // Balance was set at funding time with 1x fees
+      mockGetBalance.mockResolvedValue(POST_AGG_REMAINING_BALANCE);
+      // 10x fee spike at cleanup time
+      mockGetRecommendedPriorityFee.mockResolvedValue(500_000);
+
+      const sourceWallet = new PublicKey("11111111111111111111111111111111");
+      const result = await obfuscationTxBuilder.buildCleanupTransaction(1, 1, sourceWallet);
+
+      // exactTxFee = 5000 + ceil(50000 * 500000 / 1e6) = 5000 + 25000 = 30000
+      // 905880 > 30000 → cleanup still proceeds
+      expect(result).not.toBeNull();
+      expect(result?.transaction).toBeInstanceOf(Transaction);
+    });
+
+    it("should skip cleanup when balance is below exactTxFee", async () => {
+      const keypair = Keypair.generate();
+      mockGetSession.mockResolvedValue(mockSession);
+      mockGetKeypairForWallet.mockResolvedValue(keypair);
+      // Balance too low to cover tx fee
+      mockGetBalance.mockResolvedValue(7_500);
+      mockGetRecommendedPriorityFee.mockResolvedValue(50_000);
+
+      const sourceWallet = new PublicKey("11111111111111111111111111111111");
+      const result = await obfuscationTxBuilder.buildCleanupTransaction(1, 1, sourceWallet);
+
+      // exactTxFee = 5000 + 2500 = 7500
+      // 7500 <= 7500 → cleanup skipped
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("TOCTOU race condition prevention", () => {
+    it("should call getRecommendedPriorityFee exactly once per cleanup call", async () => {
+      const keypair = Keypair.generate();
+      mockGetSession.mockResolvedValue(mockSession);
+      mockGetKeypairForWallet.mockResolvedValue(keypair);
+      mockGetBalance.mockResolvedValue(1_000_000);
+      mockGetRecommendedPriorityFee.mockResolvedValue(50_000);
+
+      const sourceWallet = new PublicKey("11111111111111111111111111111111");
+      await obfuscationTxBuilder.buildCleanupTransaction(1, 1, sourceWallet);
+
+      // The fee must be queried exactly once so the same value is used
+      // for both the transfer amount calculation and the tx instructions.
+      // A second query could return a different fee (TOCTOU race).
+      expect(mockGetRecommendedPriorityFee).toHaveBeenCalledTimes(1);
     });
   });
 });

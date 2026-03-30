@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 /**
  * Tests for route deployment error handling
@@ -10,9 +10,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * was marked as "deployed" even though the on-chain transaction failed with
  * "insufficient funds" error. The fix adds transaction verification.
  */
-
-// Import the actual verification service
-import * as verificationService from "../solana/services/transaction-verification.service";
 
 // Mock the Solana connection
 vi.mock("@solana/web3.js", async () => {
