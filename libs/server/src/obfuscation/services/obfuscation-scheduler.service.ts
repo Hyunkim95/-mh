@@ -57,7 +57,7 @@ async function recordFailureToDb(
 
   if (walletId) {
     // Update intermediate wallet failure tracking
-    await db
+    const [updatedWallet] = await db
       .update(intermediateWalletsSchema)
       .set({
         lastError: error,
@@ -66,10 +66,30 @@ async function recordFailureToDb(
         nextRetryAt: nextRetryAt,
         updatedAt: now,
       })
-      .where(eq(intermediateWalletsSchema.id, walletId));
+      .where(eq(intermediateWalletsSchema.id, walletId))
+      .returning({
+        failureCount: intermediateWalletsSchema.failureCount,
+      });
+
+    if (updatedWallet?.failureCount === MAX_PERMANENT_FAILURES) {
+      let balanceInfo = "";
+      try {
+        const pubkey = await intermediateWalletService.getPublicKeyForWallet(walletId);
+        if (pubkey) {
+          const balance = await obfuscationService.getConnection().getBalance(pubkey);
+          balanceInfo = ` — ${balance} lamports (${(balance / 1_000_000_000).toFixed(4)} SOL) locked`;
+        }
+      } catch {
+        // Do not let balance lookup interfere with failure persistence.
+      }
+
+      log.error(
+        `[PERMANENT_FAILURE] Session ${sessionId} wallet ${walletId}: exceeded ${MAX_PERMANENT_FAILURES} failures${balanceInfo} — manual intervention required.`
+      );
+    }
   } else {
     // Update session failure tracking
-    await db
+    const [updatedSession] = await db
       .update(obfuscationSessionsSchema)
       .set({
         lastError: error,
@@ -77,7 +97,24 @@ async function recordFailureToDb(
         lastFailureAt: now,
         nextRetryAt: nextRetryAt,
       })
-      .where(eq(obfuscationSessionsSchema.id, sessionId));
+      .where(eq(obfuscationSessionsSchema.id, sessionId))
+      .returning({
+        failureCount: obfuscationSessionsSchema.failureCount,
+      });
+
+    if (updatedSession?.failureCount === MAX_PERMANENT_FAILURES) {
+      let balanceInfo = "";
+      try {
+        const walletXBalance = await walletXService.getSOLBalance(sessionId);
+        balanceInfo = ` — Wallet X: ${walletXBalance.toString()} lamports (${(walletXBalance.toNumber() / 1_000_000_000).toFixed(4)} SOL) locked`;
+      } catch {
+        // Do not let balance lookup interfere with failure persistence.
+      }
+
+      log.error(
+        `[PERMANENT_FAILURE] Session ${sessionId}: exceeded ${MAX_PERMANENT_FAILURES} failures${balanceInfo} — manual intervention required.`
+      );
+    }
   }
 
   log.error(`Recorded failure for session ${sessionId}${walletId ? ` wallet ${walletId}` : ''}: ${error}`);
