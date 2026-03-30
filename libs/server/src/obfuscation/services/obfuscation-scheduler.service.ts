@@ -197,7 +197,7 @@ async function shouldRetryFromDb(
           balanceInfo = ` — ${balance} lamports (${(balance / 1_000_000_000).toFixed(4)} SOL) locked`;
         }
       } catch { /* don't let RPC failure break retry logic */ }
-      log.error(`[PERMANENT_FAILURE] Session ${sessionId} wallet ${walletId}: exceeded ${MAX_PERMANENT_FAILURES} failures${balanceInfo} — manual intervention required.`);
+      logPermanentFailure(`[PERMANENT_FAILURE] Session ${sessionId} wallet ${walletId}: exceeded ${MAX_PERMANENT_FAILURES} failures${balanceInfo} — manual intervention required.`);
       return false;
     }
 
@@ -220,7 +220,7 @@ async function shouldRetryFromDb(
         const walletXBalance = await walletXService.getSOLBalance(sessionId);
         balanceInfo = ` — Wallet X: ${walletXBalance.toString()} lamports (${(walletXBalance.toNumber() / 1_000_000_000).toFixed(4)} SOL) locked`;
       } catch { /* don't let RPC failure break retry logic */ }
-      log.error(`[PERMANENT_FAILURE] Session ${sessionId}: exceeded ${MAX_PERMANENT_FAILURES} failures${balanceInfo} — manual intervention required.`);
+      logPermanentFailure(`[PERMANENT_FAILURE] Session ${sessionId}: exceeded ${MAX_PERMANENT_FAILURES} failures${balanceInfo} — manual intervention required.`);
       return false;
     }
 
