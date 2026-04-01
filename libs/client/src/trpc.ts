@@ -3,6 +3,7 @@ import type { CreateTRPCReact } from "@trpc/react-query";
 import { httpBatchLink } from "@trpc/client";
 import { QueryClient } from "@tanstack/react-query";
 import type { AppRouter } from "@trpc-template/server";
+import { captureClientError } from "./utils/monitoring";
 
 export const trpc: CreateTRPCReact<AppRouter, any, any> = createTRPCReact<AppRouter>();
 export const queryClient = new QueryClient({
@@ -17,12 +18,26 @@ export const queryClient = new QueryClient({
         return failureCount < 3;
       },
       onError: (error: any) => {
-        console.error(error);
+        captureClientError(error, {
+          area: "trpc",
+          action: "query",
+          extra: {
+            httpStatus: error?.data?.httpStatus,
+            code: error?.data?.code ?? error?.message,
+          },
+        });
       },
     },
     mutations: {
       onError: (error: any) => {
-        console.error(error);
+        captureClientError(error, {
+          area: "trpc",
+          action: "mutation",
+          extra: {
+            httpStatus: error?.data?.httpStatus,
+            code: error?.data?.code ?? error?.message,
+          },
+        });
       },
     },
   },

@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   addHopsBatched: vi.fn(),
   markDeployed: vi.fn(),
   routeHasHopsQuery: vi.fn(),
+  getRouteConfigQuery: vi.fn(),
   getObfuscationSessionQuery: vi.fn(),
   invalidateRoutes: vi.fn(),
   invalidateRouteState: vi.fn(),
@@ -69,6 +70,9 @@ vi.mock("../trpc", () => ({
         contract: {
           routeHasHops: {
             query: mocks.routeHasHopsQuery,
+          },
+          getRouteConfig: {
+            query: mocks.getRouteConfigQuery,
           },
         },
         routes: {
@@ -132,6 +136,9 @@ const createSignedTx = () => ({
 describe("useDeploy", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.routeHasHopsQuery.mockReset();
+    mocks.getRouteConfigQuery.mockReset();
+    mocks.getObfuscationSessionQuery.mockReset();
 
     mocks.useWallet.mockReturnValue({
       publicKey: { toBase58: () => "wallet-1" },
@@ -179,6 +186,9 @@ describe("useDeploy", () => {
     mocks.routeHasHopsQuery
       .mockResolvedValueOnce({ data: { hasHops: false, isDeployed: false } })
       .mockResolvedValueOnce({ data: { hasHops: true, isDeployed: true } });
+    mocks.getRouteConfigQuery.mockResolvedValue({
+      data: { hops: [] },
+    });
     mocks.getObfuscationSessionQuery.mockResolvedValue({
       data: { status: "pending" },
     });
@@ -324,10 +334,16 @@ describe("useDeploy", () => {
   });
 
   it("adds missing hops to an already initialized route", async () => {
+    mocks.initializeRouteSOL.mockRejectedValueOnce(
+      new Error("Transaction simulation failed: account already in use")
+    );
     mocks.routeHasHopsQuery.mockReset();
     mocks.routeHasHopsQuery
       .mockResolvedValueOnce({ data: { hasHops: false, isDeployed: true } })
       .mockResolvedValueOnce({ data: { hasHops: true, isDeployed: true } });
+    mocks.getRouteConfigQuery.mockResolvedValueOnce({
+      data: { hops: [] },
+    });
 
     const { result } = renderHook(() => useDeploy());
 
@@ -346,11 +362,65 @@ describe("useDeploy", () => {
     });
 
     expect(mocks.addHopsBatched).toHaveBeenCalled();
-    expect(mocks.markDeployed).not.toHaveBeenCalled();
+    expect(mocks.markDeployed).toHaveBeenCalledWith({
+      id: 44,
+      deploymentTxHash: "recovered-from-chain",
+    });
     expect(toastMock.success).toHaveBeenCalledWith(
       "1 hops added successfully!",
       { id: "deploy" }
     );
+  });
+
+  it("adds only the missing hops after an already-initialized route error", async () => {
+    mocks.initializeRouteSOL.mockRejectedValueOnce(
+      new Error("custom program error: 0x0")
+    );
+    mocks.routeHasHopsQuery.mockReset();
+    mocks.routeHasHopsQuery
+      .mockResolvedValueOnce({ data: { hasHops: false, isDeployed: false } })
+      .mockResolvedValueOnce({ data: { hasHops: true, isDeployed: true } })
+      .mockResolvedValueOnce({ data: { hasHops: true, isDeployed: true } });
+    mocks.getRouteConfigQuery.mockReset();
+    mocks.getRouteConfigQuery.mockResolvedValueOnce({
+      data: {
+        hops: [{ recipient: "wallet-a" }],
+      },
+    });
+
+    const { result } = renderHook(() => useDeploy());
+
+    await act(async () => {
+      await expect(
+        result.current.deploy(
+          {
+            routeId: 73,
+            databaseId: 74,
+            hops: [
+              { recipient: "wallet-a", scheduledAt: 1_700_000_000_000 },
+              { recipient: "wallet-b", scheduledAt: 1_700_000_060_000 },
+              { recipient: "wallet-c", scheduledAt: 1_700_000_120_000 },
+            ],
+            hopAmount: "10",
+          },
+          "SOL"
+        )
+      ).resolves.toMatchObject({
+        kind: "already-initialized",
+      });
+    });
+
+    expect(mocks.addHopsBatched).toHaveBeenCalledWith({
+      routeId: 73,
+      hops: [
+        { recipient: "wallet-b", scheduledAt: 1_700_000_060_000 },
+        { recipient: "wallet-c", scheduledAt: 1_700_000_120_000 },
+      ],
+    });
+    expect(mocks.markDeployed).toHaveBeenCalledWith({
+      id: 74,
+      deploymentTxHash: "recovered-from-chain",
+    });
   });
 
   it("returns early when the route is already fully deployed", async () => {
@@ -379,5 +449,44 @@ describe("useDeploy", () => {
       "Route is already fully deployed!",
       { id: "deploy" }
     );
+  });
+
+  it("skips obfuscation re-funding when the route is already deployed on-chain but missing hops", async () => {
+    mocks.hasObfuscation.mockResolvedValue(true);
+    mocks.getObfuscationSessionQuery.mockResolvedValue({
+      data: { status: "funding" },
+    });
+    mocks.routeHasHopsQuery.mockReset();
+    mocks.routeHasHopsQuery
+      .mockResolvedValueOnce({ data: { hasHops: false, isDeployed: true } })
+      .mockResolvedValueOnce({ data: { hasHops: true, isDeployed: true } });
+
+    const { result } = renderHook(() => useDeploy());
+
+    await act(async () => {
+      await expect(
+        result.current.deploy(
+          {
+            routeId: 91,
+            databaseId: 92,
+            hops: [
+              { recipient: "wallet-a", scheduledAt: 1_700_000_000_000 },
+              { recipient: "wallet-b", scheduledAt: 1_700_000_060_000 },
+            ],
+            hopAmount: "10",
+          },
+          "SOL"
+        )
+      ).resolves.toBe("hops-added");
+    });
+
+    expect(mocks.fundObfuscation).not.toHaveBeenCalled();
+    expect(mocks.addHopsBatched).toHaveBeenCalledWith({
+      routeId: 91,
+      hops: [
+        { recipient: "wallet-a", scheduledAt: 1_700_000_000_000 },
+        { recipient: "wallet-b", scheduledAt: 1_700_000_060_000 },
+      ],
+    });
   });
 });

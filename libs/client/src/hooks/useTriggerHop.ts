@@ -1,4 +1,5 @@
 import { trpc } from "../trpc";
+import { captureClientError } from "../utils/monitoring";
 
 export interface TriggerHopParams {
   routeId: number;
@@ -6,14 +7,16 @@ export interface TriggerHopParams {
 
 export const useTriggerHop = (onSuccessCallback?: () => void) => {
   return trpc.contract.triggerHop.useMutation({
-    onSuccess: (data) => {
-      console.log("Hop triggered successfully:", data);
+    onSuccess: () => {
       if (onSuccessCallback) {
         onSuccessCallback();
       }
     },
     onError: (error) => {
-      console.error("Failed to trigger hop:", error);
+      captureClientError(error, {
+        area: "routes",
+        action: "trigger-hop",
+      });
     },
   });
 };

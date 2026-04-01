@@ -5,6 +5,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { trpc } from "../trpc";
 import { extractErrorMessage } from "../utils/extractErrorMessage";
+import { captureClientError } from "../utils/monitoring";
 
 /**
  * Hook for handling obfuscation funding transactions
@@ -105,8 +106,18 @@ export const useObfuscationDeploy = () => {
         );
 
         if (confirmation.value.err) {
-          // Log the error but continue trying remaining transactions
-          console.error(`Transaction ${i + 1} failed:`, confirmation.value.err);
+          captureClientError(new Error(`Funding transaction ${i + 1} failed`), {
+            area: "obfuscation",
+            action: "fund-wallet-confirmation",
+            level: "warning",
+            extra: {
+              routeId,
+              walletIndex: txData.walletIndex,
+              transactionIndex: i + 1,
+              totalTransactions,
+              confirmationError: confirmation.value.err,
+            },
+          });
           toast.error(
             `Transaction ${i + 1} failed, but continuing with remaining...`,
             { id: `obfuscation-error-${i}`, duration: 3000 },
@@ -124,7 +135,16 @@ export const useObfuscationDeploy = () => {
           });
           successCount++;
         } catch (confirmError) {
-          console.error(`Failed to confirm wallet ${txData.walletIndex}:`, confirmError);
+          captureClientError(confirmError, {
+            area: "obfuscation",
+            action: "confirm-funding",
+            level: "warning",
+            extra: {
+              routeId,
+              walletIndex: txData.walletIndex,
+              txHash: signature,
+            },
+          });
           // Transaction is on-chain but not confirmed in DB - server will handle on retry
         }
       }
@@ -145,6 +165,13 @@ export const useObfuscationDeploy = () => {
         throw new Error("All funding transactions failed");
       }
     } catch (error) {
+      captureClientError(error, {
+        area: "obfuscation",
+        action: "fund-obfuscation",
+        extra: {
+          routeId,
+        },
+      });
       toast.error(`Abstraction funding failed: ${extractErrorMessage(error)}`, {
         id: "obfuscation",
       });

@@ -182,7 +182,7 @@ export function getTimezoneInfo(timezone?: string): {
  * Validate that a date string can be parsed
  */
 export function isValidDateString(dateString: string): boolean {
-  return moment(dateString).isValid();
+  return moment(dateString, moment.ISO_8601, true).isValid();
 }
 
 /**

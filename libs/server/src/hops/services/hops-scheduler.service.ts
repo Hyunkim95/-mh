@@ -32,8 +32,15 @@ const failedRoutes = new Map<number, HopExecutionAttempt>();
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_COOLDOWN_MINUTES = Number(process.env.HOP_RETRY_COOLDOWN_MINUTES) || 5; // default 5 minutes
 const MAX_PERMANENT_FAILURES = 10; // After this many total failures, mark route as failed in DB
+let isHopProcessorRunning = false;
 
 const _triggerHop = async () => {
+  if (isHopProcessorRunning) {
+    log.debug("Previous hop scheduler tick still running, skipping overlap");
+    return;
+  }
+
+  isHopProcessorRunning = true;
   await tracer.startActiveSpan(
     "scheduler.hops.tick",
     { kind: SpanKind.INTERNAL, attributes: { "scheduler.name": "hops" } },
@@ -220,6 +227,7 @@ const _triggerHop = async () => {
     if (error instanceof Error) tickSpan.recordException(error);
   } finally {
     tickSpan.end();
+    isHopProcessorRunning = false;
   }
   }); // end tracer.startActiveSpan
 };

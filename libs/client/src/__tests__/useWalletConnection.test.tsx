@@ -9,10 +9,15 @@ const mocks = vi.hoisted(() => ({
   select: vi.fn(),
   connect: vi.fn(),
   disconnect: vi.fn(),
+  captureClientError: vi.fn(),
 }));
 
 vi.mock("@solana/wallet-adapter-react", () => ({
   useWallet: mocks.useWallet,
+}));
+
+vi.mock("../utils/monitoring", () => ({
+  captureClientError: mocks.captureClientError,
 }));
 
 import { useWalletConnection } from "../hooks/useWalletConnection";
@@ -81,8 +86,6 @@ describe("useWalletConnection", () => {
   });
 
   it("surfaces wallet readiness errors and failed connections", async () => {
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
     mocks.useWallet.mockReturnValueOnce({
       publicKey: null,
       connected: false,
@@ -175,12 +178,15 @@ describe("useWalletConnection", () => {
       );
     });
 
-    expect(errorSpy).toHaveBeenCalled();
-    errorSpy.mockRestore();
+    expect(mocks.captureClientError).toHaveBeenCalledTimes(5);
+    expect(mocks.captureClientError).toHaveBeenLastCalledWith(expect.any(Error), {
+      area: "wallet",
+      action: "connect",
+      level: "warning",
+    });
   });
 
   it("captures disconnect failures without throwing", async () => {
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     mocks.disconnect.mockRejectedValueOnce(new Error("disconnect boom"));
 
     const { result } = renderHook(() => useWalletConnection());
@@ -190,10 +196,10 @@ describe("useWalletConnection", () => {
     });
 
     expect(result.current.error).toBe("disconnect boom");
-    expect(errorSpy).toHaveBeenCalledWith(
-      "Wallet disconnect error:",
-      expect.any(Error)
-    );
-    errorSpy.mockRestore();
+    expect(mocks.captureClientError).toHaveBeenCalledWith(expect.any(Error), {
+      area: "wallet",
+      action: "disconnect",
+      level: "warning",
+    });
   });
 });

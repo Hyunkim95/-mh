@@ -179,6 +179,47 @@ describe("hops-scheduler.service", () => {
       );
     });
 
+    it("should resume from the current hop when the scheduler runs twice", async () => {
+      mockGetOverdueHops
+        .mockResolvedValueOnce([{ routeId: 1, hopIndex: 0 }])
+        .mockResolvedValueOnce([{ routeId: 1, hopIndex: 1 }]);
+      mockGetRouteById.mockResolvedValue({
+        id: 1,
+        routeId: 100,
+        creator: "c1",
+        hasObfuscation: false,
+      });
+      mockGetRouteStateAccount
+        .mockResolvedValueOnce({ currentHopIndex: 0, hopsCount: 2 })
+        .mockResolvedValueOnce({ currentHopIndex: 1, hopsCount: 2 });
+      mockGetRouteConfiguration.mockResolvedValue({
+        hops: [{ executeAt: new BN(0) }, { executeAt: new BN(0) }],
+      });
+      mockExecuteHop
+        .mockResolvedValueOnce("txSig-1")
+        .mockResolvedValueOnce("txSig-2");
+      mockUpdateHopExecutionByIndex.mockResolvedValue({});
+
+      await getTriggerFn()();
+      await getTriggerFn()();
+
+      expect(mockExecuteHop).toHaveBeenCalledTimes(2);
+      expect(mockUpdateHopExecutionByIndex).toHaveBeenNthCalledWith(
+        1,
+        1,
+        0,
+        expect.objectContaining({ txHash: "txSig-1" })
+      );
+      expect(mockUpdateHopExecutionByIndex).toHaveBeenNthCalledWith(
+        2,
+        1,
+        1,
+        expect.objectContaining({ txHash: "txSig-2" })
+      );
+      expect(mockMarkAllHopsCompleted).toHaveBeenCalledWith(1);
+      expect(mockUpdateRouteStatus).toHaveBeenCalledWith(1, "c1", "completed");
+    });
+
     it("should mark route as completed when all hops done", async () => {
       mockGetOverdueHops.mockResolvedValue([
         { routeId: 1, hopIndex: 0 },
@@ -354,6 +395,27 @@ describe("hops-scheduler.service", () => {
 
       // Should not throw
       await expect(getTriggerFn()()).resolves.not.toThrow();
+    });
+
+    it("should skip overlapping ticks while a previous hop scan is still running", async () => {
+      let releaseFirstTick: (() => void) | undefined;
+      mockGetOverdueHops.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            releaseFirstTick = () => resolve([]);
+          })
+      );
+
+      const firstTick = getTriggerFn()();
+      const secondTick = getTriggerFn()();
+
+      await Promise.resolve();
+
+      expect(mockGetOverdueHops).toHaveBeenCalledTimes(1);
+
+      releaseFirstTick?.();
+      await firstTick;
+      await secondTick;
     });
   });
 });

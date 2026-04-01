@@ -48,6 +48,7 @@ const mocks = vi.hoisted(() => ({
   initializeRouteFromWalletX: vi.fn(),
   addHopsFromWalletX: vi.fn(),
   isRouteDeployedOnChain: vi.fn(),
+  getRouteConfiguration: vi.fn(),
   getRouteStateAccount: vi.fn(),
   isExtraAccountMetasInitialized: vi.fn(),
   initializeExtraAccountMetasForRoute: vi.fn(),
@@ -223,6 +224,7 @@ vi.mock("../solana/services/contract.service", () => ({
   initializeRouteFromWalletX: mocks.initializeRouteFromWalletX,
   addHopsFromWalletX: mocks.addHopsFromWalletX,
   isRouteDeployedOnChain: mocks.isRouteDeployedOnChain,
+  getRouteConfiguration: mocks.getRouteConfiguration,
   getRouteStateAccount: mocks.getRouteStateAccount,
   isExtraAccountMetasInitialized: mocks.isExtraAccountMetasInitialized,
   initializeExtraAccountMetasForRoute: mocks.initializeExtraAccountMetasForRoute,
@@ -253,6 +255,7 @@ vi.mock("@libs/logger", () => ({
 import {
   startObfuscationScheduler,
   stopObfuscationScheduler,
+  _testExports,
 } from "../obfuscation/services/obfuscation-scheduler.service";
 
 describe("ObfuscationSchedulerService", () => {
@@ -320,6 +323,7 @@ describe("ObfuscationSchedulerService", () => {
     mocks.areAllWalletsAggregated.mockResolvedValue(true);
     mocks.dbQueryRoutesFindFirst.mockResolvedValue(mockRoute);
     mocks.isRouteDeployedOnChain.mockResolvedValue(false);
+    mocks.getRouteConfiguration.mockResolvedValue(null);
     mocks.walletXGetKeypair.mockResolvedValue({ secretKey: new Uint8Array(64) });
     mocks.initializeRouteFromWalletX.mockResolvedValue("deploy-tx-sig");
     mocks.addHopsFromWalletX.mockResolvedValue(undefined);
@@ -371,6 +375,27 @@ describe("ObfuscationSchedulerService", () => {
       expect(mocks.updateAggregationStatus).toHaveBeenCalledWith(1, "confirmed", "agg-tx-sig");
       // clearFailureTracking should call db.update
       expect(mocks.dbUpdate).toHaveBeenCalled();
+    });
+
+    it("can run twice and does not re-aggregate a wallet once the first tick advanced it", async () => {
+      const wallet = { id: 8, sessionId: 10 };
+      mocks.getWalletsReadyForAggregation
+        .mockResolvedValueOnce([wallet])
+        .mockResolvedValueOnce([]);
+      mocks.dbQueryWalletsFindMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+      mocks.dbQueryWalletsFindFirst.mockResolvedValue({ failureCount: 0, nextRetryAt: null });
+      mocks.claimWalletForAggregation.mockResolvedValue(true);
+      mocks.buildAggregationTransaction.mockResolvedValue({ transaction: {}, signer: {} });
+      mocks.executeTransaction.mockResolvedValue("agg-tx-sig");
+      mocks.updateAggregationStatus.mockResolvedValue(undefined);
+
+      await _testExports.processAggregations();
+      await _testExports.processAggregations();
+
+      expect(mocks.buildAggregationTransaction).toHaveBeenCalledTimes(1);
+      expect(mocks.updateAggregationStatus).toHaveBeenCalledWith(8, "confirmed", "agg-tx-sig");
     });
 
     it("records failure when buildAggregationTransaction returns null", async () => {
@@ -426,9 +451,21 @@ describe("ObfuscationSchedulerService", () => {
       expect(mocks.claimWalletForAggregation).not.toHaveBeenCalled();
     });
 
+    it("skips wallet above the permanent failure threshold without replaying terminal-side effects", async () => {
+      const wallet = { id: 6, sessionId: 10 };
+      mocks.getWalletsReadyForAggregation.mockResolvedValue([wallet]);
+      mocks.dbQueryWalletsFindFirst.mockResolvedValue({ failureCount: 16, nextRetryAt: null });
+
+      await holder.cronCallback!();
+
+      expect(mocks.claimWalletForAggregation).not.toHaveBeenCalled();
+      expect(mocks.getPublicKeyForWallet).not.toHaveBeenCalled();
+      expect(mocks.getConnectionGetBalance).not.toHaveBeenCalled();
+    });
+
     it("includes failed wallets ready for retry", async () => {
       const failedWallet = {
-        id: 6, sessionId: 10, aggregationStatus: "failed",
+        id: 7, sessionId: 10, aggregationStatus: "failed",
         failureCount: 1, nextRetryAt: new Date(Date.now() - 1000),
         custodialWallet: { id: 1, address: "addr" },
       };
@@ -441,7 +478,7 @@ describe("ObfuscationSchedulerService", () => {
 
       await holder.cronCallback!();
 
-      expect(mocks.updateAggregationStatus).toHaveBeenCalledWith(6, "confirmed", "retry-tx-sig");
+      expect(mocks.updateAggregationStatus).toHaveBeenCalledWith(7, "confirmed", "retry-tx-sig");
     });
   });
 
@@ -456,6 +493,160 @@ describe("ObfuscationSchedulerService", () => {
       expect(mocks.routesUpdateRouteStatus).toHaveBeenCalled();
       expect(mocks.shiftHopSchedulesAfterDeployment).toHaveBeenCalled();
       expect(mocks.completeSession).toHaveBeenCalledWith(1, expect.any(String));
+    });
+
+    it("can run twice and skips redeployment after the first tick advances state", async () => {
+      mocks.dbQuerySessionsFindMany
+        .mockResolvedValueOnce([]) // first tick stuck funding
+        .mockResolvedValueOnce([mockSession]) // first tick active session
+        .mockResolvedValueOnce([]) // second tick stuck funding
+        .mockResolvedValueOnce([mockSession]); // second tick same session still visible
+      mocks.getSession.mockResolvedValue({ failureCount: 0, nextRetryAt: null });
+      mocks.areAllWalletsAggregated.mockResolvedValue(true);
+      mocks.dbQueryRoutesFindFirst.mockResolvedValue(mockRoute);
+      mocks.isRouteDeployedOnChain.mockResolvedValue(true);
+      mocks.isExtraAccountMetasInitialized.mockResolvedValue(true);
+      mocks.getRouteStateAccount
+        .mockResolvedValueOnce({
+          hopsCount: 1,
+          currentHopIndex: 0,
+        })
+        .mockResolvedValueOnce({
+          hopsCount: 2,
+          currentHopIndex: 0,
+        });
+      mocks.walletXGetKeypair.mockResolvedValue({ secretKey: new Uint8Array(64) });
+      mocks.addHopsFromWalletX.mockResolvedValue(undefined);
+      mocks.getWalletsPendingCleanup.mockResolvedValue([]);
+      mocks.buildWalletXCleanupTransaction.mockResolvedValue(null);
+      mocks.walletXGetSOLBalance.mockResolvedValue({
+        gtn: () => false,
+        toString: () => "0",
+        toNumber: () => 0,
+      });
+      mocks.areAllWalletsCleanedUp.mockResolvedValue(true);
+      mocks.completeSession.mockResolvedValue(undefined);
+
+      await _testExports.processDeploymentAndCleanup();
+      await _testExports.processDeploymentAndCleanup();
+
+      expect(mocks.initializeRouteFromWalletX).not.toHaveBeenCalled();
+      expect(mocks.addHopsFromWalletX).toHaveBeenCalledTimes(1);
+      expect(mocks.completeSession).toHaveBeenCalledTimes(2);
+    });
+
+    it("retries after a mid-deployment failure and resumes from current on-chain state", async () => {
+      mocks.dbQuerySessionsFindMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([mockSession])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([mockSession]);
+      mocks.getSession
+        .mockResolvedValueOnce({ failureCount: 0, nextRetryAt: null })
+        .mockResolvedValueOnce({ failureCount: 1, nextRetryAt: null });
+      mocks.areAllWalletsAggregated.mockResolvedValue(true);
+      mocks.dbQueryRoutesFindFirst.mockResolvedValue(mockRoute);
+      mocks.isRouteDeployedOnChain
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(true);
+      mocks.isExtraAccountMetasInitialized.mockResolvedValue(true);
+      mocks.walletXGetKeypair.mockResolvedValue({ secretKey: new Uint8Array(64) });
+      mocks.initializeRouteFromWalletX.mockResolvedValue("deploy-tx-sig");
+      mocks.addHopsFromWalletX
+        .mockRejectedValueOnce(new Error("add hops failed"))
+        .mockResolvedValueOnce(undefined);
+      mocks.getRouteConfiguration.mockResolvedValue({
+        hops: [{ recipient: "recipient-1" }],
+      });
+      mocks.getRouteStateAccount.mockResolvedValue({
+        hopsCount: 1,
+        currentHopIndex: 0,
+      });
+      mocks.getWalletsPendingCleanup.mockResolvedValue([]);
+      mocks.buildWalletXCleanupTransaction.mockResolvedValue(null);
+      mocks.walletXGetSOLBalance.mockResolvedValue({
+        gtn: () => false,
+        toString: () => "0",
+        toNumber: () => 0,
+      });
+      mocks.areAllWalletsCleanedUp.mockResolvedValue(true);
+      mocks.completeSession.mockResolvedValue(undefined);
+
+      await _testExports.processDeploymentAndCleanup();
+      await _testExports.processDeploymentAndCleanup();
+
+      expect(mocks.initializeRouteFromWalletX).toHaveBeenCalledTimes(1);
+      expect(mocks.addHopsFromWalletX).toHaveBeenCalledTimes(2);
+      expect(mocks.routesUpdateRouteStatus).toHaveBeenCalledWith(
+        100,
+        "creator-pubkey",
+        "deployed",
+        expect.objectContaining({ deploymentTxHash: "recovered-from-chain" }),
+      );
+      expect(mocks.completeSession).toHaveBeenCalledTimes(1);
+    });
+
+    it("retries after a cleanup failure and resumes cleanup without redeploying", async () => {
+      const pendingWallet = { id: 21 };
+      mocks.dbQuerySessionsFindMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([mockSession])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([mockSession]);
+      mocks.getSession
+        .mockResolvedValueOnce({ failureCount: 0, nextRetryAt: null })
+        .mockResolvedValueOnce({ failureCount: 1, nextRetryAt: null });
+      mocks.areAllWalletsAggregated.mockResolvedValue(true);
+      mocks.dbQueryRoutesFindFirst.mockResolvedValue({
+        ...mockRoute,
+        deploymentTxHash: "existing-tx",
+      });
+      mocks.isRouteDeployedOnChain.mockResolvedValue(true);
+      mocks.isExtraAccountMetasInitialized.mockResolvedValue(true);
+      mocks.getRouteStateAccount.mockResolvedValue({
+        hopsCount: 2,
+        currentHopIndex: 0,
+      });
+      mocks.getWalletsPendingCleanup.mockResolvedValue([pendingWallet]);
+      mocks.buildCleanupTransaction
+        .mockResolvedValueOnce({ transaction: {}, signer: {} })
+        .mockResolvedValueOnce({ transaction: {}, signer: {} })
+        .mockResolvedValueOnce({ transaction: {}, signer: {} });
+      mocks.executeTransaction
+        .mockRejectedValueOnce(new Error("cleanup failed"))
+        .mockRejectedValueOnce(new Error("retry cleanup failed"))
+        .mockResolvedValueOnce("cleanup-success");
+      mocks.buildWalletXCleanupTransaction.mockResolvedValue(null);
+      mocks.walletXGetSOLBalance.mockResolvedValue({
+        gtn: () => false,
+        toString: () => "0",
+        toNumber: () => 0,
+      });
+      mocks.areAllWalletsCleanedUp
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(true);
+      mocks.completeSession.mockResolvedValue(undefined);
+
+      await _testExports.processDeploymentAndCleanup();
+      await _testExports.processDeploymentAndCleanup();
+
+      expect(mocks.initializeRouteFromWalletX).not.toHaveBeenCalled();
+      expect(mocks.addHopsFromWalletX).not.toHaveBeenCalled();
+      expect(mocks.buildCleanupTransaction).toHaveBeenCalledTimes(3);
+      expect(mocks.updateCleanupStatus).toHaveBeenCalledWith(
+        21,
+        "failed",
+        undefined,
+        undefined,
+        "cleanup failed",
+      );
+      expect(mocks.updateCleanupStatus).toHaveBeenCalledWith(
+        21,
+        "completed",
+        "cleanup-success",
+        "cleanup-success",
+      );
+      expect(mocks.completeSession).toHaveBeenCalledTimes(1);
     });
 
     it("skips session when not all wallets are aggregated", async () => {
@@ -574,6 +765,40 @@ describe("ObfuscationSchedulerService", () => {
 
       expect(mocks.dbUpdate).toHaveBeenCalled(); // recordFailureToDb
       expect(mocks.getWalletsPendingCleanup).not.toHaveBeenCalled();
+    });
+
+    it("recovers when initializeRouteFromWalletX fails with already-initialized error", async () => {
+      setupDeploymentMocks();
+      mocks.initializeRouteFromWalletX.mockRejectedValue(
+        new Error("Transaction simulation failed: account already in use")
+      );
+      mocks.isRouteDeployedOnChain
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(true);
+      mocks.getRouteConfiguration.mockResolvedValue({
+        hops: [{ recipient: "recipient-1" }],
+      });
+
+      await holder.cronCallback!();
+
+      expect(mocks.getRouteConfiguration).toHaveBeenCalledWith(42);
+      expect(mocks.addHopsFromWalletX).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        [
+          expect.objectContaining({ recipient: expect.anything() }),
+        ]
+      );
+      expect(mocks.routesUpdateRouteStatus).toHaveBeenCalledWith(
+        100,
+        "creator-pubkey",
+        "deployed",
+        expect.objectContaining({ deploymentTxHash: "recovered-from-chain" }),
+      );
+      expect(mocks.completeSession).toHaveBeenCalledWith(
+        1,
+        expect.any(String),
+      );
     });
 
     it("handles Wallet X keypair not found", async () => {

@@ -6,6 +6,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { Transaction } from "@solana/web3.js";
 import { extractErrorMessage } from "../utils/extractErrorMessage";
+import { captureClientError } from "../utils/monitoring";
 
 export const useUpdateTokenConfig = ({
   publicKey: _publicKey,
@@ -55,7 +56,10 @@ export const useUpdateTokenConfig = ({
         )}...`
       );
     } catch (error) {
-      console.error("SPL Token config update failed:", error);
+      captureClientError(error, {
+        area: "token-config",
+        action: "update-spl-token-config",
+      });
       toast.error(`SPL Token config update failed: ${extractErrorMessage(error)}`);
       throw error;
     }
@@ -95,7 +99,10 @@ export const useUpdateTokenConfig = ({
         )}...`
       );
     } catch (error) {
-      console.error("SOL Token config update failed:", error);
+      captureClientError(error, {
+        area: "token-config",
+        action: "update-sol-token-config",
+      });
       toast.error(`SOL Token config update failed: ${extractErrorMessage(error)}`);
       throw error;
     }

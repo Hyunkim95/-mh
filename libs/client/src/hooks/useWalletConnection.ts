@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletName } from '@solana/wallet-adapter-base';
+import { captureClientError } from '../utils/monitoring';
 
 export interface UseWalletConnectionReturn {
   // Connection state
@@ -84,7 +85,11 @@ export function useWalletConnection(): UseWalletConnectionReturn {
     } catch (err: any) {
       const errorMessage = err?.message || 'Failed to connect wallet';
       setError(errorMessage);
-      console.error('Wallet connection error:', err);
+      captureClientError(err, {
+        area: 'wallet',
+        action: 'connect',
+        level: 'warning',
+      });
       throw err;
     } finally {
       setIsManuallyConnecting(false);
@@ -98,7 +103,11 @@ export function useWalletConnection(): UseWalletConnectionReturn {
     } catch (err: any) {
       const errorMessage = err?.message || 'Failed to disconnect wallet';
       setError(errorMessage);
-      console.error('Wallet disconnect error:', err);
+      captureClientError(err, {
+        area: 'wallet',
+        action: 'disconnect',
+        level: 'warning',
+      });
     }
   }, [walletDisconnect]);
 

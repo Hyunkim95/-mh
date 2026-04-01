@@ -50,8 +50,6 @@ export function useExecutor(routeId: number) {
       amount: amountStr,
     });
   };
-
-  console.log("executorInfoQuery", executorInfoQuery.data);
   return {
     // Executor public key
     publicKey: executorInfoQuery.data?.data?.publicKey ?? null,

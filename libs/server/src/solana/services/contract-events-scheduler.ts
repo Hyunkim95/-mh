@@ -90,67 +90,11 @@ export class ContractEventsScheduler {
    */
   private startEtlLoop(): void {
     this.etlInterval = setInterval(async () => {
-      if (!this.isRunning) return;
-
-      // Overlap guard: skip if previous ETL run is still in progress
-      if (this.isEtlJobRunning) {
-        log.debug(`ETL job still running (${this.config.direction}), skipping tick`);
-        return;
-      }
-
-      // Apply cooldown for both forward and backward directions
-      if (this.consecutiveEmptyRuns >= this.maxEmptyRuns && this.lastEmptyRunTime) {
-        const cooldown = this.config.direction === 'backward'
-          ? this.cooldownPeriod * 2
-          : this.cooldownPeriod;
-        const timeSinceLastEmpty = Date.now() - this.lastEmptyRunTime.getTime();
-        if (timeSinceLastEmpty < cooldown) {
-          return;
-        } else {
-          this.consecutiveEmptyRuns = 0;
-          this.lastEmptyRunTime = undefined;
-        }
-      }
-
-      this.isEtlJobRunning = true;
-      await tracer.startActiveSpan(
-        "scheduler.etl.tick",
-        {
-          kind: SpanKind.INTERNAL,
-          attributes: {
-            "scheduler.name": "contract-events",
-            "etl.direction": this.config.direction,
-          },
-        },
-        async (etlSpan) => {
-      try {
-        const result = await this.runEtlJob();
-
-        if (result && result.totalExtracted === 0) {
-          this.consecutiveEmptyRuns++;
-          this.lastEmptyRunTime = new Date();
-        } else if (result && result.totalExtracted > 0) {
-          this.consecutiveEmptyRuns = 0;
-          this.lastEmptyRunTime = undefined;
-          etlSpan.setAttribute("etl.extracted_count", result.totalExtracted);
-          log.info(`ETL processed ${result.totalExtracted} transactions (${this.config.direction})`);
-        }
-        etlSpan.setStatus({ code: SpanStatusCode.OK });
-      } catch (error) {
-        log.error('ETL job failed:', error);
-        etlSpan.setStatus({ code: SpanStatusCode.ERROR, message: error instanceof Error ? error.message : "unknown" });
-        if (error instanceof Error) etlSpan.recordException(error);
-      } finally {
-        etlSpan.end();
-        this.isEtlJobRunning = false;
-      }
-      }); // end tracer.startActiveSpan
+      await this.runScheduledEtlTick();
     }, this.config.etlIntervalMs);
 
     // Run immediately on start
-    this.runEtlJob().catch(error => {
-      log.error('Initial ETL job failed:', error);
-    });
+    void this.runScheduledEtlTick();
   }
 
   /**
@@ -158,27 +102,87 @@ export class ContractEventsScheduler {
    */
   private startEventProcessing(): void {
     this.processingInterval = setInterval(async () => {
-      if (!this.isRunning) return;
-
-      if (this.isProcessingRunning) return;
-
-      this.isProcessingRunning = true;
-      try {
-        const result = await this.eventProcessor.processUnprocessedEvents();
-
-        if (result.processed > 0) {
-          log.info(`Event processing completed: ${result.processed} events processed`);
-
-          if (result.errors.length > 0) {
-            log.warn(`Event processing errors: ${result.errors.length} events failed`);
-          }
-        }
-      } catch (error) {
-        log.error('Event processing failed:', error);
-      } finally {
-        this.isProcessingRunning = false;
-      }
+      await this.runScheduledProcessingTick();
     }, this.config.processingIntervalMs);
+  }
+
+  private async runScheduledEtlTick(): Promise<void> {
+    if (!this.isRunning) return;
+
+    if (this.isEtlJobRunning) {
+      log.debug(`ETL job still running (${this.config.direction}), skipping tick`);
+      return;
+    }
+
+    if (this.consecutiveEmptyRuns >= this.maxEmptyRuns && this.lastEmptyRunTime) {
+      const cooldown = this.config.direction === 'backward'
+        ? this.cooldownPeriod * 2
+        : this.cooldownPeriod;
+      const timeSinceLastEmpty = Date.now() - this.lastEmptyRunTime.getTime();
+      if (timeSinceLastEmpty < cooldown) {
+        return;
+      }
+
+      this.consecutiveEmptyRuns = 0;
+      this.lastEmptyRunTime = undefined;
+    }
+
+    this.isEtlJobRunning = true;
+    await tracer.startActiveSpan(
+      "scheduler.etl.tick",
+      {
+        kind: SpanKind.INTERNAL,
+        attributes: {
+          "scheduler.name": "contract-events",
+          "etl.direction": this.config.direction,
+        },
+      },
+      async (etlSpan) => {
+        try {
+          const result = await this.runEtlJob();
+
+          if (result && result.totalExtracted === 0) {
+            this.consecutiveEmptyRuns++;
+            this.lastEmptyRunTime = new Date();
+          } else if (result && result.totalExtracted > 0) {
+            this.consecutiveEmptyRuns = 0;
+            this.lastEmptyRunTime = undefined;
+            etlSpan.setAttribute("etl.extracted_count", result.totalExtracted);
+            log.info(`ETL processed ${result.totalExtracted} transactions (${this.config.direction})`);
+          }
+          etlSpan.setStatus({ code: SpanStatusCode.OK });
+        } catch (error) {
+          log.error('ETL job failed:', error);
+          etlSpan.setStatus({ code: SpanStatusCode.ERROR, message: error instanceof Error ? error.message : "unknown" });
+          if (error instanceof Error) etlSpan.recordException(error);
+        } finally {
+          etlSpan.end();
+          this.isEtlJobRunning = false;
+        }
+      }
+    );
+  }
+
+  private async runScheduledProcessingTick(): Promise<void> {
+    if (!this.isRunning) return;
+    if (this.isProcessingRunning) return;
+
+    this.isProcessingRunning = true;
+    try {
+      const result = await this.eventProcessor.processUnprocessedEvents();
+
+      if (result.processed > 0) {
+        log.info(`Event processing completed: ${result.processed} events processed`);
+
+        if (result.errors.length > 0) {
+          log.warn(`Event processing errors: ${result.errors.length} events failed`);
+        }
+      }
+    } catch (error) {
+      log.error('Event processing failed:', error);
+    } finally {
+      this.isProcessingRunning = false;
+    }
   }
 
   /**

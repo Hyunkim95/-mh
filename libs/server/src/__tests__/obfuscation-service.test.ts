@@ -7,16 +7,20 @@ const {
   mockGetMinimumBalanceForRentExemption,
   mockTransaction,
   mockFindFirst,
+  mockFindMany,
   mockInsert,
   mockSelect,
+  mockUpdateWhere,
   mockEstimateDeploymentCost,
   mockGetRecommendedPriorityFee,
 } = vi.hoisted(() => ({
   mockGetMinimumBalanceForRentExemption: vi.fn(),
   mockTransaction: vi.fn(),
   mockFindFirst: vi.fn(),
+  mockFindMany: vi.fn(),
   mockInsert: vi.fn(),
   mockSelect: vi.fn(),
+  mockUpdateWhere: vi.fn().mockResolvedValue(undefined),
   mockEstimateDeploymentCost: vi.fn(),
   mockGetRecommendedPriorityFee: vi.fn(),
 }));
@@ -27,14 +31,17 @@ vi.mock("../db", () => ({
     query: {
       obfuscationSessionsSchema: {
         findFirst: mockFindFirst,
-        findMany: vi.fn(),
+        findMany: mockFindMany,
+      },
+      intermediateWalletsSchema: {
+        findMany: mockFindMany,
       },
     },
     insert: mockInsert,
     select: mockSelect,
     update: vi.fn(() => ({
       set: vi.fn(() => ({
-        where: vi.fn().mockResolvedValue(undefined),
+        where: mockUpdateWhere,
       })),
     })),
     transaction: mockTransaction,
@@ -127,6 +134,8 @@ describe("ObfuscationService", () => {
         where: vi.fn().mockResolvedValue([]),
       }),
     });
+    mockFindMany.mockResolvedValue([]);
+    mockUpdateWhere.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -744,6 +753,74 @@ describe("ObfuscationService", () => {
 
       // The function uses db.transaction for atomicity
       expect(transactionPattern.insert).toBeDefined();
+    });
+  });
+
+  describe("scheduleAggregations (idempotency)", () => {
+    it("does not reshuffle aggregation times when wallets are already scheduled", async () => {
+      mockFindFirst.mockResolvedValueOnce({
+        id: 7,
+        status: "aggregating",
+      });
+      mockFindMany.mockResolvedValueOnce([
+        {
+          id: 101,
+          aggregationStatus: "scheduled",
+        },
+        {
+          id: 102,
+          aggregationStatus: "confirmed",
+        },
+      ]);
+
+      await obfuscationService.scheduleAggregations(7);
+
+      expect(mockUpdateWhere).not.toHaveBeenCalled();
+    });
+
+    it("only schedules wallets that are still pending", async () => {
+      mockFindFirst.mockResolvedValueOnce({
+        id: 8,
+        status: "funding",
+      });
+      mockFindMany.mockResolvedValueOnce([
+        {
+          id: 201,
+          aggregationStatus: "pending",
+        },
+        {
+          id: 202,
+          aggregationStatus: "scheduled",
+        },
+        {
+          id: 203,
+          aggregationStatus: "pending",
+        },
+      ]);
+
+      await obfuscationService.scheduleAggregations(8);
+
+      expect(mockUpdateWhere).toHaveBeenCalledTimes(3);
+    });
+
+    it("can be called twice and only schedules work that remains pending", async () => {
+      mockFindFirst
+        .mockResolvedValueOnce({ id: 9, status: "funding" })
+        .mockResolvedValueOnce({ id: 9, status: "aggregating" });
+      mockFindMany
+        .mockResolvedValueOnce([
+          { id: 301, aggregationStatus: "pending" },
+          { id: 302, aggregationStatus: "pending" },
+        ])
+        .mockResolvedValueOnce([
+          { id: 301, aggregationStatus: "scheduled" },
+          { id: 302, aggregationStatus: "confirmed" },
+        ]);
+
+      await obfuscationService.scheduleAggregations(9);
+      await obfuscationService.scheduleAggregations(9);
+
+      expect(mockUpdateWhere).toHaveBeenCalledTimes(3);
     });
   });
 

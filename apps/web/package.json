@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@sentry/react": "^10.47.0",
     "@solana/web3.js": "^1.98.4",
     "@trpc-template/client": "workspace:*",
     "@trpc-template/shared": "workspace:*",

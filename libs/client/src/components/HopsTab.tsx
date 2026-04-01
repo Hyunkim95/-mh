@@ -8,6 +8,7 @@ import { useWalletChangeEffect } from "../hooks/useWalletChangeEffect";
 import { Transaction } from "@solana/web3.js";
 import { useSolanaAuth } from "../hooks/useSolanaAuth";
 import { extractErrorMessage } from "../utils/extractErrorMessage";
+import { captureClientError } from "../utils/monitoring";
 
 interface Route {
   id: number;
@@ -84,7 +85,6 @@ export const HopsTab: React.FC = () => {
 
   // TODO: replace with useDeploy hook
   const handleDeploy = async (route: Route) => {
-    console.log('----------------------------')
     if (!publicKey || !sendTransaction) {
       toast.error("Please connect your wallet");
       return;
@@ -115,15 +115,12 @@ export const HopsTab: React.FC = () => {
         };
       });
 
-      debugger;
-
       let transactionSignature;
 
       if (route.tokenType === "SPL") {
         if (!route.tokenMint) {
           throw new Error("SPL mint address is required for SPL routes");
         }
-        console.log(formattedHops)
         transactionSignature = await initializeRoute.mutateAsync({
           routeId: route.routeId,
           hops: formattedHops,
@@ -183,7 +180,14 @@ export const HopsTab: React.FC = () => {
       // Refresh the routes list
       refetch();
     } catch (error) {
-      console.error(`${route.tokenType} Route deployment failed:`, error);
+      captureClientError(error, {
+        area: "routes",
+        action: "deploy-from-hops-tab",
+        extra: {
+          routeId: route.routeId,
+          tokenType: route.tokenType,
+        },
+      });
       toast.error(
         `${route.tokenType} Route deployment failed: ${extractErrorMessage(error)}`,
         { id: "deploy" }

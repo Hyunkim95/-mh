@@ -14,6 +14,7 @@ import {
   initializeRouteFromWalletX,
   addHopsFromWalletX,
   isRouteDeployedOnChain,
+  getRouteConfiguration,
   getRouteStateAccount,
   isExtraAccountMetasInitialized,
   initializeExtraAccountMetasForRoute,
@@ -44,6 +45,17 @@ const SERVER_ID = `server_${uuidv4()}`;
 // Lock to prevent concurrent job execution within this server instance
 let isProcessorRunning = false;
 
+function isAlreadyInitializedRouteError(error: unknown): boolean {
+  const message =
+    error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+
+  return (
+    message.includes("already in use") ||
+    message.includes("account already exists") ||
+    message.includes("custom program error: 0x0")
+  );
+}
+
 function logPermanentFailure(
   message: string,
   lockedLamports?: number | null,
@@ -69,7 +81,7 @@ async function recordFailureToDb(
 
   if (walletId) {
     // Update intermediate wallet failure tracking
-    const [updatedWallet] = await db
+    await db
       .update(intermediateWalletsSchema)
       .set({
         lastError: error,
@@ -78,30 +90,7 @@ async function recordFailureToDb(
         nextRetryAt: nextRetryAt,
         updatedAt: now,
       })
-      .where(eq(intermediateWalletsSchema.id, walletId))
-      .returning({
-        failureCount: intermediateWalletsSchema.failureCount,
-      });
-
-    if (updatedWallet?.failureCount === MAX_PERMANENT_FAILURES) {
-      let balanceInfo = "";
-      let lockedLamports = 0;
-      try {
-        const pubkey = await intermediateWalletService.getPublicKeyForWallet(walletId);
-        if (pubkey) {
-          const balance = await obfuscationService.getConnection().getBalance(pubkey);
-          lockedLamports = balance;
-          balanceInfo = ` — ${balance} lamports (${(balance / 1_000_000_000).toFixed(4)} SOL) locked`;
-        }
-      } catch {
-        // Do not let balance lookup interfere with failure persistence.
-      }
-
-      logPermanentFailure(
-        `[PERMANENT_FAILURE] Session ${sessionId} wallet ${walletId}: exceeded ${MAX_PERMANENT_FAILURES} failures${balanceInfo} — manual intervention required.`,
-        lockedLamports,
-      );
-    }
+      .where(eq(intermediateWalletsSchema.id, walletId));
   } else {
     // Update session failure tracking
     const [updatedSession] = await db
@@ -188,7 +177,7 @@ async function shouldRetryFromDb(
     const nextRetryAt = wallet.nextRetryAt;
 
     // Permanently stop retrying after too many failures
-    if (failureCount >= MAX_PERMANENT_FAILURES) {
+    if (failureCount === MAX_PERMANENT_FAILURES) {
       let balanceInfo = "";
       try {
         const pubkey = await intermediateWalletService.getPublicKeyForWallet(walletId);
@@ -198,6 +187,10 @@ async function shouldRetryFromDb(
         }
       } catch { /* don't let RPC failure break retry logic */ }
       logPermanentFailure(`[PERMANENT_FAILURE] Session ${sessionId} wallet ${walletId}: exceeded ${MAX_PERMANENT_FAILURES} failures${balanceInfo} — manual intervention required.`);
+      return false;
+    }
+
+    if (failureCount > MAX_PERMANENT_FAILURES) {
       return false;
     }
 
@@ -221,6 +214,10 @@ async function shouldRetryFromDb(
         balanceInfo = ` — Wallet X: ${walletXBalance.toString()} lamports (${(walletXBalance.toNumber() / 1_000_000_000).toFixed(4)} SOL) locked`;
       } catch { /* don't let RPC failure break retry logic */ }
       logPermanentFailure(`[PERMANENT_FAILURE] Session ${sessionId}: exceeded ${MAX_PERMANENT_FAILURES} failures${balanceInfo} — manual intervention required.`);
+      return false;
+    }
+
+    if (failureCount > MAX_PERMANENT_FAILURES) {
       return false;
     }
 
@@ -652,36 +649,62 @@ async function processDeploymentAndCleanup(): Promise<void> {
           // Initialize route from Wallet X
           // IMPORTANT: Use route.routeId (on-chain identifier), not route.id (database ID)
           log.info(`Initializing route ${route.routeId} from Wallet X for session ${session.id}`);
-          const signature = await initializeRouteFromWalletX(
-            walletXKeypair,
-            new BN(route.routeId),
-            new BN(session.totalAmount),
-            hops,
-            session.tokenType as "SOL" | "SPL",
-            session.tokenMint || undefined,
-          );
+          let signature: string | null = null;
+          let existingOnChainHopCount = 0;
 
-          // Estimate tx fees (base + priority)
-          const dynamicFees = await obfuscationService.getDynamicFees();
-          actualFeesLamports += 5000 + dynamicFees.priorityFeeLamports;
+          try {
+            signature = await initializeRouteFromWalletX(
+              walletXKeypair,
+              new BN(route.routeId),
+              new BN(session.totalAmount),
+              hops,
+              session.tokenType as "SOL" | "SPL",
+              session.tokenMint || undefined,
+            );
 
-          // STEP 2: Add hops to the route with retry logic
-          await addHopsFromWalletX(
-            walletXKeypair,
-            new BN(route.routeId),
-            hops,
-          );
+            // Estimate tx fees (base + priority)
+            const dynamicFees = await obfuscationService.getDynamicFees();
+            actualFeesLamports += 5000 + dynamicFees.priorityFeeLamports;
+          } catch (initError: any) {
+            if (!isAlreadyInitializedRouteError(initError)) {
+              throw initError;
+            }
 
-          // Estimate fees for addHops (may be multiple batches)
-          const batchCount = Math.ceil(hops.length / 3); // 3 hops per batch
-          actualFeesLamports += batchCount * (5000 + dynamicFees.priorityFeeLamports);
+            const routeExistsOnChain = await isRouteDeployedOnChain(route.routeId);
+            if (!routeExistsOnChain) {
+              throw initError;
+            }
+
+            const existingRouteConfig = await getRouteConfiguration(route.routeId);
+            existingOnChainHopCount = existingRouteConfig?.hops?.length ?? 0;
+            log.warn(
+              `[Deployment] Session ${session.id}: Route ${route.routeId} appears already initialized on-chain with ${existingOnChainHopCount}/${hops.length} hops — resuming deployment`
+            );
+          }
+
+          const remainingHops =
+            existingOnChainHopCount > 0 ? hops.slice(existingOnChainHopCount) : hops;
+
+          if (remainingHops.length > 0) {
+            // STEP 2: Add only missing hops when recovering from a partial deploy
+            await addHopsFromWalletX(
+              walletXKeypair,
+              new BN(route.routeId),
+              remainingHops,
+            );
+
+            // Estimate fees for addHops (may be multiple batches)
+            const dynamicFees = await obfuscationService.getDynamicFees();
+            const batchCount = Math.ceil(remainingHops.length / 3); // 3 hops per batch
+            actualFeesLamports += batchCount * (5000 + dynamicFees.priorityFeeLamports);
+          }
 
           // IMPORTANT: Store deployment hash immediately to prevent retry issues
           await routesService.updateRouteStatus(
             route.id,
             route.creator,
             "deployed",
-            { deploymentTxHash: signature },
+            { deploymentTxHash: signature || route.deploymentTxHash || "recovered-from-chain" },
           );
 
           // Shift hop schedules to account for obfuscation delay
@@ -931,4 +954,10 @@ export const obfuscationSchedulerService = {
   obfuscationProcessorJob,
   startObfuscationScheduler,
   stopObfuscationScheduler,
+};
+
+export const _testExports = {
+  shouldRetryFromDb,
+  processAggregations,
+  processDeploymentAndCleanup,
 };

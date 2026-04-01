@@ -18,8 +18,7 @@ import {
 import { Buffer } from "buffer";
 import { toast } from "react-hot-toast";
 import { useSearch, useParams } from "@tanstack/react-router";
-
-const LOG_PREFIX = "[UnwrapSol]";
+import { captureClientError } from "../utils/monitoring";
 
 const PROGRAM_ID = new PublicKey(
   "3jLoS2wbNgtKzieUUxwg6Xhdv6gbZkHDtPWA9ZAgspFh",
@@ -95,27 +94,11 @@ async function fetchRouteInfo(
   const routeStatePda = getRouteStatePda(routeId);
   const tokenConfigPda = getTokenConfigPda();
 
-  console.log(LOG_PREFIX, "Fetching on-chain accounts", {
-    routeId,
-    routeConfigPda: routeConfigPda.toBase58(),
-    routeStatePda: routeStatePda.toBase58(),
-    tokenConfigPda: tokenConfigPda.toBase58(),
-  });
-
   const [routeConfigInfo, routeStateInfo, tokenConfigInfo] = await Promise.all([
     connection.getAccountInfo(routeConfigPda),
     connection.getAccountInfo(routeStatePda),
     connection.getAccountInfo(tokenConfigPda),
   ]);
-
-  console.log(LOG_PREFIX, "Account fetch results", {
-    routeConfigExists: !!routeConfigInfo,
-    routeConfigSize: routeConfigInfo?.data?.length,
-    routeStateExists: !!routeStateInfo,
-    routeStateSize: routeStateInfo?.data?.length,
-    tokenConfigExists: !!tokenConfigInfo,
-    tokenConfigSize: tokenConfigInfo?.data?.length,
-  });
 
   if (!routeConfigInfo || !routeStateInfo || !tokenConfigInfo) {
     const missing = [];
@@ -123,7 +106,6 @@ async function fetchRouteInfo(
     if (!routeStateInfo) missing.push("routeState");
     if (!tokenConfigInfo) missing.push("tokenConfig");
     const msg = `Could not fetch on-chain accounts: missing ${missing.join(", ")}`;
-    console.error(LOG_PREFIX, msg);
     throw new Error(msg);
   }
 
@@ -140,14 +122,6 @@ async function fetchRouteInfo(
   const routeTokenMint = new PublicKey(rcData.slice(80, 112)).toBase58();
   const hopAmount = rcData.readBigUInt64LE(292);
 
-  console.log(LOG_PREFIX, "RouteConfig parsed", {
-    creator,
-    originalMint,
-    routeTokenMint,
-    hopAmount: hopAmount.toString(),
-    hopAmountSOL: (Number(hopAmount) / 1e9).toFixed(9),
-  });
-
   const rsData = routeStateInfo.data;
   // RouteState layout (verified against on-chain data):
   // discriminator: 8 bytes at offset 0
@@ -157,18 +131,10 @@ async function fetchRouteInfo(
   const currentHopIndex = rsData.readUInt8(8);
   const hopsCount = rsData.readUInt8(17);
 
-  console.log(LOG_PREFIX, "RouteState parsed", {
-    currentHopIndex,
-    hopsCount,
-    isFinished: currentHopIndex >= hopsCount,
-  });
-
   const tcData = tokenConfigInfo.data;
   // TokenConfig layout (after 8-byte discriminator):
   // creator: Pubkey (32 bytes) at offset 8
   const tokenConfigCreator = new PublicKey(tcData.slice(8, 40)).toBase58();
-
-  console.log(LOG_PREFIX, "TokenConfig parsed", { tokenConfigCreator });
 
   return {
     creator,
@@ -244,37 +210,17 @@ export const UnwrapSol: React.FC = () => {
   const [txSignature, setTxSignature] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  console.log(LOG_PREFIX, "Component render", {
-    routeId,
-    recipient,
-    connected,
-    publicKey: publicKey?.toBase58() || null,
-  });
-
   const recipientPubkey = useMemo(() => {
     try {
-      const pk = recipient ? new PublicKey(recipient) : null;
-      console.log(LOG_PREFIX, "Recipient pubkey parsed", {
-        recipient,
-        valid: !!pk,
-        pubkey: pk?.toBase58(),
-      });
-      return pk;
-    } catch (e) {
-      console.error(LOG_PREFIX, "Invalid recipient address", { recipient, error: e });
+      return recipient ? new PublicKey(recipient) : null;
+    } catch {
       return null;
     }
   }, [recipient]);
 
   const isRouteOwner = useMemo(() => {
     if (!publicKey || !routeInfo) return false;
-    const match = publicKey.toBase58() === routeInfo.creator;
-    console.log(LOG_PREFIX, "Route owner check", {
-      connectedWallet: publicKey.toBase58(),
-      routeCreator: routeInfo.creator,
-      isMatch: match,
-    });
-    return match;
+    return publicKey.toBase58() === routeInfo.creator;
   }, [publicKey, routeInfo]);
 
   // Fetch route info on mount
@@ -287,10 +233,8 @@ export const UnwrapSol: React.FC = () => {
     (async () => {
       try {
         setLoading(true);
-        console.log(LOG_PREFIX, "Fetching route info...", { routeId, recipient: recipientPubkey.toBase58() });
         const info = await fetchRouteInfo(connection, routeId);
         setRouteInfo(info);
-        console.log(LOG_PREFIX, "Route info loaded successfully");
 
         // Fetch wSOL balance
         const wsolMint = new PublicKey(info.routeTokenMint);
@@ -300,31 +244,21 @@ export const UnwrapSol: React.FC = () => {
           false,
           TOKEN_2022_PROGRAM_ID,
         );
-        console.log(LOG_PREFIX, "wSOL ATA derived", {
-          mint: wsolMint.toBase58(),
-          owner: recipientPubkey.toBase58(),
-          ata: ata.toBase58(),
-        });
         try {
           const balance = await connection.getTokenAccountBalance(ata);
-          console.log(LOG_PREFIX, "wSOL balance fetched", {
-            uiAmount: balance.value.uiAmountString,
-            amount: balance.value.amount,
-            decimals: balance.value.decimals,
-          });
           setWsolBalance(balance.value.uiAmountString || "0");
-        } catch (balanceErr) {
-          console.warn(LOG_PREFIX, "Failed to fetch wSOL balance (ATA may not exist)", {
-            ata: ata.toBase58(),
-            error: balanceErr,
-          });
+        } catch {
           setWsolBalance("0");
         }
       } catch (e: any) {
-        console.error(LOG_PREFIX, "Failed to load route info", {
-          routeId,
-          error: e.message,
-          stack: e.stack,
+        captureClientError(e, {
+          area: "unwrap-sol",
+          action: "load-route-info",
+          level: "warning",
+          extra: {
+            routeId,
+            recipient: recipientPubkey.toBase58(),
+          },
         });
         setError(e.message || "Failed to fetch route info");
       } finally {
@@ -335,20 +269,8 @@ export const UnwrapSol: React.FC = () => {
 
   const handleUnwrap = useCallback(async () => {
     if (!publicKey || !signTransaction || !routeInfo || !recipientPubkey) {
-      console.warn(LOG_PREFIX, "handleUnwrap called but prerequisites missing", {
-        hasPublicKey: !!publicKey,
-        hasSignTransaction: !!signTransaction,
-        hasRouteInfo: !!routeInfo,
-        hasRecipient: !!recipientPubkey,
-      });
       return;
     }
-
-    console.log(LOG_PREFIX, "=== UNWRAP STARTED ===");
-    console.log(LOG_PREFIX, "Payer (route creator):", publicKey.toBase58());
-    console.log(LOG_PREFIX, "Recipient (from & to):", recipientPubkey.toBase58());
-    console.log(LOG_PREFIX, "Route ID:", routeId);
-    console.log(LOG_PREFIX, "Amount:", routeInfo.hopAmount.toString(), `(${(Number(routeInfo.hopAmount) / 1e9).toFixed(9)} SOL)`);
 
     setSending(true);
     setError(null);
@@ -370,19 +292,6 @@ export const UnwrapSol: React.FC = () => {
         TOKEN_2022_PROGRAM_ID,
       );
 
-      console.log(LOG_PREFIX, "Accounts resolved", {
-        payer: publicKey.toBase58(),
-        tokenConfigPda: tokenConfigPda.toBase58(),
-        wsolMint: wsolMint.toBase58(),
-        wsolFrom: wsolFrom.toBase58(),
-        from: recipientPubkey.toBase58(),
-        to: recipientPubkey.toBase58(),
-        permanentDelegate: permanentDelegate.toBase58(),
-        solVault: solVault.toBase58(),
-        routeConfigPda: routeConfigPda.toBase58(),
-        routeStatePda: routeStatePda.toBase58(),
-      });
-
       // Build instruction
       const unwrapIx = buildUnwrapSolInstruction(
         publicKey,
@@ -399,13 +308,6 @@ export const UnwrapSol: React.FC = () => {
         routeInfo.hopAmount,
       );
 
-      console.log(LOG_PREFIX, "Instruction built", {
-        programId: unwrapIx.programId.toBase58(),
-        numKeys: unwrapIx.keys.length,
-        dataLen: unwrapIx.data.length,
-        dataHex: unwrapIx.data.toString("hex"),
-      });
-
       // Build transaction
       const transaction = new Transaction();
       transaction.add(
@@ -416,66 +318,46 @@ export const UnwrapSol: React.FC = () => {
       );
       transaction.add(unwrapIx);
 
-      console.log(LOG_PREFIX, "Fetching blockhash...");
       const { blockhash, lastValidBlockHeight } =
         await connection.getLatestBlockhash("confirmed");
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = publicKey;
 
-      console.log(LOG_PREFIX, "Transaction ready", {
-        blockhash,
-        lastValidBlockHeight,
-        feePayer: publicKey.toBase58(),
-        numInstructions: transaction.instructions.length,
-      });
-
       // Sign
-      console.log(LOG_PREFIX, "Requesting wallet signature...");
       const signed = await signTransaction(transaction);
-      console.log(LOG_PREFIX, "Transaction signed by wallet");
 
       // Send
-      console.log(LOG_PREFIX, "Sending raw transaction...");
       const signature = await connection.sendRawTransaction(
         signed.serialize(),
         { skipPreflight: false, preflightCommitment: "confirmed" },
       );
-      console.log(LOG_PREFIX, "Transaction sent", { signature });
-      console.log(LOG_PREFIX, `Solscan: https://solscan.io/tx/${signature}`);
 
       // Confirm
-      console.log(LOG_PREFIX, "Waiting for confirmation...");
       const confirmation = await connection.confirmTransaction(
         { signature, blockhash, lastValidBlockHeight },
         "confirmed",
       );
 
       if (confirmation.value.err) {
-        console.error(LOG_PREFIX, "Transaction confirmed but FAILED on-chain", {
-          signature,
-          error: confirmation.value.err,
-        });
         throw new Error(`Transaction failed on-chain: ${JSON.stringify(confirmation.value.err)}`);
       }
 
-      console.log(LOG_PREFIX, "=== UNWRAP SUCCESSFUL ===", { signature });
       setTxSignature(signature);
       toast.success("wSOL unwrapped successfully!");
     } catch (e: any) {
       const msg = e.message || "Transaction failed";
       // Extract program logs if available (SendTransactionError)
       const logs = e.logs || e.transactionLogs || e.getLogs?.() || null;
-      console.error(LOG_PREFIX, "=== UNWRAP FAILED ===", {
-        message: msg,
-        name: e.name,
-        code: e.code,
-        logs,
-        stack: e.stack,
+      captureClientError(e, {
+        area: "unwrap-sol",
+        action: "unwrap",
+        extra: {
+          routeId,
+          recipient,
+          code: e?.code,
+          programLogs: logs,
+        },
       });
-      if (logs) {
-        console.error(LOG_PREFIX, "Program logs:");
-        logs.forEach((log: string, i: number) => console.error(LOG_PREFIX, `  [${i}] ${log}`));
-      }
       setError(msg);
       toast.error(msg.length > 100 ? msg.slice(0, 100) + "..." : msg);
     } finally {

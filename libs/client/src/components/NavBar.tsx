@@ -51,7 +51,6 @@ export const NavBar = () => {
       {publicKey && (
         <div className='space-x-2 sm:space-x-6 flex flex-row max-h-[46px]'>
           <Button
-            onClick={() => console.log('secondary pressed')}
             variant='secondary'
             className='!px-3 sm:!px-4'
           >

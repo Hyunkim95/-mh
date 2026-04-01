@@ -27,6 +27,7 @@ import { useConnection, useWallet } from '@solana/wallet-adapter-react'
 import { LAMPORTS_PER_SOL, PublicKey } from '@solana/web3.js'
 import { getMint, getAssociatedTokenAddressSync, getAccount } from '@solana/spl-token'
 import { TABS } from '../constants/tab'
+import { captureClientError } from '../utils/monitoring'
 
 type Token = TokenWithFallback
 
@@ -70,8 +71,12 @@ export const MyAssets: React.FC = () => {
     // Invalidate server-side cache first, then refetch
     try {
       await invalidateCacheMutation.mutateAsync();
-    } catch (e) {
-      console.error('Failed to invalidate cache:', e);
+    } catch (error) {
+      captureClientError(error, {
+        area: 'my-assets',
+        action: 'invalidate-cache',
+        level: 'warning',
+      });
     }
     // Refetch tokens with fresh data
     refetchTokens();
@@ -99,11 +104,15 @@ export const MyAssets: React.FC = () => {
           if (priceData?.solana?.usd) {
             setSolPrice(priceData.solana.usd)
           }
-        } catch (priceError) {
-          console.error('Error fetching SOL price:', priceError)
+        } catch {
+          // External pricing is best-effort and not worth reporting.
         }
       } catch (error) {
-        console.error('Error fetching SOL balance:', error)
+        captureClientError(error, {
+          area: 'my-assets',
+          action: 'fetch-sol-balance',
+          level: 'warning',
+        })
         setSolBalance(0)
       }
     }
@@ -149,8 +158,7 @@ export const MyAssets: React.FC = () => {
         }
         
         setManualToken(token)
-      } catch (error) {
-        console.error('Error validating token:', error)
+      } catch {
         setAddressError('Invalid token address')
         setManualToken(null)
       } finally {

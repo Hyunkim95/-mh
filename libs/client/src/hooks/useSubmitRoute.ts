@@ -3,6 +3,7 @@ import { PublicKey } from "@solana/web3.js";
 import toast from "react-hot-toast";
 import type { DeployModalRoute } from "../components/DeployModal";
 import { extractErrorMessage } from "../utils/extractErrorMessage";
+import { captureClientError } from "../utils/monitoring";
 
 export const useSubmitRoute = ({
   publicKey,
@@ -56,7 +57,15 @@ export const useSubmitRoute = ({
         })),
       };
     } catch (error) {
-      console.error(`${type} Route creation failed:`, error);
+      captureClientError(error, {
+        area: "routes",
+        action: "create-route",
+        extra: {
+          tokenType: type,
+          hasObfuscation: data?.hasObfuscation,
+          hopCount: Array.isArray(data?.hops) ? data.hops.length : 0,
+        },
+      });
       toast.error(`${type} Route creation failed: ${extractErrorMessage(error)}`);
       return null;
     }

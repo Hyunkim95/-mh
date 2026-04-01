@@ -598,10 +598,28 @@ async function getIntermediateWallets(
  * Called after all funding is confirmed
  */
 async function scheduleAggregations(sessionId: number): Promise<void> {
-  const wallets = await getIntermediateWallets(sessionId);
-  const schedules = generateAggregationSchedule(wallets.length);
+  const session = await getSession(sessionId);
+  if (!session) {
+    return;
+  }
 
-  for (let i = 0; i < wallets.length; i++) {
+  const wallets = await getIntermediateWallets(sessionId);
+  const walletsToSchedule = wallets.filter(
+    (wallet) => wallet.aggregationStatus === "pending",
+  );
+
+  if (walletsToSchedule.length === 0) {
+    // Another request or retry already scheduled (or progressed) these wallets.
+    // Keep the existing schedule/status instead of reshuffling aggregation times.
+    if (session.status !== "aggregating") {
+      await updateSessionStatus(sessionId, "aggregating");
+    }
+    return;
+  }
+
+  const schedules = generateAggregationSchedule(walletsToSchedule.length);
+
+  for (let i = 0; i < walletsToSchedule.length; i++) {
     await db
       .update(intermediateWalletsSchema)
       .set({
@@ -609,7 +627,7 @@ async function scheduleAggregations(sessionId: number): Promise<void> {
         aggregationStatus: "scheduled",
         updatedAt: new Date(),
       })
-      .where(eq(intermediateWalletsSchema.id, wallets[i].id));
+      .where(eq(intermediateWalletsSchema.id, walletsToSchedule[i].id));
   }
 
   // Update session status

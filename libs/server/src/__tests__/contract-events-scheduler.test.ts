@@ -218,8 +218,9 @@ describe("ContractEventsScheduler", () => {
       await scheduler.start();
       await vi.advanceTimersByTimeAsync(0);
 
-      // Run a couple empty ticks
-      await vi.advanceTimersByTimeAsync(baseConfig.etlIntervalMs + 100);
+      // The immediate startup run counts as the first empty run.
+      // Keep one more empty interval below the cooldown threshold, then
+      // return data and verify the scheduler clears the streak.
       await vi.advanceTimersByTimeAsync(baseConfig.etlIntervalMs + 100);
 
       // Now return data
@@ -249,6 +250,46 @@ describe("ContractEventsScheduler", () => {
       await vi.advanceTimersByTimeAsync(0);
 
       expect(mocks.etlRun).toHaveBeenCalled();
+    });
+
+    it("does not overlap the initial ETL run with the first interval tick", async () => {
+      let releaseRun: (() => void) | undefined;
+      mocks.etlRun.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            releaseRun = () => resolve({ totalExtracted: 0, success: true });
+          })
+      );
+
+      await scheduler.start();
+      expect(mocks.etlRun).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(baseConfig.etlIntervalMs + 100);
+      expect(mocks.etlRun).toHaveBeenCalledTimes(1);
+
+      releaseRun?.();
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(baseConfig.etlIntervalMs + 100);
+
+      expect(mocks.etlRun).toHaveBeenCalledTimes(2);
+    });
+
+    it("advances from current ETL state across repeated ticks", async () => {
+      mocks.etlRun
+        .mockResolvedValueOnce({ totalExtracted: 2, success: true })
+        .mockResolvedValueOnce({ totalExtracted: 3, success: true });
+
+      await scheduler.start();
+      await vi.advanceTimersByTimeAsync(0);
+
+      let status = await scheduler.getStatus();
+      expect(status.cooldownInfo.consecutiveEmptyRuns).toBe(0);
+
+      await vi.advanceTimersByTimeAsync(baseConfig.etlIntervalMs + 100);
+
+      status = await scheduler.getStatus();
+      expect(mocks.etlRun).toHaveBeenCalledTimes(2);
+      expect(status.cooldownInfo.consecutiveEmptyRuns).toBe(0);
     });
   });
 
@@ -299,6 +340,47 @@ describe("ContractEventsScheduler", () => {
       // Should still be running
       const status = await scheduler.getStatus();
       expect(status.isRunning).toBe(true);
+    });
+
+    it("does not overlap processing ticks while a prior processing run is still active", async () => {
+      let releaseProcessing: (() => void) | undefined;
+      mocks.processUnprocessedEvents.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            releaseProcessing = () => resolve({ processed: 0, errors: [] });
+          })
+      );
+
+      await scheduler.start();
+      await vi.advanceTimersByTimeAsync(0);
+      mocks.processUnprocessedEvents.mockClear();
+
+      await vi.advanceTimersByTimeAsync(baseConfig.processingIntervalMs + 100);
+      expect(mocks.processUnprocessedEvents).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(baseConfig.processingIntervalMs + 100);
+      expect(mocks.processUnprocessedEvents).toHaveBeenCalledTimes(1);
+
+      releaseProcessing?.();
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(baseConfig.processingIntervalMs + 100);
+
+      expect(mocks.processUnprocessedEvents).toHaveBeenCalledTimes(2);
+    });
+
+    it("continues processing on the next tick from the current queue state", async () => {
+      mocks.processUnprocessedEvents
+        .mockResolvedValueOnce({ processed: 1, errors: [] })
+        .mockResolvedValueOnce({ processed: 2, errors: [] });
+
+      await scheduler.start();
+      await vi.advanceTimersByTimeAsync(0);
+
+      mocks.processUnprocessedEvents.mockClear();
+      await vi.advanceTimersByTimeAsync(baseConfig.processingIntervalMs + 100);
+      await vi.advanceTimersByTimeAsync(baseConfig.processingIntervalMs + 100);
+
+      expect(mocks.processUnprocessedEvents).toHaveBeenCalledTimes(2);
     });
   });
 

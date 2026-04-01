@@ -84,10 +84,17 @@ describe("client timezone utilities", () => {
 
   describe("formatHopScheduleTime", () => {
     it('shows "Today at" for same-day times', () => {
-      const now = moment();
-      const later = now.clone().add(2, "hours").utc().toISOString();
-      const result = formatHopScheduleTime(later);
+      const timezone = "UTC";
+      const later = moment
+        .tz("2026-03-31 14:00:00", timezone)
+        .utc()
+        .toISOString();
+      const nowSpy = vi.spyOn(moment, "now").mockReturnValue(
+        moment.tz("2026-03-31 12:00:00", timezone).valueOf()
+      );
+      const result = formatHopScheduleTime(later, timezone);
       expect(result).toContain("Today at");
+      nowSpy.mockRestore();
     });
 
     it('shows "Tomorrow at" for next-day times', () => {

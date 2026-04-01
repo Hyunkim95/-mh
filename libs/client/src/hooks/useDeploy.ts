@@ -7,11 +7,39 @@ import bs58 from "bs58";
 import { trpc } from "../trpc";
 import { extractErrorMessage } from "../utils/extractErrorMessage";
 import { useObfuscationDeploy } from "./useObfuscationDeploy";
+import { captureClientError } from "../utils/monitoring";
 
 // Maximum hops that can fit in a single transaction (matches backend)
 // Each hop = ~40 bytes (32-byte pubkey + 8-byte timestamp)
 // Reduced to 3 hops per batch (~320 bytes) to leave room for Phantom's Lighthouse security instructions
 const HOPS_PER_BATCH = 3;
+
+type InitializeRouteResult =
+  | string
+  | {
+      kind: "already-initialized";
+      onChainHopCount: number;
+    };
+
+const isAlreadyInitializedRouteError = (error: unknown): boolean => {
+  const message = extractErrorMessage(error, "").toLowerCase();
+  return (
+    message.includes("already in use") ||
+    message.includes("account already exists") ||
+    message.includes("custom program error: 0x0")
+  );
+};
+
+const getMissingHops = (
+  freshHops: Array<{ recipient: string; scheduledAt: number }>,
+  onChainHopCount: number,
+) => {
+  if (onChainHopCount <= 0) {
+    return freshHops;
+  }
+
+  return freshHops.slice(onChainHopCount);
+};
 
 /**
  * Recalculate hop times based on delay configuration
@@ -89,7 +117,7 @@ export const useDeploy = () => {
       splMint?: string;
     },
     type: "SPL" | "SOL",
-  ) => {
+  ): Promise<InitializeRouteResult> => {
     // Wallet validation
     if (!publicKey || !sendTransaction) {
       toast.error("Please connect your wallet");
@@ -200,6 +228,38 @@ export const useDeploy = () => {
 
       return signature;
     } catch (error) {
+      if (isAlreadyInitializedRouteError(error)) {
+        const routeStatus = await utils.client.contract.routeHasHops.query({
+          routeId: data.routeId,
+        });
+
+        if (routeStatus.data?.isDeployed) {
+          const routeConfig = await utils.client.contract.getRouteConfig.query({
+            routeId: data.routeId,
+          });
+          const onChainHopCount = routeConfig.data?.hops?.length ?? 0;
+
+          toast.loading(
+            `${type} route looks already initialized on-chain. Resuming deployment...`,
+            { id: "deploy" },
+          );
+          return {
+            kind: "already-initialized",
+            onChainHopCount,
+          };
+        }
+      }
+
+      captureClientError(error, {
+        area: "routes",
+        action: "initialize-route",
+        extra: {
+          routeId: data.routeId,
+          databaseId: data.databaseId,
+          tokenType: type,
+          hopCount: data.hops.length,
+        },
+      });
       toast.error(
         `${type} Route deployment failed: ${extractErrorMessage(error)}`,
         { id: "deploy" },
@@ -294,6 +354,14 @@ export const useDeploy = () => {
         }
       }
     } catch (error) {
+      captureClientError(error, {
+        area: "routes",
+        action: "add-hops",
+        extra: {
+          routeId,
+          hopCount: hops.length,
+        },
+      });
       toast.error(`Adding hops failed: ${extractErrorMessage(error)}`);
       throw error;
     }
@@ -321,30 +389,6 @@ export const useDeploy = () => {
     }
 
     try {
-      // Check if route has obfuscation enabled
-      if (await hasObfuscation(data.databaseId)) {
-        // Check if obfuscation session is already completed (e.g., retrying incomplete deployment)
-        const sessionResult = await utils.client.routes.getObfuscationSession.query({
-          routeId: data.databaseId,
-        });
-        const sessionStatus = sessionResult?.data?.status;
-
-        if (sessionStatus !== "completed") {
-          // Use obfuscation flow - fund intermediate wallets, then server handles the rest
-          toast.loading("Route has abstraction enabled...", { id: "deploy" });
-          await fundObfuscation(data.databaseId);
-          // Obfuscation handles: funding → aggregation → contract invocation → hops
-          toast.success(
-            "Route deployed with abstraction! Hops will execute at scheduled times.",
-            { id: "deploy" },
-          );
-          // Invalidate queries to refresh UI
-          await utils.routes.getByCreator.invalidate();
-          return; // Exit early - server handles deployment via scheduler
-        }
-        // Session completed but route may need hops added — fall through to standard flow
-      }
-
       // Standard (non-abstracted) deployment flow below
       // Recalculate fresh timestamps based on delay configuration
       const freshHops = recalculateHopTimes(data.hops);
@@ -364,24 +408,53 @@ export const useDeploy = () => {
       // Show initial progress
       toast.loading("Deploying route: Checking status...", { id: "deploy" });
 
+      // Only re-enter obfuscation funding when the route is not already
+      // initialized on-chain. Recovery for incomplete routes must continue
+      // through the direct add-hops path instead.
+      if (!isDeployed && await hasObfuscation(data.databaseId)) {
+        const sessionResult = await utils.client.routes.getObfuscationSession.query({
+          routeId: data.databaseId,
+        });
+        const sessionStatus = sessionResult?.data?.status;
+
+        if (sessionStatus !== "completed") {
+          toast.loading("Route has abstraction enabled...", { id: "deploy" });
+          await fundObfuscation(data.databaseId);
+          toast.success(
+            "Route deployed with abstraction! Hops will execute at scheduled times.",
+            { id: "deploy" },
+          );
+          await utils.routes.getByCreator.invalidate();
+          return;
+        }
+      }
+
       if (!isDeployed) {
         // Step 1: Initialize route
         toast.loading("Deploying route: Initializing...", { id: "deploy" });
 
-        const initSignature = await initializeRouteMutation(
+        const initResult = await initializeRouteMutation(
           { ...data, hops: freshHops },
           type,
         );
 
-        // Step 2: Add hops (may require multiple batches)
-        toast.loading(
-          `Deploying route: Adding ${freshHops.length} hops${
-            hopBatches > 1 ? ` in ${hopBatches} batches` : ""
-          }...`,
-          { id: "deploy" },
-        );
+        const remainingHops =
+          typeof initResult === "object" && initResult.kind === "already-initialized"
+            ? getMissingHops(freshHops, initResult.onChainHopCount)
+            : freshHops;
 
-        await addHopsMutation(data.routeId, freshHops);
+        // Step 2: Add hops (may require multiple batches)
+        if (remainingHops.length > 0) {
+          const remainingBatches = Math.ceil(remainingHops.length / HOPS_PER_BATCH);
+          toast.loading(
+            `Deploying route: Adding ${remainingHops.length} hops${
+              remainingBatches > 1 ? ` in ${remainingBatches} batches` : ""
+            }...`,
+            { id: "deploy" },
+          );
+
+          await addHopsMutation(data.routeId, remainingHops);
+        }
 
         // CRITICAL: Verify all hops were actually added on-chain before marking as deployed
         // Add retry logic with delays to handle RPC propagation delay
@@ -417,10 +490,15 @@ export const useDeploy = () => {
           }
         }
 
-        // Mark as deployed in database only after verification
+        // Mark as deployed in database only after verification.
+        // Recovery does not have a fresh init signature, but the database still
+        // needs to move out of draft once the on-chain route is verified.
         await markDeployed.mutateAsync({
           id: data.databaseId,
-          deploymentTxHash: initSignature,
+          deploymentTxHash:
+            typeof initResult === "string"
+              ? initResult
+              : "recovered-from-chain",
         });
 
         // Invalidate queries to refresh UI with latest on-chain state
@@ -433,7 +511,7 @@ export const useDeploy = () => {
           `Route deployed successfully with ${freshHops.length} hops!`,
           { id: "deploy" },
         );
-        return initSignature;
+        return initResult;
       } else if (!hasHops) {
         // Route initialized but no hops - just add hops
         toast.loading(
@@ -477,6 +555,11 @@ export const useDeploy = () => {
           }
         }
 
+        await markDeployed.mutateAsync({
+          id: data.databaseId,
+          deploymentTxHash: "recovered-from-chain",
+        });
+
         // Invalidate queries to refresh UI with latest on-chain state
         await utils.routes.getByCreator.invalidate();
         await utils.contract.getRouteState.invalidate({
@@ -493,6 +576,16 @@ export const useDeploy = () => {
         return "already-deployed";
       }
     } catch (error) {
+      captureClientError(error, {
+        area: "routes",
+        action: "deploy-route",
+        extra: {
+          routeId: data.routeId,
+          databaseId: data.databaseId,
+          tokenType: type,
+          hopCount: data.hops.length,
+        },
+      });
       toast.error(`Deployment failed: ${extractErrorMessage(error)}`, {
         id: "deploy",
       });

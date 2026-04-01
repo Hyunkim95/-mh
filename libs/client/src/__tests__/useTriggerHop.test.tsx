@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const trpcMocks = vi.hoisted(() => ({
   useMutation: vi.fn(),
+  captureClientError: vi.fn(),
 }));
 
 vi.mock("../trpc", () => ({
@@ -17,6 +18,10 @@ vi.mock("../trpc", () => ({
   },
 }));
 
+vi.mock("../utils/monitoring", () => ({
+  captureClientError: trpcMocks.captureClientError,
+}));
+
 import { useTriggerHop } from "../hooks/useTriggerHop";
 
 describe("useTriggerHop", () => {
@@ -25,10 +30,6 @@ describe("useTriggerHop", () => {
   });
 
   it("wires success and error handlers into the mutation", () => {
-    const consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    const consoleErrorSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
     const callback = vi.fn();
     const mutationResult = { mutateAsync: vi.fn() };
 
@@ -42,15 +43,12 @@ describe("useTriggerHop", () => {
 
     expect(result).toBe(mutationResult);
     expect(callback).toHaveBeenCalledOnce();
-    expect(consoleLogSpy).toHaveBeenCalledWith("Hop triggered successfully:", {
-      signature: "abc",
-    });
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      "Failed to trigger hop:",
-      expect.any(Error)
+    expect(trpcMocks.captureClientError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        area: "routes",
+        action: "trigger-hop",
+      })
     );
-
-    consoleLogSpy.mockRestore();
-    consoleErrorSpy.mockRestore();
   });
 });

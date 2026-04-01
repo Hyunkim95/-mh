@@ -299,6 +299,161 @@ async function main() {
       break;
     }
 
+    case "create-draft-sol-route": {
+      const routeName = process.argv[3] || `Browser Recovery ${Date.now()}`;
+      const recipientCount = Number(process.argv[4] || "3");
+      if (recipientCount < 1) {
+        throw new Error("recipientCount must be at least 1");
+      }
+
+      const now = Date.now();
+      const hops = Array.from({ length: recipientCount }, (_, index) => {
+        const hopRecipient = keypairFromSeed(`${routeName}-recipient-${index + 1}`);
+        return {
+          recipient: hopRecipient.publicKey.toBase58(),
+          scheduledAt: new Date(now + 60_000 + index * 120_000).toISOString(),
+        };
+      });
+
+      const createRes = await fetchAuthed(`${API_URL}/trpc/routes.create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: routeName,
+          tokenType: "SOL",
+          tokenDecimals: 9,
+          hopAmountTokens: "0.05",
+          hopAmountRaw: String(Math.floor(0.05 * LAMPORTS_PER_SOL)),
+          creator: testPayer.publicKey.toBase58(),
+          hops,
+        }),
+      });
+
+      if (!createRes.ok) {
+        throw new Error(`routes.create failed: ${await createRes.text()}`);
+      }
+
+      const createJson = await createRes.json();
+      const route = createJson.result?.data?.data;
+      if (!route?.id || !route?.routeId) {
+        throw new Error(`Invalid routes.create response: ${JSON.stringify(createJson)}`);
+      }
+
+      console.log(
+        JSON.stringify({
+          id: route.id,
+          routeId: route.routeId,
+          name: routeName,
+          hops,
+        })
+      );
+      break;
+    }
+
+    case "partial-init-sol-route": {
+      const routeDbId = Number(process.argv[3]);
+      if (!routeDbId) throw new Error("Usage: partial-init-sol-route <route-db-id>");
+
+      const routeRes = await fetchAuthed(
+        `${API_URL}/trpc/routes.getById?input=${encodeURIComponent(
+          JSON.stringify({
+            id: routeDbId,
+            creator: testPayer.publicKey.toBase58(),
+          })
+        )}`
+      );
+      if (!routeRes.ok) {
+        throw new Error(`routes.getById failed: ${await routeRes.text()}`);
+      }
+      const routeJson = await routeRes.json();
+      const route = routeJson.result?.data?.data;
+      if (!route?.routeId || !route?.hops?.length) {
+        throw new Error(`Route not found or missing hops: ${JSON.stringify(routeJson)}`);
+      }
+
+      const initRes = await fetchAuthed(`${API_URL}/trpc/contract.initializeRouteSOL`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          routeId: route.routeId,
+          hops: route.hops.map((hop: any) => ({
+            recipient: hop.recipient,
+            scheduledAt:
+              typeof hop.scheduledAt === "string"
+                ? new Date(hop.scheduledAt).getTime()
+                : hop.scheduledAt,
+          })),
+          hopAmount: route.hopAmountRaw,
+          splMint: "So11111111111111111111111111111111111111112",
+        }),
+      });
+
+      if (!initRes.ok) {
+        throw new Error(`initializeRouteSOL failed: ${await initRes.text()}`);
+      }
+
+      const initJson = await initRes.json();
+      const initData = initJson.result?.data?.data;
+      const txBase64 = initData?.transaction;
+      if (!txBase64) {
+        throw new Error(`No transaction returned from initializeRouteSOL: ${JSON.stringify(initJson)}`);
+      }
+
+      const tx = Transaction.from(Buffer.from(txBase64, "base64"));
+      const signers = [testPayer];
+      if (initData.additionalSignerSecret) {
+        signers.push(
+          Keypair.fromSecretKey(bs58.decode(initData.additionalSignerSecret))
+        );
+      }
+      const signature = await sendAndConfirmTransaction(connection, tx, signers, {
+        commitment: "confirmed",
+      });
+
+      const pg = await import("pg");
+      const client = new pg.default.Client({ connectionString: PG_CONNECTION_STRING });
+      await client.connect();
+      try {
+        await client.query(
+          `UPDATE routes
+           SET status = 'deployed',
+               deployed_at = NOW(),
+               deployment_tx_hash = $1
+           WHERE id = $2`,
+          [signature, routeDbId]
+        );
+      } finally {
+        await client.end();
+      }
+
+      console.log(
+        JSON.stringify({
+          id: routeDbId,
+          routeId: route.routeId,
+          deploymentTxHash: signature,
+        })
+      );
+      break;
+    }
+
+    case "get-route-state": {
+      const routeId = Number(process.argv[3]);
+      if (!routeId) throw new Error("Usage: get-route-state <on-chain-route-id>");
+
+      const stateRes = await fetchAuthed(
+        `${API_URL}/trpc/contract.getRouteState?input=${encodeURIComponent(
+          JSON.stringify({ routeId })
+        )}`
+      );
+      if (!stateRes.ok) {
+        throw new Error(`contract.getRouteState failed: ${await stateRes.text()}`);
+      }
+
+      const stateJson = await stateRes.json();
+      console.log(JSON.stringify(stateJson.result?.data?.data ?? null));
+      break;
+    }
+
     case "init-spl-token-config": {
       const mintAddr = process.argv[3];
       if (!mintAddr) throw new Error("Usage: init-spl-token-config <mint-address>");

@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   httpBatchLink: vi.fn(),
   fetch: vi.fn(),
   storage: new Map<string, string>(),
+  captureClientError: vi.fn(),
 }));
 
 describe("client trpc", () => {
@@ -41,6 +42,7 @@ describe("client trpc", () => {
   afterEach(() => {
     vi.doUnmock("@trpc/react-query");
     vi.doUnmock("@trpc/client");
+    vi.doUnmock("../utils/monitoring");
   });
 
   it("creates a client with auth headers and conservative retry rules", async () => {
@@ -49,6 +51,9 @@ describe("client trpc", () => {
     }));
     vi.doMock("@trpc/client", () => ({
       httpBatchLink: mocks.httpBatchLink,
+    }));
+    vi.doMock("../utils/monitoring", () => ({
+      captureClientError: mocks.captureClientError,
     }));
 
     mocks.storage.set("token", "jwt-token");
@@ -82,12 +87,14 @@ describe("client trpc", () => {
   });
 
   it("omits auth headers when no token exists and exposes error handlers", async () => {
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.doMock("@trpc/react-query", () => ({
       createTRPCReact: mocks.createTRPCReact,
     }));
     vi.doMock("@trpc/client", () => ({
       httpBatchLink: mocks.httpBatchLink,
+    }));
+    vi.doMock("../utils/monitoring", () => ({
+      captureClientError: mocks.captureClientError,
     }));
 
     const module = await import("../trpc");
@@ -101,7 +108,6 @@ describe("client trpc", () => {
     defaults.queries?.onError?.(new Error("query boom"));
     defaults.mutations?.onError?.(new Error("mutation boom"));
 
-    expect(errorSpy).toHaveBeenCalledTimes(2);
-    errorSpy.mockRestore();
+    expect(mocks.captureClientError).toHaveBeenCalledTimes(2);
   });
 });
