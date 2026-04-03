@@ -153,6 +153,7 @@ export interface CreateObfuscationSessionInput {
   tokenMint?: string;
   tokenType: 'SOL' | 'SPL';
   totalAmount: string;
+  creator: string;
 }
 
 // Session with joined wallet addresses

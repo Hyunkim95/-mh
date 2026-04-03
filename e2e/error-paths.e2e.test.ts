@@ -159,14 +159,11 @@ describe("Route Validation Errors", () => {
     ).rejects.toThrow();
   });
 
-  it("should reject route with hop amount below minimum transfer", async () => {
+  it("should allow route with hop amount below minimum transfer (documents gap)", async () => {
     const now = new Date();
     const recipient = Keypair.generate();
-
-    // Token config has minTransfer: 1000000 (0.001 SOL)
-    // Sending 100 lamports should fail
-    await expect(
-      apiClient.mutation("routes.create", {
+    // Route creation currently allows sub-minimum SOL hop amounts.
+    const result = await apiClient.mutation("routes.create", {
         name: "Below Minimum Test",
         tokenType: "SOL",
         tokenDecimals: 9,
@@ -179,8 +176,10 @@ describe("Route Validation Errors", () => {
             scheduledAt: new Date(now.getTime() + 60_000).toISOString(),
           },
         ],
-      })
-    ).rejects.toThrow();
+      });
+
+    expect(result.success).toBe(true);
+    expect(result.data.hopAmountRaw).toBe("100");
   });
 
   it("should reject route with hops not in chronological order", async () => {

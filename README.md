@@ -6,6 +6,220 @@ MultiHopper is a Solana-based token routing application that enables scheduled, 
 
 ---
 
+## Local Development
+
+### Prerequisites
+
+- Node.js 20+
+- Yarn 4
+- Docker Desktop
+
+Enable Corepack so the pinned Yarn version is available:
+
+```bash
+corepack enable
+```
+
+### 1. Create your local env
+
+Start from the example file:
+
+```bash
+cp env.example .env
+```
+
+Check what is still missing:
+
+```bash
+yarn env:check:local
+```
+
+Generate the values that can be safely generated locally:
+
+```bash
+yarn env:generate:local
+```
+
+Or append generated values directly into `.env`:
+
+```bash
+yarn env:generate:local:write
+```
+
+The helper script will generate these when missing:
+
+- `EXECUTOR_SEED`
+- `SIGNER_PRIVATE_KEY`
+- `JWT_SECRET`
+
+These still need to be supplied manually:
+
+- `HELIUS_API`
+
+The local dev stack uses these devnet defaults:
+
+- `SOLANA_RPC_URL=https://api.devnet.solana.com`
+- `VITE_RPC_URL=https://api.devnet.solana.com`
+
+Frontend API requests are same-origin by default:
+
+- browser/client uses `/trpc`
+- Vite proxies `/trpc` to `http://localhost:3001` in development
+- static hosting should proxy `/trpc` to the API origin
+
+Important notes:
+
+- `SIGNER_PRIVATE_KEY` must be a base58-encoded Solana secret key
+- if you change `.env`, restart the affected Docker services so they pick up the new values
+
+### 2. Start the dev stack
+
+```bash
+docker compose -f docker-compose.dev.yml up -d --build
+```
+
+In a separate terminal, run the shared workspace watchers once:
+
+```bash
+yarn dev:libs
+```
+
+The dev stack runs as separate processes:
+
+- `api-dev`: HTTP API on `http://localhost:3001`
+- `scheduler-dev`: hop + obfuscation schedulers
+- `indexer-dev`: contract events / ETL worker
+- `web-dev`: frontend on `http://localhost:5173`
+- `postgres-dev`: Postgres on `localhost:5433`
+
+The web app no longer needs a separate `VITE_API_URL` for normal local development.
+If you need to point Vite at a different backend during local work, set:
+
+- `VITE_DEV_API_PROXY_TARGET=http://localhost:3001`
+
+Useful checks:
+
+```bash
+docker compose -f docker-compose.dev.yml ps
+docker compose -f docker-compose.dev.yml logs api-dev --tail=200
+docker compose -f docker-compose.dev.yml logs scheduler-dev --tail=200
+docker compose -f docker-compose.dev.yml logs indexer-dev --tail=200
+```
+
+### 3. Live reload behavior
+
+Frontend edits refresh from mounted source:
+
+- `apps/`
+- `libs/`
+
+Backend behavior:
+
+- `apps/api/src` changes reload the API
+- `libs/server/src` changes rebuild `libs/server/dist`, which the API consumes
+
+### 4. Seed local data
+
+Seed the dev Postgres database:
+
+```bash
+NODE_ENV=development \
+DATABASE_URL=postgresql://trpc_user:trpc_password@localhost:5433/trpc_dev \
+yarn workspace @trpc-template/server db:seed
+```
+
+### 5. Reset the local database
+
+If you need a clean local DB:
+
+```bash
+docker compose -f docker-compose.dev.yml exec postgres-dev \
+  psql -U trpc_user -d trpc_dev -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
+
+docker compose -f docker-compose.dev.yml exec api-dev sh -lc \
+  'cd /app && DATABASE_URL=postgresql://trpc_user:trpc_password@postgres-dev:5432/trpc_dev yarn workspace @trpc-template/server db:push'
+```
+
+### 6. Mint a devnet SPL token with metadata
+
+Use the signer from `SIGNER_PRIVATE_KEY` to create a fungible SPL token on devnet, attach Metaplex metadata, and mint an initial supply to a target wallet:
+
+```bash
+SIGNER_PRIVATE_KEY=YOUR_BASE58_SECRET_KEY \
+yarn create:devnet-spl-token \
+  --name "Multihopper Dev Token" \
+  --symbol MDEV \
+  --amount 1000 \
+  --decimals 6 \
+  --recipient YOUR_WALLET_ADDRESS
+```
+
+Optional flags:
+
+- `--uri https://your-domain/token.json` to point metadata at a real token JSON
+- `--rpc https://api.devnet.solana.com` to override the RPC explicitly
+
+Notes:
+
+- the signer wallet must have enough devnet SOL to pay for mint creation, metadata creation, and the initial mint
+- the default metadata URI is `https://example.com/devnet-token.json`, which is fine for testing but will not show rich token details in most wallets
+
+### 7. Create a SOL route locally
+
+Use this flow to validate the basic easy-route path on devnet after the stack is running.
+
+1. Open `http://localhost:5173`
+2. Connect a wallet with devnet SOL
+3. Sign in when prompted
+4. Go to `/configure-hops`
+5. Choose `SOL`
+6. Enter the destination wallet, hop count, and amount
+7. Create the route and confirm the wallet transactions
+8. Watch the route move through draft, deployed, and completed states in the app
+
+Notes:
+
+- the connected wallet needs enough devnet SOL for the route amount and obfuscation overhead
+- the frontend talks to the API through the Vite `/trpc` proxy in local development, so you do not need to set `VITE_API_URL` for the normal local flow
+
+### 8. Create an SPL route locally
+
+Use this flow when you want to test token routing instead of native SOL.
+
+1. Mint a devnet SPL token first using the command in the previous section
+2. Make sure the destination wallet can receive the token
+3. Open `http://localhost:5173`
+4. Connect the wallet that holds the minted token and enough devnet SOL for fees
+5. Sign in when prompted
+6. Go to `/configure-hops`
+7. Choose the SPL token
+8. If the token does not appear in the selector yet, use the manual mint input path and paste the mint address
+9. Enter the destination wallet, hop count, and amount
+10. Create the route and confirm the wallet transactions
+
+Notes:
+
+- SPL routes still require SOL in the creator wallet for fees, obfuscation overhead, and associated token account creation when needed
+- when testing a fresh mint, you may need to initialize token config through the admin flow before the token is routable in the full app flow
+
+### 9. Make a wallet admin locally
+
+```bash
+docker compose -f docker-compose.dev.yml exec postgres-dev \
+  psql -U trpc_user -d trpc_dev -c \
+  "INSERT INTO \"user\" (public_key, role) VALUES ('YOUR_PUBLIC_KEY', 'admin') ON CONFLICT (public_key) DO UPDATE SET role = EXCLUDED.role;"
+```
+
+### 10. Common local issues
+
+If the frontend shows `Failed to fetch` or `ERR_CONNECTION_RESET`:
+
+- check `docker compose -f docker-compose.dev.yml ps`
+- inspect `api-dev` logs
+- confirm `http://localhost:3001/health` is reachable
+
+---
+
 ## Tech Stack
 
 ### Frontend
@@ -60,7 +274,7 @@ MultiHopper is a Solana-based token routing application that enables scheduled, 
 ```
 multihopper/
 ├── apps/
-│   ├── web/          # Vite React app (port 5173 dev, nginx in prod)
+│   ├── web/          # Vite React app (port 5173 dev)
 │   └── api/          # Fastify server (port 3001)
 ├── libs/
 │   ├── client/       # React components, hooks, pages, state
@@ -390,15 +604,21 @@ All three dynos run the same built API binary, differentiated by environment var
 
 ### Docker
 
-- **Production**: `docker-compose.yml` — PostgreSQL + API (multi-stage build) + Web (nginx)
+- **Production**: `docker-compose.yml` — PostgreSQL + API
 - **Development**: `docker-compose.dev.yml` — PostgreSQL (port 5433) + hot-reload API + Vite dev server
 
 ### Frontend Static Hosting
 
-Production web app served via nginx with:
+Production web app served via static hosting with:
 
 - Reverse proxy `/trpc` → API server
 - SPA fallback: all routes → `index.html`
+
+For Netlify, the repo includes `netlify.toml`:
+
+- `apps/web/dist` is the publish directory
+- `/trpc/*` is proxied to `https://multihopper-prod-db4f6830ced3.herokuapp.com/trpc/:splat`
+- all other routes fall back to `/index.html`
 
 ---
 

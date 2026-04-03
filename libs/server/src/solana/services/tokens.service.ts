@@ -1,6 +1,9 @@
 import axios from "axios";
 import { get } from "lodash";
 import { createLogger } from "@libs/logger";
+import { Connection, PublicKey } from "@solana/web3.js";
+import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { fetchTokenMetadata } from "@libs/solana-node";
 
 const log = createLogger("TokensService");
 
@@ -20,8 +23,21 @@ const invalidateCache = (owner: string): void => {
 export interface HelisuTokenResponse {
   interface: string;
   id: string;
+  token_info?: {
+    balance?: number | string;
+    decimals?: number;
+    price_per_token?: number;
+    price_info?: {
+      total_price?: number;
+      price_per_token?: number;
+    };
+  };
   content: {
     json_uri: string;
+    metadata?: {
+      name?: string;
+      symbol?: string;
+    };
     files: {
       uri: string;
       cdn_uri: string;
@@ -29,6 +45,19 @@ export interface HelisuTokenResponse {
     }[];
   };
 }
+
+const isLocalValidatorRpc = (rpcUrl?: string): boolean => {
+  if (!rpcUrl) return false;
+
+  return (
+    rpcUrl.includes("localhost:8899") ||
+    rpcUrl.includes("127.0.0.1:8899") ||
+    rpcUrl.includes("solana-validator-dev:8899")
+  );
+};
+
+const shouldUseLocalValidatorAssets = (): boolean =>
+  isLocalValidatorRpc(process.env.SOLANA_RPC_URL);
 
 const getHeliusApiUrl = (apiUrl?: string): string => {
   const resolvedUrl = apiUrl || process.env.HELIUS_API;
@@ -64,10 +93,76 @@ const fetchAssets = async (
   return response.data.result;
 };
 
+const fetchLocalValidatorAssets = async (
+  owner: string
+): Promise<HelisuTokenResponse[]> => {
+  const connection = new Connection(process.env.SOLANA_RPC_URL || "", "confirmed");
+  const ownerKey = new PublicKey(owner);
+  const tokenAccounts = await Promise.all([
+    connection.getParsedTokenAccountsByOwner(ownerKey, {
+      programId: TOKEN_PROGRAM_ID,
+    }),
+    connection.getParsedTokenAccountsByOwner(ownerKey, {
+      programId: TOKEN_2022_PROGRAM_ID,
+    }),
+  ]);
+
+  const assets: Array<HelisuTokenResponse | null> = await Promise.all(
+    tokenAccounts.flatMap((result) => result.value).map(async ({ account }) => {
+      const parsed = account.data.parsed?.info;
+      const tokenAmount = parsed?.tokenAmount;
+      const rawBalance = tokenAmount?.amount;
+      const decimals = tokenAmount?.decimals;
+      const mint = parsed?.mint;
+
+      if (!mint || !rawBalance || Number(rawBalance) <= 0) {
+        return null;
+      }
+
+      const metadata = await fetchTokenMetadata(connection, mint);
+
+      return {
+        interface: "FungibleToken",
+        id: mint,
+        token_info: {
+          balance: rawBalance,
+          decimals,
+        },
+        content: {
+          json_uri: metadata?.uri || "",
+          files: metadata?.image
+            ? [
+                {
+                  uri: metadata.image,
+                  cdn_uri: metadata.image,
+                  mime: "image/*",
+                },
+              ]
+            : [],
+          metadata: {
+            name: metadata?.name || `Token ${mint.slice(0, 6)}`,
+            symbol: metadata?.symbol || mint.slice(0, 6),
+          },
+        },
+      };
+    })
+  );
+
+  return assets.filter((asset): asset is HelisuTokenResponse => asset !== null);
+};
+
 const getTokenAccounts = async (
   owner: string,
   apiUrl?: string
 ): Promise<HelisuTokenResponse[]> => {
+  if (shouldUseLocalValidatorAssets()) {
+    const localAssets = await fetchLocalValidatorAssets(owner);
+    log.debug(
+      `Fetched ${localAssets.length} tokens for owner ${owner} from local validator.`
+    );
+    return localAssets;
+  }
+
   let hasMore = true;
   let limit = 100;
   let page = 1;

@@ -1,4 +1,4 @@
-import { Connection, clusterApiUrl } from "@solana/web3.js";
+import { Connection, PublicKey, clusterApiUrl } from "@solana/web3.js";
 import { eq, sql } from "drizzle-orm";
 import crypto from "crypto";
 import BN from "bn.js";
@@ -173,19 +173,6 @@ async function generateRandomSplit(total: BN, count: number): Promise<BN[]> {
     return [total];
   }
 
-  const minLamportsPerWallet = await getMinLamportsPerWallet();
-  // 2x safety margin so splits stay valid even if fees spike before aggregation
-  const FEE_SAFETY_MULTIPLIER = 2;
-  const minPerWallet = new BN(minLamportsPerWallet * FEE_SAFETY_MULTIPLIER);
-  const minTotal = minPerWallet.mul(new BN(count));
-
-  // Check if we have enough funds for the minimum per wallet
-  if (total.lt(minTotal)) {
-    throw new Error(
-      `Insufficient funds for obfuscation: need at least ${minTotal.toString()} lamports for ${count} wallets, but only have ${total.toString()}`,
-    );
-  }
-
   // Generate random weights using exponential distribution for natural variation
   // This produces varied splits instead of near-identical amounts obvious on chain explorers
   const MAX_SHARE_PCT = 0.5; // Cap: no wallet gets more than 50% of remainder
@@ -224,23 +211,22 @@ async function generateRandomSplit(total: BN, count: number): Promise<BN[]> {
     }
   }
 
-  // Allocate minimum + weight-proportional share of remainder for ALL wallets.
+  // Allocate weight-proportional share for ALL wallets.
   // The last wallet is computed from its weight like everyone else;
   // any BN rounding dust (a few lamports) is added to wallet 0.
-  const remainder = total.sub(minTotal);
   const splits: BN[] = [];
   let distributed = new BN(0);
   const SCALE = 1_000_000_000;
 
   for (let i = 0; i < count; i++) {
     const weightScaled = Math.floor(normalized[i] * SCALE);
-    const extra = remainder.mul(new BN(weightScaled)).div(new BN(SCALE));
-    splits.push(minPerWallet.add(extra));
-    distributed = distributed.add(extra);
+    const split = total.mul(new BN(weightScaled)).div(new BN(SCALE));
+    splits.push(split);
+    distributed = distributed.add(split);
   }
 
   // Fix rounding dust: add any undistributed lamports to the first wallet
-  const dust = remainder.sub(distributed);
+  const dust = total.sub(distributed);
   if (!dust.isZero()) {
     splits[0] = splits[0].add(dust);
   }
@@ -427,6 +413,25 @@ async function createSession(
     hopCount,
     amountLamports,
   );
+
+  const requiredSolLamports =
+    input.tokenType === "SOL"
+      ? totalAmountBN.add(new BN(feeEstimate.totalFeesLamports))
+      : new BN(feeEstimate.totalFeesLamports);
+  const creatorBalanceLamports = await connection.getBalance(
+    new PublicKey(input.creator),
+  );
+
+  const creatorBalanceBN = new BN(creatorBalanceLamports);
+  if (creatorBalanceBN.lt(requiredSolLamports)) {
+    const requiredLabel =
+      input.tokenType === "SOL"
+        ? "route amount plus obfuscation overhead"
+        : "obfuscation overhead";
+    throw new Error(
+      `Insufficient funds for obfuscation: need at least ${requiredSolLamports.toString()} lamports for ${requiredLabel}, but wallet only has ${creatorBalanceLamports}`,
+    );
+  }
 
   // Generate intermediate wallets in parallel
   const walletPromises = Array.from({ length: intermediateCount }, (_, i) => {

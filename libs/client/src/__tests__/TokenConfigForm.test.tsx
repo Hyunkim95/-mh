@@ -54,7 +54,7 @@ describe("TokenConfigForm", () => {
     expect(onSubmit).toHaveBeenCalledWith({
       tokenConfig: {
         minTransfer: "0",
-        feeBps: "12500",
+        feeBps: "125",
         feeTreasury: "new-treasury",
         maxHops: "7",
         maxDelaySeconds: "10800",

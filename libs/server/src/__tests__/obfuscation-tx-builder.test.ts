@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { PublicKey, Keypair, Transaction } from "@solana/web3.js";
+import { PublicKey, Keypair, Transaction, SystemInstruction } from "@solana/web3.js";
 
 // Mock config first - this must be before other mocks that might use it
 vi.mock("../config/config", () => ({
@@ -77,6 +77,7 @@ vi.mock("../obfuscation/services/obfuscation.service", () => ({
     getSession: mockGetSession,
     getWalletManager: () => ({}),
     getDeploymentCost: () => 100_000_000, // 0.1 SOL mock
+    getMinLamportsPerWallet: vi.fn().mockResolvedValue(1_075_880),
     getDynamicFees: vi.fn().mockResolvedValue({
       ataRentLamports: 2039280,
       rentExemptMinimumLamports: 890880,
@@ -292,6 +293,33 @@ describe("ObfuscationTxBuilder", () => {
       );
 
       expect(results).toHaveLength(0);
+    });
+
+    it("guarantees each SOL-funded wallet gets at least minLamportsPerWallet", async () => {
+      const tinySolSession = {
+        ...mockSession,
+        totalAmount: "10",
+        intermediateWallets: [
+          {
+            ...mockSession.intermediateWallets[0],
+            allocatedAmount: "1",
+            fundingStatus: "pending",
+          },
+        ],
+      };
+      mockGetSessionWithWallets.mockResolvedValue(tinySolSession);
+
+      const sourceWallet = new PublicKey("11111111111111111111111111111111");
+      await obfuscationTxBuilder.buildAllFundingTransactions(1, sourceWallet);
+
+      const builtTx = mockSerialize.mock.calls[0]?.[0] as Transaction;
+      const transferIx = builtTx.instructions.find((ix) =>
+        ix.programId.equals(new PublicKey("11111111111111111111111111111111"))
+      );
+
+      expect(transferIx).toBeDefined();
+      const decoded = SystemInstruction.decodeTransfer(transferIx!);
+      expect(decoded.lamports).toBeGreaterThanOrEqual(1_075_880n);
     });
   });
 
@@ -647,6 +675,38 @@ describe("ObfuscationTxBuilder", () => {
       const results = await obfuscationTxBuilder.buildAllFundingTransactions(1, sourceWallet);
 
       expect(results.length).toBe(2); // 2 pending wallets
+    });
+
+    it("guarantees each SPL-funded wallet gets at least minLamportsPerWallet in SOL", async () => {
+      const tinySplSession = {
+        ...mockSession,
+        tokenMint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        tokenType: "SPL",
+        totalAmount: "10",
+        intermediateWallets: [
+          {
+            ...mockSession.intermediateWallets[0],
+            allocatedAmount: "1",
+            fundingStatus: "pending",
+          },
+        ],
+      };
+      mockGetSessionWithWallets.mockResolvedValue(tinySplSession);
+      mockGetAssociatedTokenAddress.mockResolvedValue(new PublicKey("11111111111111111111111111111111"));
+      mockGetAccount.mockRejectedValue(new Error("Account not found"));
+
+      const sourceWallet = new PublicKey("11111111111111111111111111111111");
+      await obfuscationTxBuilder.buildAllFundingTransactions(1, sourceWallet);
+
+      const builtTx = mockSerialize.mock.calls[0]?.[0] as Transaction;
+      const transferIxs = builtTx.instructions.filter((ix) =>
+        ix.programId.equals(new PublicKey("11111111111111111111111111111111"))
+      );
+      const solFundingIx = transferIxs.at(-1);
+
+      expect(solFundingIx).toBeDefined();
+      const decoded = SystemInstruction.decodeTransfer(solFundingIx!);
+      expect(decoded.lamports).toBeGreaterThanOrEqual(1_075_880n);
     });
   });
 

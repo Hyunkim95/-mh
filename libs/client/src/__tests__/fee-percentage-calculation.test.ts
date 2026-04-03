@@ -3,11 +3,8 @@ import { describe, it, expect } from "vitest";
 /**
  * Tests for fee percentage calculation from token config.
  *
- * The backend returns feeBps (basis points) differently for SPL vs SOL:
- * - SPL: Already divided by 10,000 (e.g., "0.01" for 1%)
- * - SOL: Raw basis points (e.g., "100" for 1%)
- *
- * Frontend must handle both correctly.
+ * Both SPL and SOL endpoints return feeBps as raw basis points (e.g., "100" for 1%).
+ * Frontend divides by 10,000 to get the decimal fee rate.
  */
 
 // Default fee percentage used when config unavailable
@@ -20,11 +17,11 @@ function calculateFeePercentage(
   tokenConfigSOL: { data?: { feeBps?: string } } | null | undefined
 ): number {
   if (tokenType === "SPL" && tokenConfigSPL?.data?.feeBps) {
-    // feeBps is already divided by 10,000 in backend for SPL
-    return parseFloat(tokenConfigSPL.data.feeBps);
+    // feeBps is raw basis points, divide by 10_000 to get decimal
+    return parseFloat(tokenConfigSPL.data.feeBps) / 10_000;
   }
   if (tokenType === "SOL" && tokenConfigSOL?.data?.feeBps) {
-    // feeBps is raw basis points for SOL, need to divide by 10,000
+    // feeBps is raw basis points, divide by 10_000 to get decimal
     return parseFloat(tokenConfigSOL.data.feeBps) / 10_000;
   }
   return DEFAULT_FEE_PERCENTAGE;
@@ -32,35 +29,32 @@ function calculateFeePercentage(
 
 describe("feePercentage calculation from token config", () => {
   describe("SPL token config", () => {
-    it("should parse feeBps correctly (already divided by 10,000)", () => {
-      const tokenConfigSPL = { data: { feeBps: "0.01" } }; // 1%
+    it("should divide raw feeBps by 10,000", () => {
+      const tokenConfigSPL = { data: { feeBps: "100" } }; // 100 bps = 1%
 
       const feePercentage = calculateFeePercentage("SPL", tokenConfigSPL, null);
 
       expect(feePercentage).toBe(0.01);
     });
 
-    it("should handle 100 bps (1%)", () => {
-      // Backend divides 100 by 10000 = 0.01
-      const tokenConfigSPL = { data: { feeBps: "0.01" } };
+    it("should handle 100 bps -> 0.01 (1%)", () => {
+      const tokenConfigSPL = { data: { feeBps: "100" } };
 
       const feePercentage = calculateFeePercentage("SPL", tokenConfigSPL, null);
 
       expect(feePercentage).toBe(0.01);
     });
 
-    it("should handle 50 bps (0.5%)", () => {
-      // Backend divides 50 by 10000 = 0.005
-      const tokenConfigSPL = { data: { feeBps: "0.005" } };
+    it("should handle 50 bps -> 0.005 (0.5%)", () => {
+      const tokenConfigSPL = { data: { feeBps: "50" } };
 
       const feePercentage = calculateFeePercentage("SPL", tokenConfigSPL, null);
 
       expect(feePercentage).toBe(0.005);
     });
 
-    it("should handle 500 bps (5%)", () => {
-      // Backend divides 500 by 10000 = 0.05
-      const tokenConfigSPL = { data: { feeBps: "0.05" } };
+    it("should handle 500 bps -> 0.05 (5%)", () => {
+      const tokenConfigSPL = { data: { feeBps: "500" } };
 
       const feePercentage = calculateFeePercentage("SPL", tokenConfigSPL, null);
 
@@ -68,7 +62,7 @@ describe("feePercentage calculation from token config", () => {
     });
 
     it("should handle very small fees (1 bp = 0.01%)", () => {
-      const tokenConfigSPL = { data: { feeBps: "0.0001" } };
+      const tokenConfigSPL = { data: { feeBps: "1" } };
 
       const feePercentage = calculateFeePercentage("SPL", tokenConfigSPL, null);
 
@@ -205,17 +199,17 @@ describe("feePercentage calculation from token config", () => {
       expect(feePercentage).toBe(0.5);
     });
 
-    it("should handle very precise fee values", () => {
-      const tokenConfigSPL = { data: { feeBps: "0.0123456789" } };
+    it("should handle very precise fee values for SPL", () => {
+      const tokenConfigSPL = { data: { feeBps: "123" } }; // 123 bps = 1.23%
 
       const feePercentage = calculateFeePercentage("SPL", tokenConfigSPL, null);
 
-      expect(feePercentage).toBeCloseTo(0.0123456789, 10);
+      expect(feePercentage).toBeCloseTo(0.0123, 10);
     });
 
     it("should ignore SOL config when token type is SPL", () => {
-      const tokenConfigSPL = { data: { feeBps: "0.02" } }; // 2%
-      const tokenConfigSOL = { data: { feeBps: "500" } }; // 5%
+      const tokenConfigSPL = { data: { feeBps: "200" } }; // 200 bps = 2%
+      const tokenConfigSOL = { data: { feeBps: "500" } }; // 500 bps = 5%
 
       const feePercentage = calculateFeePercentage(
         "SPL",
@@ -227,8 +221,8 @@ describe("feePercentage calculation from token config", () => {
     });
 
     it("should ignore SPL config when token type is SOL", () => {
-      const tokenConfigSPL = { data: { feeBps: "0.02" } }; // 2%
-      const tokenConfigSOL = { data: { feeBps: "500" } }; // 5%
+      const tokenConfigSPL = { data: { feeBps: "200" } }; // 200 bps = 2%
+      const tokenConfigSOL = { data: { feeBps: "500" } }; // 500 bps = 5%
 
       const feePercentage = calculateFeePercentage(
         "SOL",
@@ -242,14 +236,13 @@ describe("feePercentage calculation from token config", () => {
 
   describe("Consistency between SPL and SOL formats", () => {
     it("100 bps should equal 1% for both token types", () => {
-      // SPL: backend already converted to 0.01
+      // Both SPL and SOL now return raw basis points
       const splFee = calculateFeePercentage(
         "SPL",
-        { data: { feeBps: "0.01" } },
+        { data: { feeBps: "100" } },
         null
       );
 
-      // SOL: raw 100 bps, frontend converts
       const solFee = calculateFeePercentage(
         "SOL",
         null,
@@ -264,7 +257,7 @@ describe("feePercentage calculation from token config", () => {
     it("500 bps should equal 5% for both token types", () => {
       const splFee = calculateFeePercentage(
         "SPL",
-        { data: { feeBps: "0.05" } },
+        { data: { feeBps: "500" } },
         null
       );
 

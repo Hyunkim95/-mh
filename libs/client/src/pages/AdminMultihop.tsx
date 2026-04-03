@@ -35,6 +35,16 @@ export const AdminMultihop = () => {
 
   const hasTokenConfig = !!tokenConfigs?.data;
 
+  // Convert raw API response to human-readable format for the form
+  const formInitialValues = tokenConfigs?.data
+    ? {
+        feeBps: (parseFloat(tokenConfigs.data.feeBps) / 100).toString(),
+        feeTreasury: tokenConfigs.data.feeTreasury,
+        maxHops: tokenConfigs.data.maxHops,
+        flatFeeLamport: (parseFloat(tokenConfigs.data.flatFeeLamports) / 1_000_000_000).toString(),
+      }
+    : undefined;
+
   const isWalletMismatch =
     hasTokenConfig &&
     publicKey &&
@@ -114,9 +124,7 @@ export const AdminMultihop = () => {
                       await handleUpdateTokenConfig(data)
                       : await handleIntiaizlizeTokenConfig(data)
                     }}
-                    initialValues={
-                      tokenConfigs?.data ?? undefined
-                    }
+                    initialValues={formInitialValues}
                     isLoading={tokenConfigPending || updateTokenConfigPending}
                     error={tokenConfigError?.message}
                   />

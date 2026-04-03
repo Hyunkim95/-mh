@@ -9,6 +9,11 @@ const { mockAxiosPost } = vi.hoisted(() => {
   };
 });
 
+const localValidatorMocks = vi.hoisted(() => ({
+  getParsedTokenAccountsByOwner: vi.fn(),
+  fetchTokenMetadata: vi.fn(),
+}));
+
 // Mock axios
 vi.mock("axios", () => ({
   default: {
@@ -33,6 +38,27 @@ vi.mock("@libs/logger", () => ({
   }),
 }));
 
+vi.mock("@solana/web3.js", () => ({
+  Connection: class MockConnection {
+    getParsedTokenAccountsByOwner = localValidatorMocks.getParsedTokenAccountsByOwner;
+  },
+  PublicKey: class MockPublicKey {
+    constructor(public value: string) {}
+    toBase58() {
+      return this.value;
+    }
+  },
+}));
+
+vi.mock("@solana/spl-token", () => ({
+  TOKEN_PROGRAM_ID: "token-program",
+  TOKEN_2022_PROGRAM_ID: "token-2022-program",
+}));
+
+vi.mock("@libs/solana-node", () => ({
+  fetchTokenMetadata: localValidatorMocks.fetchTokenMetadata,
+}));
+
 import {
   tokensService,
   getTokenPrice,
@@ -42,8 +68,11 @@ import {
 describe("tokensService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.SOLANA_RPC_URL = "https://api.devnet.solana.com";
     // Invalidate caches between tests
     tokensService.invalidateCache("testOwner");
+    tokensService.invalidateCache("localOwner");
+    tokensService.invalidateCache("localCrossOwner");
   });
 
   describe("getTokensAccountsWithCache", () => {
@@ -198,6 +227,85 @@ describe("tokensService", () => {
       expect(result.tokenConfigs).toEqual([]);
 
       tokensService.invalidateCache("emptyOwner");
+    });
+  });
+
+  describe("local validator fallback", () => {
+    it("returns locally minted SPL tokens from RPC instead of Helius", async () => {
+      process.env.SOLANA_RPC_URL = "http://localhost:8899";
+      localValidatorMocks.getParsedTokenAccountsByOwner
+        .mockResolvedValueOnce({
+          value: [
+            {
+              account: {
+                data: {
+                  parsed: {
+                    info: {
+                      mint: "mint-one",
+                      tokenAmount: {
+                        amount: "1500000",
+                        decimals: 6,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({ value: [] });
+      localValidatorMocks.fetchTokenMetadata.mockResolvedValue({
+        name: "Local Token",
+        symbol: "LOCAL",
+        uri: "https://example.com/meta.json",
+        image: "https://example.com/token.png",
+      });
+
+      const result = await tokensService.getTokensAccountsWithCache("localOwner");
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        interface: "FungibleToken",
+        id: "mint-one",
+        token_info: {
+          balance: "1500000",
+          decimals: 6,
+        },
+      });
+      expect(result[0].content.metadata?.name).toBe("Local Token");
+      expect(mockAxiosPost).not.toHaveBeenCalled();
+    });
+
+    it("crossSection uses local validator assets when running locally", async () => {
+      process.env.SOLANA_RPC_URL = "http://localhost:8899";
+      localValidatorMocks.getParsedTokenAccountsByOwner
+        .mockResolvedValueOnce({
+          value: [
+            {
+              account: {
+                data: {
+                  parsed: {
+                    info: {
+                      mint: "mint-two",
+                      tokenAmount: {
+                        amount: "42",
+                        decimals: 0,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({ value: [] });
+      localValidatorMocks.fetchTokenMetadata.mockResolvedValue(null);
+
+      const result = await crossSectionWithTokenConfigs("localCrossOwner");
+
+      expect(result.tokens).toHaveLength(1);
+      expect(result.tokens[0].id).toBe("mint-two");
+      expect(result.tokenConfigs).toEqual([]);
     });
   });
 

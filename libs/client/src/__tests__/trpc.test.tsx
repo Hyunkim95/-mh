@@ -16,6 +16,8 @@ describe("client trpc", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
+    vi.stubEnv("VITE_API_URL", "");
     mocks.storage.clear();
     mocks.createClient.mockReturnValue({ kind: "trpc-client" });
     mocks.createTRPCReact.mockReturnValue({
@@ -30,6 +32,9 @@ describe("client trpc", () => {
         setItem: (key: string, value: string) => {
           mocks.storage.set(key, value);
         },
+        removeItem: (key: string) => {
+          mocks.storage.delete(key);
+        },
       },
     });
 
@@ -37,9 +42,23 @@ describe("client trpc", () => {
       configurable: true,
       value: mocks.fetch.mockResolvedValue({ ok: true }),
     });
+
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: {
+        location: {
+          pathname: "/my-assets",
+          replace: vi.fn(),
+        },
+        dispatchEvent: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      },
+    });
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.doUnmock("@trpc/react-query");
     vi.doUnmock("@trpc/client");
     vi.doUnmock("../utils/monitoring");
@@ -63,7 +82,7 @@ describe("client trpc", () => {
 
     expect(mocks.createTRPCReact).toHaveBeenCalled();
     expect(mocks.createClient).toHaveBeenCalled();
-    expect(options.url).toBe("http://localhost:3001/trpc");
+    expect(options.url).toBe("/trpc");
     expect(options.headers()).toEqual({
       authorization: "Bearer jwt-token",
       "content-type": "application/json",
@@ -86,7 +105,7 @@ describe("client trpc", () => {
     expect(defaults.queries?.retry?.(3, { message: "boom" })).toBe(false);
   });
 
-  it("omits auth headers when no token exists and exposes error handlers", async () => {
+  it("omits auth headers, clears invalid auth tokens, and exposes error handlers", async () => {
     vi.doMock("@trpc/react-query", () => ({
       createTRPCReact: mocks.createTRPCReact,
     }));
@@ -100,14 +119,32 @@ describe("client trpc", () => {
     const module = await import("../trpc");
     const defaults = module.queryClient.getDefaultOptions();
     const options = mocks.httpBatchLink.mock.calls[0]?.[0];
-
+    const cancelQueriesSpy = vi.spyOn(module.queryClient, "cancelQueries");
     expect(options.headers()).toEqual({
       "content-type": "application/json",
     });
 
-    defaults.queries?.onError?.(new Error("query boom"));
-    defaults.mutations?.onError?.(new Error("mutation boom"));
+    mocks.storage.set("token", "stale-token");
+    defaults.queries?.onError?.({ data: { httpStatus: 401 }, message: "UNAUTHORIZED" });
+    expect(mocks.storage.get("token")).toBeUndefined();
+    expect(cancelQueriesSpy).toHaveBeenCalledTimes(1);
+    expect(globalThis.window.location.replace).toHaveBeenCalledWith("/login");
 
-    expect(mocks.captureClientError).toHaveBeenCalledTimes(2);
+    mocks.storage.set("token", "bad-signature-token");
+    defaults.mutations?.onError?.(
+      new Error("The token signature is invalid.")
+    );
+    expect(mocks.storage.get("token")).toBeUndefined();
+    expect(cancelQueriesSpy).toHaveBeenCalledTimes(2);
+    expect(globalThis.window.location.replace).toHaveBeenCalledWith("/login");
+
+    mocks.storage.set("token", "still-valid");
+    defaults.queries?.onError?.(new Error("query boom"));
+    expect(mocks.storage.get("token")).toBe("still-valid");
+    defaults.mutations?.onError?.(new Error("mutation boom"));
+    expect(mocks.storage.get("token")).toBe("still-valid");
+    expect(cancelQueriesSpy).toHaveBeenCalledTimes(2);
+
+    expect(mocks.captureClientError).toHaveBeenCalledTimes(4);
   });
 });

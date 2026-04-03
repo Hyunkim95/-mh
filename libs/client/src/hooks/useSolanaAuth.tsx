@@ -1,6 +1,6 @@
 import { Buffer } from "buffer";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import bs58 from "bs58";
 import { Transaction } from "@solana/web3.js";
 import { SystemProgram } from "@solana/web3.js";
@@ -8,18 +8,34 @@ import { PublicKey } from "@solana/web3.js";
 import { TransactionInstruction } from "@solana/web3.js";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { trpc, queryClient } from "../trpc";
+import {
+  clearStoredAuthToken,
+  getStoredAuthToken,
+  setStoredAuthToken,
+  subscribeToAuthTokenChange,
+} from "../utils/authToken";
 
 export const useSolanaAuth = () => {
+  const authToken = useSyncExternalStore(
+    subscribeToAuthTokenChange,
+    getStoredAuthToken,
+    () => null
+  );
+
   const {
-    data: userData,
+    data: fetchedUserData,
     refetch: refetchUser,
-    isFetching,
-    isLoading,
+    isFetching: isSessionFetching,
+    isLoading: isSessionLoading,
     isFetched,
   } = trpc.auth.me.useQuery(undefined, {
+    enabled: !!authToken,
     retry: false,
     refetchOnWindowFocus: false,
   });
+  const userData = authToken ? fetchedUserData : null;
+  const isLoading = !!authToken && isSessionLoading;
+  const isFetching = !!authToken && isSessionFetching;
   const { mutateAsync: createMessage, isPending } =
     trpc.auth.createMessage.useMutation();
   const {
@@ -133,7 +149,7 @@ export const useSolanaAuth = () => {
         isHardwareWallet,
       });
 
-      localStorage.setItem("token", token);
+      setStoredAuthToken(token);
       await refetchUser();
     } catch (err) {
       const error =
@@ -152,7 +168,7 @@ export const useSolanaAuth = () => {
   ]);
 
   const logout = useCallback(async () => {
-    localStorage.removeItem("token");
+    clearStoredAuthToken();
     try {
       await disconnectWallet();
       await queryClient.cancelQueries();

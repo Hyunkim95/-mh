@@ -191,6 +191,56 @@ describe("useSolanaAuth", () => {
     expect(refetchUser).toHaveBeenCalled();
   });
 
+  it("only enables auth.me when a token exists", () => {
+    renderHook(() => useSolanaAuth());
+
+    expect(mocks.meUseQuery).toHaveBeenCalledWith(
+      undefined,
+      expect.objectContaining({
+        enabled: false,
+        retry: false,
+        refetchOnWindowFocus: false,
+      })
+    );
+
+    vi.clearAllMocks();
+    globalThis.localStorage.setItem("token", "jwt-token");
+    mocks.meUseQuery.mockReturnValue({
+      data: { publicKey: "wallet-1" },
+      refetch: vi.fn().mockResolvedValue(undefined),
+      isFetching: false,
+      isLoading: false,
+      isFetched: true,
+    });
+
+    renderHook(() => useSolanaAuth());
+
+    expect(mocks.meUseQuery).toHaveBeenCalledWith(
+      undefined,
+      expect.objectContaining({
+        enabled: true,
+        retry: false,
+        refetchOnWindowFocus: false,
+      })
+    );
+  });
+
+  it("treats cached auth data as logged out when the token is missing", () => {
+    mocks.meUseQuery.mockReturnValue({
+      data: { publicKey: "wallet-1", role: "admin" },
+      refetch: vi.fn().mockResolvedValue(undefined),
+      isFetching: true,
+      isLoading: true,
+      isFetched: true,
+    });
+
+    const { result } = renderHook(() => useSolanaAuth());
+
+    expect(result.current.userData).toBeNull();
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.isFetching).toBe(false);
+  });
+
   it("uses transaction signing for hardware wallets", async () => {
     mocks.useWallet.mockReturnValue({
       publicKey: { toString: mocks.publicKeyToString },

@@ -75,11 +75,11 @@ test.describe("Update Token Config - Admin Dashboard", () => {
     while (Date.now() < deadline) {
       configJson = JSON.parse(solana("get-token-config"));
       console.log("Token config from API:", JSON.stringify(configJson));
-      if (configJson.feeBps === "2" && configJson.maxHops === "8") break;
+      if (configJson.feeBps === "200" && configJson.maxHops === "8") break;
       await page.waitForTimeout(2_000);
     }
-    // SPL endpoint returns feeBps as percentage (raw / 10,000): 2.0% → "2"
-    expect(configJson.feeBps).toBe("2");
+    // SPL endpoint returns raw basis points: 2.0% → 200 BPS → "200"
+    expect(configJson.feeBps).toBe("200");
     expect(configJson.maxHops).toBe("8");
     console.log("Token config values verified via API:", configJson);
 

@@ -136,6 +136,7 @@ async function buildFundingTransaction(
 ): Promise<{ transaction: Transaction; serialized: string }> {
   const transaction = new Transaction();
   const connection = getConnection();
+  const minLamportsPerWallet = await obfuscationService.getMinLamportsPerWallet();
 
   // Add priority fee instructions with lower compute units for simple transfers
   // Default is 400k, but simple SPL transfers only need ~50k-100k
@@ -202,12 +203,13 @@ async function buildFundingTransaction(
     const walletXCleanupSharePerWallet = Math.ceil(WALLET_X_CLEANUP_BUFFER_LAMPORTS / totalWalletCount);
     const totalSolFunding =
       deploymentSharePerWallet + AGGREGATION_FEE_PER_WALLET + cleanupReservationPerWallet + walletXCleanupSharePerWallet;
+    const safeTotalSolFunding = Math.max(totalSolFunding, minLamportsPerWallet);
 
     transaction.add(
       SystemProgram.transfer({
         fromPubkey: sourceWallet,
         toPubkey: intermediateWalletAddress,
-        lamports: totalSolFunding,
+        lamports: safeTotalSolFunding,
       }),
     );
   } else {
@@ -233,7 +235,10 @@ async function buildFundingTransaction(
     const walletXCleanupSharePerWallet = Math.ceil(WALLET_X_CLEANUP_BUFFER_LAMPORTS / totalWalletCount);
     const extraSolForDeployment =
       deploymentSharePerWallet + AGGREGATION_FEE_PER_WALLET + cleanupReservationPerWallet + walletXCleanupSharePerWallet;
-    const totalFunding = amount.toNumber() + extraSolForDeployment;
+    const totalFunding = Math.max(
+      amount.toNumber() + extraSolForDeployment,
+      minLamportsPerWallet,
+    );
 
     transaction.add(
       SystemProgram.transfer({

@@ -78,6 +78,7 @@ const createRoute = async (input: CreateRouteInput): Promise<Routes> => {
       tokenMint: input.tokenMint,
       tokenType: input.tokenType,
       totalAmount: input.hopAmountRaw,
+      creator: input.creator,
     });
   } catch (error) {
     // Re-throw error to fail route creation - obfuscation is required

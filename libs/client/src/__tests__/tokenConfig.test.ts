@@ -6,10 +6,10 @@ import {
 
 describe("tokenConfig conversions", () => {
   describe("convertHumanReadableToTokenConfigInput", () => {
-    it("converts percentage to basis points (* 10000)", () => {
+    it("converts percentage to basis points (* 100)", () => {
       const result = convertHumanReadableToTokenConfigInput({
         minTransferAmount: "0.001",
-        feeBps: "0.05", // 0.05% = 500 bps
+        feeBps: "5", // 5% = 500 bps
         feeTreasury: "Treasury123",
         maxHops: "10",
         maxDelayHours: "1",
@@ -75,7 +75,7 @@ describe("tokenConfig conversions", () => {
   });
 
   describe("convertTokenConfigInputToHumanReadable", () => {
-    it("converts basis points to percentage (/ 10000)", () => {
+    it("converts basis points to percentage (/ 100)", () => {
       const result = convertTokenConfigInputToHumanReadable({
         minTransfer: "1000000",
         feeBps: "500",
@@ -85,7 +85,7 @@ describe("tokenConfig conversions", () => {
         timelockSeconds: "7200",
         flatFeeLamports: "1000000000",
       });
-      expect(result.feeBps).toBe("0.05"); // 500 / 10000
+      expect(result.feeBps).toBe("5"); // 500 / 100
     });
 
     it("converts seconds to hours", () => {

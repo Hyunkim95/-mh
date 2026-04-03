@@ -1396,9 +1396,7 @@ export const getTokenConfigSPL = async () => {
     return {
       creator: tokenConfigAccount.creator.toBase58(),
       minTransfer: tokenConfigAccount.minTransfer.toString(),
-      feeBps: (
-        Number(tokenConfigAccount.feeBps.toString()) / 10_000
-      ).toString(),
+      feeBps: tokenConfigAccount.feeBps.toString(),
       feeTreasury: tokenConfigAccount.feeTreasury.toBase58(),
       maxHops: tokenConfigAccount.maxHops.toString(),
       flatFeeLamports: tokenConfigAccount.flatFeeLamports.toString(),

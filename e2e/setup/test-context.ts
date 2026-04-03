@@ -2,7 +2,9 @@ import { Connection, Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import crypto from "crypto";
 
 export const SOLANA_RPC_URL = "http://localhost:8899";
-export const API_URL = "http://localhost:3001";
+export const API_URL = process.env.CI
+  ? "http://localhost:3001"
+  : "http://localhost:3002";
 
 // Deterministic test payer (same seed in global-setup.ts)
 const TEST_PAYER_SEED = crypto

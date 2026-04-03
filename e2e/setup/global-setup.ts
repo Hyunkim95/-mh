@@ -9,7 +9,9 @@ import {
 import { airdrop } from "../helpers/airdrop";
 
 const SOLANA_RPC_URL = "http://localhost:8899";
-const API_URL = "http://localhost:3001";
+const API_URL = process.env.CI
+  ? "http://localhost:3001"
+  : "http://localhost:3002";
 const TEST_PAYER_SEED = crypto
   .createHash("sha256")
   .update("e2e_test_payer")
@@ -61,12 +63,14 @@ function startLocalValidator(): ChildProcess {
 
 async function waitForApi(
   url: string,
-  timeoutMs: number = 120_000
+  timeoutMs: number = 240_000
 ): Promise<void> {
   const start = Date.now();
+  let lastStatus: number | null = null;
   while (Date.now() - start < timeoutMs) {
     try {
       const res = await fetch(`${url}/health`);
+      lastStatus = res.status;
       if (res.ok) {
         console.log("API ready");
         return;
@@ -76,7 +80,11 @@ async function waitForApi(
     }
     await new Promise((r) => setTimeout(r, 2000));
   }
-  throw new Error(`API did not become healthy within ${timeoutMs}ms`);
+  throw new Error(
+    `API at ${url} did not become healthy within ${timeoutMs}ms${
+      lastStatus ? ` (last status: ${lastStatus})` : ""
+    }`
+  );
 }
 
 export async function setup() {
@@ -104,7 +112,7 @@ export async function setup() {
   console.log("\nWaiting for services...");
   await waitForSolanaValidator(SOLANA_RPC_URL, 60_000);
   await waitForPostgres("localhost", 5434, 30_000);
-  await waitForApi(API_URL, 120_000);
+  await waitForApi(API_URL, 240_000);
 
   // 4. Airdrop SOL to test payer
   console.log("\nAirdropping SOL to test payer...");

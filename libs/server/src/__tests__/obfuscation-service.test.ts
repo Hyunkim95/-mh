@@ -5,6 +5,7 @@ import crypto from "crypto";
 // Use vi.hoisted to create mock functions that can be referenced in mocks
 const {
   mockGetMinimumBalanceForRentExemption,
+  mockGetBalance,
   mockTransaction,
   mockFindFirst,
   mockFindMany,
@@ -15,6 +16,7 @@ const {
   mockGetRecommendedPriorityFee,
 } = vi.hoisted(() => ({
   mockGetMinimumBalanceForRentExemption: vi.fn(),
+  mockGetBalance: vi.fn(),
   mockTransaction: vi.fn(),
   mockFindFirst: vi.fn(),
   mockFindMany: vi.fn(),
@@ -100,6 +102,7 @@ vi.mock("@solana/web3.js", async () => {
       lastValidBlockHeight: 100,
     });
     getMinimumBalanceForRentExemption = mockGetMinimumBalanceForRentExemption;
+    getBalance = mockGetBalance;
   }
 
   return {
@@ -119,6 +122,7 @@ describe("ObfuscationService", () => {
     obfuscationService._resetFeeCache();
     // Setup default mock returns for dynamic fees
     mockGetMinimumBalanceForRentExemption.mockResolvedValue(890880); // Default rent-exempt minimum
+    mockGetBalance.mockResolvedValue(10_000_000_000); // 10 SOL default source balance
 
     // Setup contract service mocks
     mockEstimateDeploymentCost.mockReturnValue({
@@ -204,31 +208,16 @@ describe("ObfuscationService", () => {
       ).rejects.toThrow("Total must be positive");
     });
 
-    it("should throw when total is insufficient for minimum per wallet", async () => {
-      // Very small amount that won't cover minimum per wallet
-      const total = new BN(1000); // 1000 lamports - not enough
+    it("should support small totals by splitting only the route amount", async () => {
+      const total = new BN(1000);
       const count = 5;
-
-      await expect(
-        obfuscationService.generateRandomSplit(total, count)
-      ).rejects.toThrow("Insufficient funds for obfuscation");
-    });
-
-    it("should handle zero remainder when total equals minimum needed", async () => {
-      // minPerWallet = (rentExempt(890880) + baseTxFee(5000) + priorityFee(ceil(150000*1.2)=180000)) * 2 (safety multiplier)
-      const baseMin = 890880 + 5000 + 180000; // 1075880
-      const minPerWallet = baseMin * 2; // 2151760 (with 2x safety margin)
-      const count = 5;
-      const total = new BN(minPerWallet * count);
 
       const splits = await obfuscationService.generateRandomSplit(total, count);
 
-      expect(splits.length).toBe(count);
+      expect(splits).toHaveLength(count);
       const sum = splits.reduce((acc, s) => acc.add(s), new BN(0));
       expect(sum.eq(total)).toBe(true);
-      for (const split of splits) {
-        expect(split.eq(new BN(minPerWallet))).toBe(true);
-      }
+      expect(splits.some((split) => split.gtn(0))).toBe(true);
     });
 
     it("should handle count of 2", async () => {
@@ -245,33 +234,15 @@ describe("ObfuscationService", () => {
       }
     });
 
-    it("should handle tiny remainder (total = minTotal + 1)", async () => {
-      const baseMin = 890880 + 5000 + 180000;
-      const minPerWallet = baseMin * 2; // with 2x safety margin
+    it("should handle tiny remainder values", async () => {
       const count = 5;
-      const total = new BN(minPerWallet * count + 1);
+      const total = new BN(11);
 
       const splits = await obfuscationService.generateRandomSplit(total, count);
 
       expect(splits.length).toBe(count);
       const sum = splits.reduce((acc, s) => acc.add(s), new BN(0));
       expect(sum.eq(total)).toBe(true);
-      for (const split of splits) {
-        expect(split.gte(new BN(minPerWallet))).toBe(true);
-      }
-    });
-
-    it("should give last wallet at least minPerWallet across many runs", async () => {
-      const minPerWallet = 890880 + 5000 + 180000;
-      const total = new BN(10000000000); // 10 SOL
-      const count = 8;
-
-      for (let run = 0; run < 20; run++) {
-        const splits = await obfuscationService.generateRandomSplit(total, count);
-        for (const split of splits) {
-          expect(split.gte(new BN(minPerWallet))).toBe(true);
-        }
-      }
     });
 
     it("should produce different splits on multiple calls (randomness)", async () => {
@@ -301,18 +272,14 @@ describe("ObfuscationService", () => {
       }
     });
 
-    it("should ensure each portion meets minimum lamports per wallet", async () => {
+    it("should ensure each portion is non-negative", async () => {
       const total = new BN(100000000000); // 100 SOL
       const count = 8;
 
       const splits = await obfuscationService.generateRandomSplit(total, count);
 
-      // Each split should be at least the minimum (which is dynamic but we mocked it)
-      // Min = rentExemptMinimum + baseTxFee + priorityFee
-      // With our mocks: 890880 + 5000 + 180000 (1.2x of 150000) ≈ 1,075,880
       for (const split of splits) {
-        // Just check that each split is non-zero and reasonable
-        expect(split.gtn(0)).toBe(true);
+        expect(split.gte(new BN(0))).toBe(true);
       }
     });
 
@@ -659,6 +626,7 @@ describe("ObfuscationService", () => {
       tokenType: "SOL" as const,
       totalAmount: "1000000000",
       hopCount: 3,
+      creator: "11111111111111111111111111111111",
     };
 
     const mockExistingSession = {
@@ -1018,6 +986,7 @@ describe("ObfuscationService", () => {
       tokenType: "SOL" as const,
       totalAmount: "1000000000",
       hopCount: 3,
+      creator: "11111111111111111111111111111111",
     };
 
     it("should re-throw non-unique-constraint DB errors", async () => {
@@ -1044,6 +1013,17 @@ describe("ObfuscationService", () => {
       await expect(obfuscationService.createSession(mockSessionInput)).rejects.toThrow(
         "duplicate key value violates unique constraint"
       );
+    });
+
+    it("should check creator wallet SOL balance instead of route amount for affordability", async () => {
+      mockFindFirst.mockResolvedValue(null);
+      mockGetBalance.mockResolvedValue(1_000);
+
+      await expect(
+        obfuscationService.createSession(mockSessionInput)
+      ).rejects.toThrow("wallet only has 1000");
+
+      expect(mockTransaction).not.toHaveBeenCalled();
     });
   });
 

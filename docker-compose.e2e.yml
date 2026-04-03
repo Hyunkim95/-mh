@@ -35,6 +35,7 @@ services:
       EXECUTOR_SEED: e2e_test_executor_seed
       SIGNER_PRIVATE_KEY: 13XR3o3HYSYx1RGVMTGHD3dFRFWmEPMX8mCLgNawDhJmMUQdr66Y6gagzYZ2A9zPy5uAhfJY9vrjw9eZSZ25F1J
       JWT_SECRET: e2e-test-secret
+      RUN_API_SERVER: "true"
       SCHEDULER_ENABLED: "true"
       DUAL_DIRECTION_ENABLED: "false"
       # Speed up obfuscation for e2e tests (production defaults: 300000ms / 5000ms / 30000ms / 5min)
@@ -47,7 +48,7 @@ services:
       OBFUSCATION_MAX_WALLETS: "4"
       HOP_RETRY_COOLDOWN_MINUTES: "0.25"
     ports:
-      - "3001:3001"
+      - "3002:3001"
     depends_on:
       postgres-e2e:
         condition: service_healthy

@@ -293,7 +293,14 @@ describe("contract-utils", () => {
 
   describe("buildEventParser", () => {
     it("returns an EventParser instance", () => {
-      const parser = buildEventParser({ _key: "prog" } as any, {} as any);
+      const parser = buildEventParser(
+        {
+          _key: "prog",
+          toBase58: () => "prog",
+          equals: () => false,
+        } as any,
+        {} as any
+      );
       expect(parser).toBeDefined();
     });
   });

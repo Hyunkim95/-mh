@@ -46,8 +46,8 @@ export interface InitializeTokenConfigResponse {
 export const convertHumanReadableToTokenConfigInput = (
   humanInput: HumanReadableTokenConfigInput,
 ): TokenConfigInput => {  
-  // Convert percentage to basis points (multiply by 100)
-  const feeBpsRaw = Math.floor(parseFloat(humanInput.feeBps) * 10_000);
+  // Convert percentage to basis points (1% = 100 bps)
+  const feeBpsRaw = Math.floor(parseFloat(humanInput.feeBps) * 100);
   
   // Convert hours to seconds
   const maxDelaySecondsRaw = Math.floor(parseFloat(humanInput.maxDelayHours) * 3600);
@@ -74,8 +74,8 @@ export const convertTokenConfigInputToHumanReadable = (
   // Convert raw token units to human readable amounts
   const minTransferAmount = (parseFloat(input.minTransfer) / Math.pow(10, tokenDecimals)).toString();
   
-  // Convert basis points to percentage (divide by 100)
-  const feeBps = (parseFloat(input.feeBps) / 10_000).toString();
+  // Convert basis points to percentage (100 bps = 1%)
+  const feeBps = (parseFloat(input.feeBps) / 100).toString();
   // Convert seconds to hours
   const maxDelayHours = (parseFloat(input.maxDelaySeconds) / 3600).toString();
   const timelockHours = (parseFloat(input.timelockSeconds) / 3600).toString();

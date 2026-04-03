@@ -9,6 +9,11 @@ import { startWatchdog } from "./watchdog";
 import { monitorEventLoopDelay } from "node:perf_hooks";
 
 const log = createLogger("API");
+const shouldExplicitlyRunApiServer = process.env.RUN_API_SERVER === "true";
+const isSchedulerProcess = process.env.SCHEDULER_ENABLED === "true";
+const isIndexerProcess = process.env.DUAL_DIRECTION_ENABLED === "true";
+const shouldRunApiServer =
+  shouldExplicitlyRunApiServer || (!isSchedulerProcess && !isIndexerProcess);
 
 const start = async () => {
   try {
@@ -20,9 +25,9 @@ const start = async () => {
     log.info(`Health check: http://${host}:${port}/health`);
 
     // Diagnostic heartbeat: log every 60s so we can tell when the process goes silent
-    const dynoType = process.env.SCHEDULER_ENABLED === "true" ? "scheduler" :
-                     process.env.DUAL_DIRECTION_ENABLED === "true" ? "indexer" : "web";
-    if (dynoType === "web") {
+    const dynoType = isSchedulerProcess ? "scheduler" :
+                     isIndexerProcess ? "indexer" : "web";
+    if (dynoType === "web" && process.env.NODE_ENV === "production") {
       startWatchdog();
 
       // Event loop delay histogram (20ms resolution, resets each heartbeat)
@@ -79,15 +84,19 @@ const start = async () => {
   }
 };
 
-if (process.env.SCHEDULER_ENABLED === "true") {
+if (isSchedulerProcess) {
   log.info("Starting hops scheduler service");
   hopsSchedulerService.triggerHopJob.start();
   obfuscationSchedulerService.startObfuscationScheduler();
 }
 
-if (process.env.DUAL_DIRECTION_ENABLED === "true") {
+if (isIndexerProcess) {
   log.info("Starting dual direction contract events service");
   dualDirectionContractEventsService.initialize();
 }
 
-start();
+if (shouldRunApiServer) {
+  start();
+} else {
+  log.info("Worker process detected, skipping HTTP server startup");
+}

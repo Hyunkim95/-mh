@@ -48,7 +48,21 @@ if (!isMainThread) {
 export function startWatchdog(): void {
   if (!isMainThread) return;
 
-  const worker = new Worker(__filename);
+  const workerExecArgv =
+    process.env.NODE_ENV === "development"
+      ? process.execArgv.filter(
+          (arg) =>
+            arg.startsWith("--require") ||
+            arg.startsWith("-r") ||
+            arg.startsWith("--loader") ||
+            arg.startsWith("--import") ||
+            arg.startsWith("--inspect")
+        )
+      : undefined;
+
+  const worker = new Worker(__filename, workerExecArgv ? {
+    execArgv: workerExecArgv,
+  } : undefined);
 
   worker.on("message", (msg: string) => {
     if (msg === "ping") {

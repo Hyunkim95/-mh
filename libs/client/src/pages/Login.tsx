@@ -133,23 +133,6 @@ export const Login: React.FC = () => {
     </div>
   );
 
-  const loadingBody = (
-    <div className="flex flex-col h-full justify-center items-center gap-6">
-      <div className="loader-bar" />
-      <div className="not-italic font-light text-base leading-4 text-center text-[var(--white-100)]">
-        {isLoading ? (
-          <img
-            src="https://i.gifer.com/ZZ5H.gif"
-            alt="loading"
-            className="w-12 h-12"
-          />
-        ) : (
-          "Connecting to wallet..."
-        )}
-      </div>
-    </div>
-  );
-
   const loginCardFooter = (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
       <div className="not-italic font-light text-xs leading-4 text-[var(--white-100-transparency-58)] w-[210px]">
@@ -182,7 +165,6 @@ export const Login: React.FC = () => {
           !connected ||
           !publicKey ||
           isPending ||
-          isLoading ||
           isVerifyUserWithSignaturePending ||
           isWaitingForSignature
         }
@@ -190,7 +172,6 @@ export const Login: React.FC = () => {
           connected &&
           publicKey &&
           !isPending &&
-          !isLoading &&
           !isVerifyUserWithSignaturePending &&
           !isWaitingForSignature
             ? "bg-[var(--laser-lemon-500)] hover:brightness-95"
@@ -207,6 +188,15 @@ export const Login: React.FC = () => {
           ? "Sign Message"
           : "Connect Wallet"}
       </button>
+      {(isPending || isVerifyUserWithSignaturePending || isWaitingForSignature) && (
+        <div className="w-full text-center text-sm text-[var(--white-100-transparency-58)] sm:hidden">
+          {isWaitingForSignature
+            ? "Check your wallet to continue."
+            : isVerifyUserWithSignaturePending
+            ? "Verifying your signature..."
+            : "Preparing sign-in..."}
+        </div>
+      )}
     </div>
   );
 
@@ -230,7 +220,7 @@ export const Login: React.FC = () => {
             "sm:!w-[90%] md:!w-full px-14 py-0 md:px-20 md:pt-20 md:pb-16",
           cardBodyContainer: "flex flex-col justify-center",
         }}
-        cardBody={isLoading || isPending ? loadingBody : loginCardBody}
+        cardBody={loginCardBody}
         cardFooter={loginCardFooter}
         cardHeight={"617px"}
         cardStyle={{

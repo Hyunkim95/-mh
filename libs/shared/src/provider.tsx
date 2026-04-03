@@ -8,7 +8,7 @@ interface TRPCProviderProps {
   apiUrl?: string;
 }
 
-export function TRPCProvider({ children, apiUrl = 'http://localhost:3001/trpc' }: TRPCProviderProps) {
+export function TRPCProvider({ children, apiUrl = '/trpc' }: TRPCProviderProps) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {

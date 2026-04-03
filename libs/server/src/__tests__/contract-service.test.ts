@@ -322,7 +322,7 @@ describe("Contract Service", () => {
 
   describe("getTokenConfigSPL", () => {
     describe("Successful Fetch", () => {
-      it("should return token config with feeBps divided by 10,000", async () => {
+      it("should return token config with raw feeBps", async () => {
         mockTokenConfigFetch.mockResolvedValue({
           creator: new PublicKey("7kQX84vLNS32of1F3XL9H4LD5LauRej8nNz5csv7su2P"),
           minTransfer: new BN(100000000),
@@ -335,20 +335,20 @@ describe("Contract Service", () => {
         const result = await getTokenConfigSPL();
 
         expect(result).not.toBeNull();
-        expect(result!.feeBps).toBe("0.05"); // 500 / 10_000 = 0.05
+        expect(result!.feeBps).toBe("500");
         expect(result!.minTransfer).toBe("100000000");
         expect(result!.feeTreasury).toBe("7kQX84vLNS32of1F3XL9H4LD5LauRej8nNz5csv7su2P");
         expect(result!.maxHops).toBe("10");
         expect(result!.flatFeeLamports).toBe("10000000");
       });
 
-      it("should correctly divide feeBps by 10,000 for various values", async () => {
+      it("should return raw feeBps for various values", async () => {
         const testCases = [
-          { feeBps: 100, expected: "0.01" },   // 1%
-          { feeBps: 250, expected: "0.025" },  // 2.5%
-          { feeBps: 500, expected: "0.05" },   // 5%
-          { feeBps: 1000, expected: "0.1" },   // 10%
-          { feeBps: 10000, expected: "1" },    // 100%
+          { feeBps: 100, expected: "100" },
+          { feeBps: 250, expected: "250" },
+          { feeBps: 500, expected: "500" },
+          { feeBps: 1000, expected: "1000" },
+          { feeBps: 10000, expected: "10000" },
         ];
 
         for (const { feeBps, expected } of testCases) {
@@ -448,7 +448,7 @@ describe("Contract Service", () => {
     });
 
     describe("Difference from SPL Token Config", () => {
-      it("should return different feeBps format than getTokenConfigSPL", async () => {
+      it("should return the same feeBps format as getTokenConfigSPL", async () => {
         const rawFeeBps = 500;
 
         mockTokenConfigFetch.mockResolvedValue({
@@ -463,9 +463,9 @@ describe("Contract Service", () => {
         const solResult = await getTokenConfigSOL();
         const splResult = await getTokenConfigSPL();
 
-        expect(solResult!.feeBps).toBe("500"); // Raw
-        expect(splResult!.feeBps).toBe("0.05"); // Divided by 10,000
-        expect(solResult!.feeBps).not.toBe(splResult!.feeBps);
+        expect(solResult!.feeBps).toBe("500");
+        expect(splResult!.feeBps).toBe("500");
+        expect(solResult!.feeBps).toBe(splResult!.feeBps);
       });
     });
 
@@ -983,7 +983,7 @@ describe("Contract Service", () => {
     });
 
     describe("Token Config Differences", () => {
-      it("should demonstrate SPL vs SOL token config feeBps difference", async () => {
+      it("should demonstrate SPL and SOL token configs both return raw feeBps", async () => {
         mockTokenConfigFetch.mockResolvedValue({
           creator: new PublicKey("11111111111111111111111111111111"),
           minTransfer: new BN(100000000),
@@ -996,14 +996,13 @@ describe("Contract Service", () => {
         const splConfig = await getTokenConfigSPL();
         const solConfig = await getTokenConfigSOL();
 
-        // SPL returns decimal percentage (500 / 10000 = 0.05)
-        expect(splConfig!.feeBps).toBe("0.05");
+        // SPL returns raw basis points
+        expect(splConfig!.feeBps).toBe("500");
 
         // SOL returns raw basis points
         expect(solConfig!.feeBps).toBe("500");
 
-        // Verify they both represent the same underlying fee
-        expect(parseFloat(splConfig!.feeBps) * 10000).toBe(parseInt(solConfig!.feeBps));
+        expect(splConfig!.feeBps).toBe(solConfig!.feeBps);
       });
     });
   });

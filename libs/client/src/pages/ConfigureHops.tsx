@@ -83,14 +83,14 @@ export const ConfigureHops: React.FC = () => {
     { enabled: selectedAsset?.tokenType === 'SOL' && !!publicKey }
   )
 
-  // Get fee percentage based on token type (convert from string to decimal)
+  // Get fee percentage based on token type (convert basis points to decimal)
   const feePercentage = useMemo(() => {
     if (selectedAsset?.tokenType === 'SPL' && tokenConfigSPL?.data?.feeBps) {
-      // feeBps is already divided by 10_000 in the backend for SPL
-      return parseFloat(tokenConfigSPL.data.feeBps)
+      // feeBps is raw basis points, divide by 10_000 to get decimal
+      return parseFloat(tokenConfigSPL.data.feeBps) / 10_000
     }
     if (selectedAsset?.tokenType === 'SOL' && tokenConfigSOL?.data?.feeBps) {
-      // feeBps is raw basis points for SOL, need to divide by 10_000
+      // feeBps is raw basis points, divide by 10_000 to get decimal
       return parseFloat(tokenConfigSOL.data.feeBps) / 10_000
     }
     return DEFAULT_FEE_PERCENTAGE

@@ -53,6 +53,7 @@ services:
       EXECUTOR_SEED: e2e_test_executor_seed
       SIGNER_PRIVATE_KEY: 13XR3o3HYSYx1RGVMTGHD3dFRFWmEPMX8mCLgNawDhJmMUQdr66Y6gagzYZ2A9zPy5uAhfJY9vrjw9eZSZ25F1J
       JWT_SECRET: e2e-test-secret
+      RUN_API_SERVER: "true"
       SCHEDULER_ENABLED: "true"
       DUAL_DIRECTION_ENABLED: "false"
       OBFUSCATION_RETRY_COOLDOWN_MS: "10000"

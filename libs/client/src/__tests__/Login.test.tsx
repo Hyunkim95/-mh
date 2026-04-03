@@ -149,6 +149,60 @@ describe("Login", () => {
     expect(authenticate).toHaveBeenCalled();
   });
 
+  it("keeps the wallet selection UI visible during passive session loading", () => {
+    mocks.useWallet.mockReturnValue({
+      wallets: [{ adapter: { name: "Phantom", icon: "phantom.png" } }],
+      wallet: { adapter: { name: "Phantom" } },
+      select: vi.fn(),
+      connect: vi.fn(),
+      publicKey: { toString: () => "wallet-public-key-1234" },
+      connecting: false,
+      connected: true,
+    });
+
+    mocks.useSolanaAuth.mockReturnValue({
+      authenticate: vi.fn(),
+      userData: null,
+      isPending: false,
+      isLoading: true,
+      isVerifyUserWithSignaturePending: false,
+      isWaitingForSignature: false,
+    });
+
+    render(<Login />);
+
+    expect(screen.getByTestId("sign-message-btn")).toBeEnabled();
+    expect(screen.queryByAltText("loading")).not.toBeInTheDocument();
+    expect(screen.getByTestId("wallet-tile-phantom")).toBeInTheDocument();
+  });
+
+  it("keeps the wallet selection UI visible during active sign-in states", () => {
+    mocks.useWallet.mockReturnValue({
+      wallets: [{ adapter: { name: "Phantom", icon: "phantom.png" } }],
+      wallet: { adapter: { name: "Phantom" } },
+      select: vi.fn(),
+      connect: vi.fn(),
+      publicKey: { toString: () => "wallet-public-key-1234" },
+      connecting: false,
+      connected: true,
+    });
+
+    mocks.useSolanaAuth.mockReturnValue({
+      authenticate: vi.fn(),
+      userData: null,
+      isPending: false,
+      isLoading: false,
+      isVerifyUserWithSignaturePending: true,
+      isWaitingForSignature: false,
+    });
+
+    render(<Login />);
+
+    expect(screen.getByTestId("wallet-tile-phantom")).toBeInTheDocument();
+    expect(screen.getByTestId("sign-message-btn")).toBeDisabled();
+    expect(screen.getByText("Verifying...")).toBeInTheDocument();
+  });
+
   it("navigates to my-assets when the user is already authenticated", async () => {
     mocks.useWallet.mockReturnValue({
       wallets: [{ adapter: { name: "Phantom", icon: "phantom.png" } }],

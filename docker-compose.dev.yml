@@ -1,10 +1,7 @@
-version: '3.8'
-
 services:
-  # PostgreSQL Database (same as production)
-  postgres:
+  postgres-dev:
     image: postgres:15-alpine
-    container_name: hedera-postgres-dev
+    container_name: multihopper-postgres-dev
     restart: unless-stopped
     environment:
       POSTGRES_DB: trpc_dev
@@ -14,53 +11,261 @@ services:
       - postgres_dev_data:/var/lib/postgresql/data
       - ./init-db:/docker-entrypoint-initdb.d
     ports:
-      - "5433:5432"  # Different port to avoid conflicts
+      - "5433:5432"
     networks:
-      - trpc-dev-network
+      - dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trpc_user -d trpc_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
-  # API Service (development mode with hot reload)
   api-dev:
     build:
       context: .
       dockerfile: apps/api/Dockerfile.dev
-    container_name: trpc-api-dev
+    container_name: multihopper-api-dev
     restart: unless-stopped
     environment:
       NODE_ENV: development
       PORT: 3001
       HOST: 0.0.0.0
-      DATABASE_URL: postgresql://trpc_user:trpc_password@postgres:5432/trpc_dev
+      DATABASE_URL: postgresql://trpc_user:trpc_password@postgres-dev:5432/trpc_dev
+      SOLANA_RPC_URL: ${SOLANA_RPC_URL:-https://api.devnet.solana.com}
+      HELIUS_API: ${HELIUS_API:-https://devnet.helius-rpc.com/?api-key=your_helius_api_key_here}
+      EXECUTOR_SEED: ${EXECUTOR_SEED:-dev_executor_seed}
+      SIGNER_PRIVATE_KEY: ${SIGNER_PRIVATE_KEY:-}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret}
+      RUN_API_SERVER: "true"
+      SCHEDULER_ENABLED: "false"
+      DUAL_DIRECTION_ENABLED: "false"
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:-}
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-multihopper-api-dev}
     ports:
       - "3001:3001"
-    volumes:
-      - .:/app
-      - /app/node_modules
     depends_on:
-      - postgres
+      postgres-dev:
+        condition: service_healthy
     networks:
-      - trpc-dev-network
+      - dev-network
+    volumes:
+      - ./apps:/app/apps
+      - ./libs:/app/libs
+      - ./package.json:/app/package.json:ro
+      - ./yarn.lock:/app/yarn.lock:ro
+      - ./.yarnrc.yml:/app/.yarnrc.yml:ro
+      - ./.yarn:/app/.yarn:ro
+      - ./turbo.json:/app/turbo.json:ro
+      - ./tsconfig.json:/app/tsconfig.json:ro
+      - ./tsconfig.base.json:/app/tsconfig.base.json:ro
+      - /app/apps/api/node_modules
+      - /app/apps/web/node_modules
+      - /app/libs/server/node_modules
+      - /app/libs/client/node_modules
+      - /app/libs/shared/node_modules
+      - /app/libs/solana-node/node_modules
+      - /app/libs/etl/node_modules
+      - /app/libs/logger/node_modules
+      - /app/libs/crypto-utils/node_modules
+    command: >
+      sh -c "
+        yarn workspace @trpc-template/server db:push &&
+        test -f /app/libs/server/dist/index.js &&
+        yarn workspace @trpc-template/api dev
+      "
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node /app/libs/server/scripts/check-build-fresh.mjs && curl -f http://localhost:3001/health || exit 1",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 45s
 
-  # Web Service (development mode with hot reload)
+  scheduler-dev:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile.dev
+    container_name: multihopper-scheduler-dev
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://trpc_user:trpc_password@postgres-dev:5432/trpc_dev
+      SOLANA_RPC_URL: ${SOLANA_RPC_URL:-https://api.devnet.solana.com}
+      HELIUS_API: ${HELIUS_API:-https://devnet.helius-rpc.com/?api-key=your_helius_api_key_here}
+      EXECUTOR_SEED: ${EXECUTOR_SEED:-dev_executor_seed}
+      SIGNER_PRIVATE_KEY: ${SIGNER_PRIVATE_KEY:-}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret}
+      SCHEDULER_ENABLED: "true"
+      DUAL_DIRECTION_ENABLED: "false"
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:-}
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-multihopper-scheduler-dev}
+    depends_on:
+      postgres-dev:
+        condition: service_healthy
+      api-dev:
+        condition: service_healthy
+    networks:
+      - dev-network
+    volumes:
+      - ./apps:/app/apps
+      - ./libs:/app/libs
+      - ./package.json:/app/package.json:ro
+      - ./yarn.lock:/app/yarn.lock:ro
+      - ./.yarnrc.yml:/app/.yarnrc.yml:ro
+      - ./.yarn:/app/.yarn:ro
+      - ./turbo.json:/app/turbo.json:ro
+      - ./tsconfig.json:/app/tsconfig.json:ro
+      - ./tsconfig.base.json:/app/tsconfig.base.json:ro
+      - /app/apps/api/node_modules
+      - /app/apps/web/node_modules
+      - /app/libs/server/node_modules
+      - /app/libs/client/node_modules
+      - /app/libs/shared/node_modules
+      - /app/libs/solana-node/node_modules
+      - /app/libs/etl/node_modules
+      - /app/libs/logger/node_modules
+      - /app/libs/crypto-utils/node_modules
+    command: >
+      sh -c "
+        yarn workspace @trpc-template/server db:push &&
+        test -f /app/libs/server/dist/index.js &&
+        yarn workspace @trpc-template/api dev
+      "
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node /app/libs/server/scripts/check-build-fresh.mjs || exit 1",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 30s
+
+  indexer-dev:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile.dev
+    container_name: multihopper-indexer-dev
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://trpc_user:trpc_password@postgres-dev:5432/trpc_dev
+      SOLANA_RPC_URL: ${SOLANA_RPC_URL:-https://api.devnet.solana.com}
+      HELIUS_API: ${HELIUS_API:-https://devnet.helius-rpc.com/?api-key=your_helius_api_key_here}
+      EXECUTOR_SEED: ${EXECUTOR_SEED:-dev_executor_seed}
+      SIGNER_PRIVATE_KEY: ${SIGNER_PRIVATE_KEY:-}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret}
+      SCHEDULER_ENABLED: "false"
+      DUAL_DIRECTION_ENABLED: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:-}
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-multihopper-indexer-dev}
+    depends_on:
+      postgres-dev:
+        condition: service_healthy
+      api-dev:
+        condition: service_healthy
+    networks:
+      - dev-network
+    volumes:
+      - ./apps:/app/apps
+      - ./libs:/app/libs
+      - ./package.json:/app/package.json:ro
+      - ./yarn.lock:/app/yarn.lock:ro
+      - ./.yarnrc.yml:/app/.yarnrc.yml:ro
+      - ./.yarn:/app/.yarn:ro
+      - ./turbo.json:/app/turbo.json:ro
+      - ./tsconfig.json:/app/tsconfig.json:ro
+      - ./tsconfig.base.json:/app/tsconfig.base.json:ro
+      - /app/apps/api/node_modules
+      - /app/apps/web/node_modules
+      - /app/libs/server/node_modules
+      - /app/libs/client/node_modules
+      - /app/libs/shared/node_modules
+      - /app/libs/solana-node/node_modules
+      - /app/libs/etl/node_modules
+      - /app/libs/logger/node_modules
+      - /app/libs/crypto-utils/node_modules
+    command: >
+      sh -c "
+        yarn workspace @trpc-template/server db:push &&
+        test -f /app/libs/server/dist/index.js &&
+        yarn workspace @trpc-template/api dev
+      "
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node /app/libs/server/scripts/check-build-fresh.mjs || exit 1",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 30s
+
   web-dev:
     build:
       context: .
       dockerfile: apps/web/Dockerfile.dev
-    container_name: trpc-web-dev
+    container_name: multihopper-web-dev
     restart: unless-stopped
     environment:
-      VITE_API_URL: http://localhost:3001
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:3001/trpc}
+      VITE_RPC_URL: ${VITE_RPC_URL:-https://api.devnet.solana.com}
+      VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+      VITE_SENTRY_ENVIRONMENT: ${VITE_SENTRY_ENVIRONMENT:-development}
+      VITE_SENTRY_TRACES_SAMPLE_RATE: ${VITE_SENTRY_TRACES_SAMPLE_RATE:-0}
     ports:
       - "5173:5173"
-    volumes:
-      - .:/app
-      - /app/node_modules
     depends_on:
-      - api-dev
+      api-dev:
+        condition: service_healthy
     networks:
-      - trpc-dev-network
+      - dev-network
+    volumes:
+      - ./apps:/app/apps
+      - ./libs:/app/libs
+      - ./package.json:/app/package.json:ro
+      - ./yarn.lock:/app/yarn.lock:ro
+      - ./.yarnrc.yml:/app/.yarnrc.yml:ro
+      - ./.yarn:/app/.yarn:ro
+      - ./turbo.json:/app/turbo.json:ro
+      - ./tsconfig.json:/app/tsconfig.json:ro
+      - ./tsconfig.base.json:/app/tsconfig.base.json:ro
+      - /app/apps/api/node_modules
+      - /app/apps/web/node_modules
+      - /app/libs/server/node_modules
+      - /app/libs/client/node_modules
+      - /app/libs/shared/node_modules
+      - /app/libs/solana-node/node_modules
+      - /app/libs/etl/node_modules
+      - /app/libs/logger/node_modules
+      - /app/libs/crypto-utils/node_modules
+    command: >
+      sh -c "
+        yarn workspace @trpc-template/shared dev &
+        yarn workspace @trpc-template/client dev &
+        yarn workspace @trpc-template/web dev --host 0.0.0.0
+      "
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5173 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 30s
 
 networks:
-  trpc-dev-network:
+  dev-network:
     driver: bridge
 
 volumes:
