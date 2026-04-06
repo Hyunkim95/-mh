@@ -10,46 +10,6 @@ interface BetaAccessGateProps {
 }
 
 const progressDots = Array.from({ length: 5 });
-const loadingAnimationStyles = `
-  @keyframes routingDotWave {
-    0%, 12%, 100% {
-      transform: translateY(0) scale(0.92);
-      background: #efeab5;
-      border-color: #f2edb4;
-      box-shadow: 0 0 0 rgba(251, 255, 105, 0);
-      opacity: 0.96;
-    }
-    20%, 36% {
-      transform: translateY(-2px) scale(1.16);
-      background: #fff328;
-      border-color: #fff65b;
-      box-shadow: 0 0 30px rgba(251, 255, 105, 0.95), 0 0 54px rgba(251, 255, 105, 0.45);
-      opacity: 1;
-    }
-    44%, 100% {
-      transform: translateY(0) scale(0.92);
-      background: #efeab5;
-      border-color: #f2edb4;
-      box-shadow: 0 0 0 rgba(251, 255, 105, 0);
-      opacity: 0.96;
-    }
-  }
-
-  @keyframes routingDotGlow {
-    0%, 12%, 100% {
-      opacity: 0;
-      transform: scale(0.75);
-    }
-    20%, 36% {
-      opacity: 1;
-      transform: scale(1.12);
-    }
-    44%, 100% {
-      opacity: 0;
-      transform: scale(0.75);
-    }
-  }
-`;
 
 export const BetaAccessGate: React.FC<BetaAccessGateProps> = ({
   isOpen,
@@ -84,28 +44,20 @@ export const BetaAccessGate: React.FC<BetaAccessGateProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="routing-upgrade-title"
+      onClick={handleDismiss}
     >
       <div
         className="absolute inset-0"
-        onClick={handleDismiss}
         aria-hidden="true"
         data-testid="routing-upgrade-backdrop"
       />
 
-      <style>{loadingAnimationStyles}</style>
-
       <div className="relative min-h-[100dvh] w-full overflow-hidden bg-[#161616]">
-        <div
-          className="absolute inset-0 bg-[radial-gradient(circle_at_50%_6%,rgba(251,255,105,1)_0%,rgba(251,255,105,0.98)_18%,rgba(251,255,105,0.82)_36%,rgba(251,255,105,0.28)_56%,rgba(22,22,22,0.92)_80%,#161616_100%)]"
-          onClick={(event) => event.stopPropagation()}
-        />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_6%,rgba(251,255,105,1)_0%,rgba(251,255,105,0.98)_18%,rgba(251,255,105,0.82)_36%,rgba(251,255,105,0.28)_56%,rgba(22,22,22,0.92)_80%,#161616_100%)]" />
         <div className="absolute inset-x-0 top-[6%] h-[240px] bg-[radial-gradient(circle_at_center,rgba(251,255,105,0.58)_0%,rgba(251,255,105,0.2)_48%,rgba(251,255,105,0)_75%)] blur-3xl sm:h-[280px]" />
         <div className="absolute inset-x-0 bottom-0 h-[280px] bg-gradient-to-t from-[#161616] via-[#161616]/92 to-transparent" />
 
-        <div
-          className="relative flex min-h-[100dvh] w-full flex-col items-center px-5 pt-[7vh] pb-8 text-center sm:px-10 sm:pt-[6vh] lg:px-16"
-          onClick={(event) => event.stopPropagation()}
-        >
+        <div className="relative flex min-h-[100dvh] w-full flex-col items-center px-5 pt-[7vh] pb-8 text-center sm:px-10 sm:pt-[6vh] lg:px-16">
           <div className="relative flex w-full max-w-[1400px] flex-1 flex-col items-center">
             <div className="inline-flex items-center gap-2.5 rounded-[12px] bg-[#111111] px-3 py-2.5 shadow-[0_12px_40px_rgba(0,0,0,0.3)] sm:gap-3 sm:px-6 sm:py-4">
               <img
@@ -125,13 +77,13 @@ export const BetaAccessGate: React.FC<BetaAccessGateProps> = ({
               <div className="absolute left-1/2 top-[52%] h-[180px] w-[min(100vw,860px)] -translate-x-1/2 -translate-y-1/2 bg-[radial-gradient(circle,rgba(251,255,105,0.42)_0%,rgba(251,255,105,0.15)_42%,rgba(251,255,105,0)_74%)] blur-3xl sm:h-[240px] lg:w-[980px]" />
               <h2
                 id="routing-upgrade-title"
-                className="relative text-[2.15rem] font-semibold leading-[0.92] tracking-[-0.065em] text-black sm:text-[3.9rem] lg:text-[6rem]"
+                className="relative text-[2.15rem] font-semibold leading-[0.92] tracking-[-0.065em] text-[#000000] sm:text-[3.9rem] lg:text-[6rem]"
                 style={{ fontFamily: "Roboto, sans-serif" }}
               >
                 Routing upgrade in process
               </h2>
               <p
-                className="relative mt-3 text-[1.48rem] font-normal leading-[0.96] tracking-[-0.055em] text-black/92 sm:text-[2.8rem] lg:text-[4rem]"
+                className="relative mt-3 text-[1.48rem] font-normal leading-[0.96] tracking-[-0.055em] text-[#000000] sm:text-[2.8rem] lg:text-[4rem]"
                 style={{ fontFamily: "Roboto, sans-serif" }}
               >
                 Services resuming shortly...
@@ -140,26 +92,17 @@ export const BetaAccessGate: React.FC<BetaAccessGateProps> = ({
 
             <div className="relative mt-auto w-full max-w-[1500px] px-2 pb-2 sm:px-6 sm:pb-4">
               <div className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-[#f3ef9d]/60" />
-              <div className="relative flex items-center justify-between gap-3 sm:gap-4">
-                {progressDots.map((_, index) => (
+              <div className="relative flex justify-center">
+                <div className="flex items-center gap-3 bg-[#161616] px-4 sm:gap-4 sm:px-6">
+                  {progressDots.map((_, index) => (
                   <div
                     key={index}
                     data-testid="routing-upgrade-dot"
-                    className="relative h-5 w-5 rounded-full border border-[#f2edb4] bg-[#efeab5] sm:h-7 sm:w-7"
-                    style={{
-                      animation: "routingDotWave 1.4s linear infinite",
-                      animationDelay: `${index * 0.16}s`,
-                    }}
+                    className="h-5 w-5 rounded-full border border-[#f2edb4] bg-[#efeab5] sm:h-7 sm:w-7"
                   >
-                    <div
-                      className="absolute inset-[-6px] rounded-full bg-[#fbff69]/55 blur-md sm:inset-[-8px]"
-                      style={{
-                        animation: "routingDotGlow 1.4s linear infinite",
-                        animationDelay: `${index * 0.16}s`,
-                      }}
-                    />
                   </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           </div>

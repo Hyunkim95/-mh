@@ -76,7 +76,7 @@ describe("BetaAccessGate", () => {
     expect(screen.getAllByTestId("routing-upgrade-dot")).toHaveLength(5);
   });
 
-  it("calls onClose when the backdrop is clicked", () => {
+  it("calls onSuccess when the splash screen is clicked", () => {
     render(
       <BetaAccessGate
         isOpen={true}
@@ -87,10 +87,14 @@ describe("BetaAccessGate", () => {
 
     fireEvent.click(screen.getByTestId("routing-upgrade-backdrop"));
 
-    expect(mockOnClose).toHaveBeenCalledOnce();
+    expect(localStorageMock.setItem).toHaveBeenCalledWith(
+      BETA_ACCESS_STORAGE_KEY,
+      "true"
+    );
+    expect(mockOnSuccess).toHaveBeenCalledOnce();
   });
 
-  it("calls onClose when escape is pressed", () => {
+  it("calls onSuccess when escape is pressed", () => {
     render(
       <BetaAccessGate
         isOpen={true}
@@ -101,19 +105,11 @@ describe("BetaAccessGate", () => {
 
     fireEvent.keyDown(window, { key: "Escape" });
 
-    expect(mockOnClose).toHaveBeenCalledOnce();
-  });
-
-  it("does not call onSuccess from the maintenance screen", () => {
-    render(
-      <BetaAccessGate
-        isOpen={true}
-        onClose={mockOnClose}
-        onSuccess={mockOnSuccess}
-      />
+    expect(localStorageMock.setItem).toHaveBeenCalledWith(
+      BETA_ACCESS_STORAGE_KEY,
+      "true"
     );
-
-    expect(mockOnSuccess).not.toHaveBeenCalled();
+    expect(mockOnSuccess).toHaveBeenCalledOnce();
   });
 });
 
