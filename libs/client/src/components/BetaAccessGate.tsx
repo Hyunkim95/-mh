@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 
 const BETA_PASSWORD = "enigma2025";
-const STORAGE_KEY = "mh_beta_v2";
+export const BETA_ACCESS_STORAGE_KEY = "mh_beta_v2";
 
 interface BetaAccessGateProps {
   isOpen: boolean;
@@ -27,7 +27,7 @@ export const BetaAccessGate: React.FC<BetaAccessGateProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (password === BETA_PASSWORD) {
-      localStorage.setItem(STORAGE_KEY, "true");
+      localStorage.setItem(BETA_ACCESS_STORAGE_KEY, "true");
       onSuccess();
     } else {
       setError(true);
@@ -179,7 +179,7 @@ export const BetaAccessGate: React.FC<BetaAccessGateProps> = ({
 };
 
 export const isBetaUnlocked = (): boolean => {
-  return localStorage.getItem(STORAGE_KEY) === "true";
+  return localStorage.getItem(BETA_ACCESS_STORAGE_KEY) === "true";
 };
 
 export default BetaAccessGate;

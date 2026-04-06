@@ -4,7 +4,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { BetaAccessGate, isBetaUnlocked } from "../components/BetaAccessGate";
+import {
+  BetaAccessGate,
+  BETA_ACCESS_STORAGE_KEY,
+  isBetaUnlocked,
+} from "../components/BetaAccessGate";
 
 // Create a proper localStorage mock for Node 25 compatibility
 const localStorageMock = (() => {
@@ -70,7 +74,7 @@ describe("BetaAccessGate", () => {
     fireEvent.change(input, { target: { value: "enigma2025" } });
     fireEvent.click(screen.getByRole("button", { name: "Enter Beta" }));
     expect(mockOnSuccess).toHaveBeenCalledOnce();
-    expect(localStorageMock.setItem).toHaveBeenCalledWith("multihopper_beta_access", "true");
+    expect(localStorageMock.setItem).toHaveBeenCalledWith(BETA_ACCESS_STORAGE_KEY, "true");
   });
 
   it("shows error for wrong password", () => {
@@ -126,12 +130,12 @@ describe("isBetaUnlocked", () => {
   });
 
   it("returns true when localStorage has the key", () => {
-    localStorageMock.setItem("multihopper_beta_access", "true");
+    localStorageMock.setItem(BETA_ACCESS_STORAGE_KEY, "true");
     expect(isBetaUnlocked()).toBe(true);
   });
 
   it("returns false for invalid value", () => {
-    localStorageMock.setItem("multihopper_beta_access", "false");
+    localStorageMock.setItem(BETA_ACCESS_STORAGE_KEY, "false");
     expect(isBetaUnlocked()).toBe(false);
   });
 });

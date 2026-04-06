@@ -4,6 +4,7 @@
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { BETA_ACCESS_STORAGE_KEY } from "../components/BetaAccessGate";
 
 const mocks = vi.hoisted(() => ({
   useWallet: vi.fn(),
@@ -57,6 +58,8 @@ import { Login } from "../pages/Login";
 describe("Login", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
+    window.localStorage.setItem(BETA_ACCESS_STORAGE_KEY, "true");
 
     mocks.useWallet.mockReturnValue({
       wallets: [
@@ -114,6 +117,15 @@ describe("Login", () => {
       expect(select).toHaveBeenCalledWith("Phantom");
       expect(connect).toHaveBeenCalled();
     });
+  });
+
+  it("shows the beta gate instead of the login UI when beta access is locked", () => {
+    window.localStorage.clear();
+
+    render(<Login />);
+
+    expect(screen.getByText("Private Beta Testing")).toBeInTheDocument();
+    expect(screen.queryByTestId("wallet-tile-phantom")).not.toBeInTheDocument();
   });
 
   it("enables signing for a connected wallet and authenticates on click", () => {
