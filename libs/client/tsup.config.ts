@@ -47,7 +47,7 @@ export default url;
 export default defineConfig({
   entry: ["src/index.ts"],
   format: ["cjs", "esm"],
-  dts: true,
+  dts: !process.env.CI,
   clean: true,
   sourcemap: true,
   loader: {
