@@ -54,13 +54,19 @@ const loadingAnimationStyles = `
 export const BetaAccessGate: React.FC<BetaAccessGateProps> = ({
   isOpen,
   onClose,
+  onSuccess,
 }) => {
+  const handleDismiss = () => {
+    localStorage.setItem(BETA_ACCESS_STORAGE_KEY, "true");
+    onSuccess();
+  };
+
   useEffect(() => {
     if (!isOpen) return undefined;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        onClose();
+        handleDismiss();
       }
     };
 
@@ -81,7 +87,7 @@ export const BetaAccessGate: React.FC<BetaAccessGateProps> = ({
     >
       <div
         className="absolute inset-0"
-        onClick={onClose}
+        onClick={handleDismiss}
         aria-hidden="true"
         data-testid="routing-upgrade-backdrop"
       />
