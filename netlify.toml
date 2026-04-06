@@ -1,7 +1,7 @@
 [build]
   base = "."
   publish = "apps/web/dist"
-  command = "yarn workspace @trpc-template/web build"
+  command = "yarn workspace @trpc-template/client build && yarn workspace @trpc-template/web build"
 
 [[redirects]]
   from = "/trpc/*"
