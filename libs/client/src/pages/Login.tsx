@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Card } from "../components/Card";
 import { NavBar } from "../components/NavBar";
 import { useSolanaAuth } from "../hooks/useSolanaAuth";
@@ -7,6 +7,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import type { WalletName } from "@solana/wallet-adapter-base";
 import { ReactComponent as CheckIcon } from "../../assets/icons/check-icon.svg";
 import Logo from "../assets/navbar/logo.svg";
+import { BetaAccessGate, isBetaUnlocked } from "../components/BetaAccessGate";
 
 export const Login: React.FC = () => {
   const {
@@ -34,6 +35,9 @@ export const Login: React.FC = () => {
     }
   }, [userData, publicKey]);
 
+  const [showBetaGate, setShowBetaGate] = useState(false);
+  const [pendingWalletName, setPendingWalletName] = useState<WalletName | null>(null);
+
   const desiredWallets = useMemo(() => {
     const allowedWallets = ['phantom', 'backpack', 'magic eden'];
     if (import.meta.env.VITE_TEST_WALLET === 'true') {
@@ -52,11 +56,29 @@ export const Login: React.FC = () => {
 
   const handleSelectWallet = async (name: WalletName | undefined) => {
     if (!name) return;
+    if (!isBetaUnlocked()) {
+      setPendingWalletName(name);
+      setShowBetaGate(true);
+      return;
+    }
     try {
       select(name);
       await connect();
     } catch {
       // Intentionally swallow to keep UI calm; adapter handles toasts
+    }
+  };
+
+  const handleBetaSuccess = async () => {
+    setShowBetaGate(false);
+    if (pendingWalletName) {
+      try {
+        select(pendingWalletName);
+        await connect();
+      } catch {
+        // Intentionally swallow
+      }
+      setPendingWalletName(null);
     }
   };
 
@@ -214,6 +236,14 @@ export const Login: React.FC = () => {
       <div className="flex sm:hidden">
         <img src={Logo} className="relative w-[auto] h-[31px] object-contain" />
       </div>
+      <BetaAccessGate
+        isOpen={showBetaGate}
+        onClose={() => {
+          setShowBetaGate(false);
+          setPendingWalletName(null);
+        }}
+        onSuccess={handleBetaSuccess}
+      />
       <Card
         cardClasses={{
           mainCardContainer:
