@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   disconnectWallet: vi.fn(),
   getLatestBlockhash: vi.fn(),
   cancelQueries: vi.fn(),
-  clear: vi.fn(),
+  removeQueries: vi.fn(),
   bs58Encode: vi.fn(),
   transfer: vi.fn(),
   transactionAdd: vi.fn(),
@@ -82,7 +82,7 @@ vi.mock("@solana/web3.js", () => {
 vi.mock("../trpc", () => ({
   queryClient: {
     cancelQueries: mocks.cancelQueries,
-    clear: mocks.clear,
+    removeQueries: mocks.removeQueries,
   },
   trpc: {
     auth: {
@@ -150,6 +150,7 @@ describe("useSolanaAuth", () => {
       blockhash: "blockhash-1",
     });
     mocks.cancelQueries.mockResolvedValue(undefined);
+    mocks.removeQueries.mockReturnValue(undefined);
     mocks.bs58Encode.mockReturnValue("encoded-signature");
     mocks.transfer.mockReturnValue({ kind: "transfer" });
     mocks.transactionSerialize.mockReturnValue(new Uint8Array([9, 9, 9]));
@@ -164,6 +165,7 @@ describe("useSolanaAuth", () => {
   });
 
   it("authenticates with a standard wallet and stores the token", async () => {
+    globalThis.localStorage.setItem("token", "stale-token");
     const refetchUser = vi.fn().mockResolvedValue(undefined);
     mocks.meUseQuery.mockReturnValue({
       data: null,
@@ -180,6 +182,8 @@ describe("useSolanaAuth", () => {
     });
 
     expect(mocks.createMessage).toHaveBeenCalled();
+    expect(mocks.cancelQueries).toHaveBeenCalled();
+    expect(mocks.removeQueries).toHaveBeenCalled();
     expect(mocks.signMessage).toHaveBeenCalled();
     expect(mocks.verifyUserWithSignature).toHaveBeenCalledWith({
       nonce: "nonce-1",
@@ -188,6 +192,7 @@ describe("useSolanaAuth", () => {
       isHardwareWallet: false,
     });
     expect(globalThis.localStorage.getItem("token")).toBe("jwt-token");
+    expect(mocks.removeQueries).toHaveBeenCalled();
     expect(refetchUser).toHaveBeenCalled();
   });
 
@@ -319,7 +324,7 @@ describe("useSolanaAuth", () => {
     expect(globalThis.localStorage.getItem("token")).toBeNull();
     expect(mocks.disconnectWallet).toHaveBeenCalled();
     expect(mocks.cancelQueries).toHaveBeenCalled();
-    expect(mocks.clear).toHaveBeenCalled();
+    expect(mocks.removeQueries).toHaveBeenCalled();
     expect(refetchUser).toHaveBeenCalled();
   });
 });

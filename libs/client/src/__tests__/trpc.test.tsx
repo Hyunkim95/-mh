@@ -120,6 +120,7 @@ describe("client trpc", () => {
     const defaults = module.queryClient.getDefaultOptions();
     const options = mocks.httpBatchLink.mock.calls[0]?.[0];
     const cancelQueriesSpy = vi.spyOn(module.queryClient, "cancelQueries");
+    const removeQueriesSpy = vi.spyOn(module.queryClient, "removeQueries");
     expect(options.headers()).toEqual({
       "content-type": "application/json",
     });
@@ -128,6 +129,7 @@ describe("client trpc", () => {
     defaults.queries?.onError?.({ data: { httpStatus: 401 }, message: "UNAUTHORIZED" });
     expect(mocks.storage.get("token")).toBeUndefined();
     expect(cancelQueriesSpy).toHaveBeenCalledTimes(1);
+    expect(removeQueriesSpy).toHaveBeenCalledTimes(1);
     expect(globalThis.window.location.replace).toHaveBeenCalledWith("/login");
 
     mocks.storage.set("token", "bad-signature-token");
@@ -136,6 +138,7 @@ describe("client trpc", () => {
     );
     expect(mocks.storage.get("token")).toBeUndefined();
     expect(cancelQueriesSpy).toHaveBeenCalledTimes(2);
+    expect(removeQueriesSpy).toHaveBeenCalledTimes(2);
     expect(globalThis.window.location.replace).toHaveBeenCalledWith("/login");
 
     mocks.storage.set("token", "still-valid");
@@ -144,6 +147,7 @@ describe("client trpc", () => {
     defaults.mutations?.onError?.(new Error("mutation boom"));
     expect(mocks.storage.get("token")).toBe("still-valid");
     expect(cancelQueriesSpy).toHaveBeenCalledTimes(2);
+    expect(removeQueriesSpy).toHaveBeenCalledTimes(2);
 
     expect(mocks.captureClientError).toHaveBeenCalledTimes(4);
   });

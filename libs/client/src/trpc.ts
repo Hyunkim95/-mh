@@ -23,9 +23,16 @@ function isUnauthorizedError(error: any) {
   );
 }
 
+function isAuthQueryKey(queryKey: readonly unknown[]) {
+  return JSON.stringify(queryKey).includes("auth");
+}
+
 function resetUnauthorizedClientState() {
   clearStoredAuthToken();
   void queryClient.cancelQueries();
+  queryClient.removeQueries({
+    predicate: (query) => isAuthQueryKey(query.queryKey),
+  });
 
   if (typeof window !== "undefined" && window.location.pathname !== "/login") {
     window.location.replace("/login");

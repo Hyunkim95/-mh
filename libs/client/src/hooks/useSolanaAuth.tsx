@@ -125,6 +125,14 @@ export const useSolanaAuth = () => {
     setError(null);
 
     try {
+      // Drop any stale token and auth cache before starting a fresh login flow.
+      // This prevents late 401s from the previous session from clearing the new token.
+      clearStoredAuthToken();
+      await queryClient.cancelQueries();
+      queryClient.removeQueries({
+        predicate: (query) => JSON.stringify(query.queryKey).includes("auth"),
+      });
+
       // Get nonce and message from backend
       const { nonce, message } = await createMessage();
 
@@ -150,6 +158,9 @@ export const useSolanaAuth = () => {
       });
 
       setStoredAuthToken(token);
+      queryClient.removeQueries({
+        predicate: (query) => JSON.stringify(query.queryKey).includes("auth"),
+      });
       await refetchUser();
     } catch (err) {
       const error =
@@ -165,6 +176,9 @@ export const useSolanaAuth = () => {
     signForHardwareWallet,
     signForStandardWallet,
     disconnectWallet,
+    createMessage,
+    verifyUserWithSignature,
+    refetchUser,
   ]);
 
   const logout = useCallback(async () => {
@@ -172,7 +186,9 @@ export const useSolanaAuth = () => {
     try {
       await disconnectWallet();
       await queryClient.cancelQueries();
-      queryClient.clear();
+      queryClient.removeQueries({
+        predicate: (query) => JSON.stringify(query.queryKey).includes("auth"),
+      });
     } finally {
       await refetchUser();
     }
