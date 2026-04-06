@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 
 const BETA_PASSWORD = "enigma2025";
-const STORAGE_KEY = "multihopper_beta_access";
+const STORAGE_KEY = "mh_beta_v2";
 
 interface BetaAccessGateProps {
   isOpen: boolean;
