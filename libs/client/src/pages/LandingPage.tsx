@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { router } from "../router";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { BetaAccessGate, isBetaUnlocked } from "../components/BetaAccessGate";
 
 // Import SVG assets
 import LogoIcon from "../assets/landing/logo-icon.svg";
@@ -28,7 +29,13 @@ export const LandingPage: React.FC = () => {
     newsletterEmail: "",
   });
 
+  const [showBetaGate, setShowBetaGate] = useState(false);
+
   const handleConnectWallet = () => {
+    if (!isBetaUnlocked()) {
+      setShowBetaGate(true);
+      return;
+    }
     router.navigate({ to: "/login" });
   };
 
@@ -138,6 +145,14 @@ export const LandingPage: React.FC = () => {
         backgroundSize: "auto, cover",
       }}
     >
+      <BetaAccessGate
+        isOpen={showBetaGate}
+        onClose={() => setShowBetaGate(false)}
+        onSuccess={() => {
+          setShowBetaGate(false);
+          router.navigate({ to: "/login" });
+        }}
+      />
       {/* Beta Warning Banner */}
       <div
         className="w-full bg-[#FBFF69] text-black text-center text-sm font-medium"
