@@ -150,7 +150,6 @@ export const LandingPage: React.FC = () => {
         onClose={() => setShowBetaGate(false)}
         onSuccess={() => {
           setShowBetaGate(false);
-          router.navigate({ to: "/login" });
         }}
       />
       {/* Beta Warning Banner */}
