@@ -119,12 +119,12 @@ describe("Login", () => {
     });
   });
 
-  it("shows the beta gate instead of the login UI when beta access is locked", () => {
+  it("shows the routing-upgrade screen instead of the login UI when access is locked", () => {
     window.localStorage.clear();
 
     render(<Login />);
 
-    expect(screen.getByText("Private Beta Testing")).toBeInTheDocument();
+    expect(screen.getByText("Routing upgrade in process")).toBeInTheDocument();
     expect(screen.queryByTestId("wallet-tile-phantom")).not.toBeInTheDocument();
   });
 
