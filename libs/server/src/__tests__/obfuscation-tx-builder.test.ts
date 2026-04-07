@@ -70,6 +70,37 @@ vi.mock("../hops/schema/hops.schema", () => ({
 }));
 
 // Mock obfuscation service
+// Reproduces the per-wallet formula from obfuscation.service.ts so the mock
+// stays in lockstep with production. If you change the formula there, change
+// it here too — the test exists precisely to keep them aligned.
+const computeMockPerWalletComponents = (
+  totalWalletCount: number,
+  _hopCount: number,
+  _amountBaseUnits: number,
+) => {
+  const priorityFeeLamports = 180_000;
+  const rentExempt = 890_880;
+  const baseTxFee = 5000;
+  const cleanupCu = 50_000;
+  const aggCu = 100_000;
+  const cleanupPriority = Math.ceil((cleanupCu * priorityFeeLamports) / 1_000_000);
+  const aggPriority = Math.ceil((aggCu * priorityFeeLamports) / 1_000_000);
+  const dynamicFeeComponent =
+    (baseTxFee + cleanupPriority + (baseTxFee + aggPriority)) * 3;
+  const cleanupReservation = dynamicFeeComponent + rentExempt;
+  const deploymentShare = Math.ceil(100_000_000 / totalWalletCount);
+  const walletXCleanupShare = Math.ceil(3_000_000 / totalWalletCount);
+  const aggregationFee = 2_500_000;
+  return {
+    deploymentShare,
+    aggregationFee,
+    cleanupReservation,
+    walletXCleanupShare,
+    extraSolForDeployment:
+      deploymentShare + aggregationFee + cleanupReservation + walletXCleanupShare,
+  };
+};
+
 vi.mock("../obfuscation/services/obfuscation.service", () => ({
   obfuscationService: {
     getConnection: () => new MockConnection(),
@@ -84,6 +115,12 @@ vi.mock("../obfuscation/services/obfuscation.service", () => ({
       priorityFeeLamports: 180000, // 150k * 1.2
       lastUpdated: new Date(),
     }),
+    getPerWalletFundingComponents: vi
+      .fn()
+      .mockImplementation(
+        async (totalWalletCount: number, hopCount: number, amount: number) =>
+          computeMockPerWalletComponents(totalWalletCount, hopCount, amount),
+      ),
     constants: {
       BASE_TX_FEE_LAMPORTS: 5000,
       AGGREGATION_FEE_PER_WALLET: 2_500_000,

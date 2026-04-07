@@ -148,7 +148,9 @@
       "Bash(yarn workspace @trpc-template/client test:*)",
       "Bash(yarn workspace @multihopper/client vitest run:*)",
       "Bash(yarn workspace @trpc-template/client vitest run:*)",
-      "Bash(yarn workspace @trpc-template/client run build:*)"
+      "Bash(yarn workspace @trpc-template/client run build:*)",
+      "Bash(yarn test:run:*)",
+      "Bash(yarn workspace @trpc-template/server type-check:*)"
     ],
     "deny": []
   }

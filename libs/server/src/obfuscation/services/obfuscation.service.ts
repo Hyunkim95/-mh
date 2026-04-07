@@ -37,6 +37,18 @@ const FALLBACK_ATA_RENT_LAMPORTS = 2039280;
 const FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS = 890880;
 const FALLBACK_PRIORITY_FEE_LAMPORTS = 200000;
 
+// Per-wallet aggregation fee
+const AGGREGATION_FEE_PER_WALLET = 2_500_000; // 0.0025 SOL per wallet
+// Total buffer added to funding so Wallet X can always pay its own cleanup tx after deployment.
+// Split evenly across intermediate wallets — flows through aggregation to Wallet X.
+const WALLET_X_CLEANUP_BUFFER_LAMPORTS = 3_000_000; // 0.003 SOL
+
+// Compute units used by each tx type — kept here so the funding-tx builder
+// and the up-front estimate stay in sync.
+const FUNDING_TX_COMPUTE_UNITS = 100_000;
+const AGG_TX_COMPUTE_UNITS = 100_000;
+const CLEANUP_TX_COMPUTE_UNITS = 50_000;
+
 // Cache for dynamic values (refreshed periodically)
 interface DynamicFeeCache {
   ataRentLamports: number;
@@ -134,6 +146,192 @@ async function getMinLamportsPerWallet(): Promise<number> {
     BASE_TX_FEE_LAMPORTS +
     fees.priorityFeeLamports
   );
+}
+
+/**
+ * Per-wallet SOL components transferred during funding.
+ *
+ * This is the SINGLE SOURCE OF TRUTH for the per-wallet funding formula.
+ * Both `buildFundingTransaction` (the actual on-chain transfer) and
+ * `estimateObfuscationFees` (the up-front estimate the user sees) MUST use
+ * this helper. Any divergence causes the deploy modal to lie to users about
+ * required funds.
+ */
+export interface PerWalletFundingComponents {
+  /** Per-wallet share of Wallet X's deployment cost */
+  deploymentShare: number;
+  /** Static aggregation reserve per wallet */
+  aggregationFee: number;
+  /** Reservation each wallet holds back during aggregation for its own cleanup tx */
+  cleanupReservation: number;
+  /** Per-wallet share of Wallet X's cleanup buffer (flows through aggregation) */
+  walletXCleanupShare: number;
+  /** Sum of the above — extra SOL added on top of the route allocation */
+  extraSolForDeployment: number;
+}
+
+async function getPerWalletFundingComponents(
+  totalWalletCount: number,
+  hopCount: number,
+  amountBaseUnits: number,
+  tokenType: "SOL" | "SPL" = "SOL",
+): Promise<PerWalletFundingComponents> {
+  const fees = await getDynamicFees();
+  const dynamicDeploymentCost = getDeploymentCost(
+    hopCount,
+    amountBaseUnits,
+    tokenType,
+  );
+  const deploymentShare = Math.ceil(dynamicDeploymentCost / totalWalletCount);
+
+  // Each wallet reserves SOL during aggregation for cleanup (tx fees + rent exempt).
+  // Compute actual fees using dynamic priority fee, with 3x buffer for fee spikes.
+  const cleanupPriority = Math.ceil(
+    (CLEANUP_TX_COMPUTE_UNITS * fees.priorityFeeLamports) / 1_000_000,
+  );
+  const aggPriority = Math.ceil(
+    (AGG_TX_COMPUTE_UNITS * fees.priorityFeeLamports) / 1_000_000,
+  );
+  const dynamicFeeComponent =
+    (BASE_TX_FEE_LAMPORTS +
+      cleanupPriority +
+      (BASE_TX_FEE_LAMPORTS + aggPriority)) *
+    3;
+  const cleanupReservation =
+    dynamicFeeComponent + fees.rentExemptMinimumLamports;
+
+  const walletXCleanupShare = Math.ceil(
+    WALLET_X_CLEANUP_BUFFER_LAMPORTS / totalWalletCount,
+  );
+
+  const extraSolForDeployment =
+    deploymentShare +
+    AGGREGATION_FEE_PER_WALLET +
+    cleanupReservation +
+    walletXCleanupShare;
+
+  return {
+    deploymentShare,
+    aggregationFee: AGGREGATION_FEE_PER_WALLET,
+    cleanupReservation,
+    walletXCleanupShare,
+    extraSolForDeployment,
+  };
+}
+
+/**
+ * Tight upper bound on the total SOL transferred to intermediate wallets
+ * during SOL-route funding, across any allocation split.
+ *
+ * The on-chain per-wallet transfer (see `buildFundingTransaction`) is
+ *     max(alloc_i + extra, min)
+ * where alloc_i are the per-wallet route allocations produced by
+ * `generateRandomSplit` (summing to routeAmount, each ≥ 0). The funded total
+ * is therefore
+ *     sum_i max(alloc_i + extra, min)
+ * which is a convex function of the allocation vector over the simplex
+ * { alloc : sum_i alloc_i = R, alloc_i ≥ 0 }. The maximum of a convex
+ * function over a simplex is attained at a vertex — concentrate the entire
+ * route amount on a single wallet — so the tight upper bound is
+ *     max(R + extra, min) + (N - 1) * max(extra, min)
+ *
+ * In the happy path (extra ≥ min AND R + extra ≥ min) this simplifies to
+ * R + N*extra, matching the actual sum when no wallet is floor-bound. In the
+ * all-floor path (R + N*extra ≤ N*min) it simplifies to N*min. The formula
+ * only strictly exceeds the happy-path number in the mixed regime where
+ * extra < min — i.e. exactly the case the naive
+ * `max(R + N*extra, N*min)` formula under-reports.
+ */
+function computeWorstCaseSolTransferLamports(
+  routeAmountLamports: number,
+  intermediateCount: number,
+  extraSolPerWallet: number,
+  minLamportsPerWallet: number,
+): number {
+  const concentratedWallet = Math.max(
+    routeAmountLamports + extraSolPerWallet,
+    minLamportsPerWallet,
+  );
+  const otherWallets =
+    (intermediateCount - 1) *
+    Math.max(extraSolPerWallet, minLamportsPerWallet);
+  return concentratedWallet + otherWallets;
+}
+
+/**
+ * Calculate the gross SOL the user must hold in their wallet at funding time.
+ *
+ * This is intentionally pre-refund — dust refund and rent recovery happen
+ * during cleanup, AFTER deployment. The wallet must momentarily hold the full
+ * amount to make the funding transactions succeed on-chain.
+ *
+ * For SOL routes: includes the route deposit itself.
+ * For SPL routes: only the SOL overhead (the SPL deposit lives in a different account).
+ */
+async function getRequiredSolUpFrontLamports(
+  intermediateCount: number,
+  tokenType: "SOL" | "SPL",
+  hopCount: number,
+  amountBaseUnits: number,
+  routeAmountLamports: number,
+): Promise<number> {
+  const fees = await getDynamicFees();
+  const components = await getPerWalletFundingComponents(
+    intermediateCount,
+    hopCount,
+    amountBaseUnits,
+    tokenType,
+  );
+
+  const minLamportsPerWallet =
+    fees.rentExemptMinimumLamports +
+    BASE_TX_FEE_LAMPORTS +
+    fees.priorityFeeLamports;
+
+  // Funding tx fee paid by the user (fee payer of each funding tx).
+  // Funding txs use FUNDING_TX_COMPUTE_UNITS for the priority fee instruction.
+  const fundingTxPriorityFee = Math.ceil(
+    (FUNDING_TX_COMPUTE_UNITS * fees.priorityFeeLamports) / 1_000_000,
+  );
+  const fundingTxFeePerWallet = BASE_TX_FEE_LAMPORTS + fundingTxPriorityFee;
+  const totalFundingTxFees = intermediateCount * fundingTxFeePerWallet;
+
+  // Per-wallet SOL transfer.
+  // For SOL routes the route allocation is bundled into the same transfer as
+  // extraSolForDeployment, with a floor of minLamportsPerWallet.
+  // For SPL routes the SOL transfer is just the extra (with the same floor).
+  let totalSolTransferred: number;
+  if (tokenType === "SOL") {
+    // The actual per-wallet transfer is `max(allocation + extra, minLamportsPerWallet)`
+    // and allocations come from `generateRandomSplit`, which can produce
+    // skewed splits where some wallets hit the floor and others do not. The
+    // tight upper bound across any allocation split is computed by
+    // `computeWorstCaseSolTransferLamports` (concentrate the whole route
+    // amount on a single wallet); anything looser — e.g. the naive
+    // `max(R + N*extra, N*min)` — under-reports in the mixed-floor regime.
+    totalSolTransferred = computeWorstCaseSolTransferLamports(
+      routeAmountLamports,
+      intermediateCount,
+      components.extraSolForDeployment,
+      minLamportsPerWallet,
+    );
+  } else {
+    // SPL route: SOL transfer per wallet is `max(extra, minLamportsPerWallet)`.
+    // The route amount is paid in SPL via a separate transfer instruction.
+    const perWalletSol = Math.max(
+      components.extraSolForDeployment,
+      minLamportsPerWallet,
+    );
+    totalSolTransferred = intermediateCount * perWalletSol;
+  }
+
+  // ATA creation cost paid by the user during funding (SPL only, when the
+  // intermediate wallet's ATA does not yet exist). We assume worst-case (none
+  // exist) so the estimate stays safe across reused intermediate wallets.
+  const ataCreationCost =
+    tokenType === "SPL" ? intermediateCount * fees.ataRentLamports : 0;
+
+  return totalSolTransferred + totalFundingTxFees + ataCreationCost;
 }
 
 /**
@@ -296,6 +494,13 @@ export interface ObfuscationFeeEstimate {
   netObfuscationCost: number;
   totalFeesLamports: number;
   deploymentCost: number; // Cost for route deployment from Wallet X
+  /**
+   * Gross SOL the user's wallet must hold at funding time (pre-refund).
+   * For SOL routes this includes the route deposit; for SPL routes this is
+   * the SOL overhead only. Use this for pre-flight balance checks — NOT
+   * `totalFeesLamports`, which is the post-refund net cost.
+   */
+  requiredSolUpFrontLamports: number;
 }
 
 async function estimateObfuscationFees(
@@ -353,6 +558,19 @@ async function estimateObfuscationFees(
     rentRecovery -
     dustRefund;
 
+  // Up-front SOL the user must hold at funding time. This uses the same
+  // per-wallet formula as `buildFundingTransaction`, so the modal estimate
+  // and the actual on-chain transfer cannot drift.
+  // For SOL routes the route deposit is included; for SPL it is excluded.
+  const routeAmountForUpFront = tokenType === "SOL" ? amountLamports : 0;
+  const requiredSolUpFrontLamports = await getRequiredSolUpFrontLamports(
+    intermediateCount,
+    tokenType,
+    hopCount,
+    amountLamports,
+    routeAmountForUpFront,
+  );
+
   return {
     intermediateAtaCreation,
     walletXAtaCreation,
@@ -364,6 +582,7 @@ async function estimateObfuscationFees(
     netObfuscationCost,
     deploymentCost,
     totalFeesLamports: Math.max(0, netObfuscationCost),
+    requiredSolUpFrontLamports,
   };
 }
 
@@ -433,10 +652,10 @@ async function createSession(
     amountLamports,
   );
 
-  const requiredSolLamports =
-    input.tokenType === "SOL"
-      ? totalAmountBN.add(new BN(feeEstimate.totalFeesLamports))
-      : new BN(feeEstimate.totalFeesLamports);
+  // Use the gross up-front amount, not the post-refund net cost. The wallet
+  // has to actually hold this SOL when funding txs land — dust refunds and
+  // rent recovery happen later, during cleanup.
+  const requiredSolLamports = new BN(feeEstimate.requiredSolUpFrontLamports);
   const creatorBalanceLamports = await connection.getBalance(
     new PublicKey(input.creator),
   );
@@ -710,6 +929,9 @@ export const obfuscationService = {
   generateRandomSplit,
   generateAggregationSchedule,
   estimateObfuscationFees,
+  getRequiredSolUpFrontLamports,
+  computeWorstCaseSolTransferLamports,
+  getPerWalletFundingComponents,
   getWalletManager,
   getConnection,
   getDynamicFees,
@@ -735,9 +957,9 @@ export const obfuscationService = {
     RENT_EXEMPT_MINIMUM_LAMPORTS: FALLBACK_RENT_EXEMPT_MINIMUM_LAMPORTS,
     ESTIMATED_PRIORITY_FEE_LAMPORTS: FALLBACK_PRIORITY_FEE_LAMPORTS,
     // Per-wallet aggregation fee
-    AGGREGATION_FEE_PER_WALLET: 2_500_000, // 0.0025 SOL per wallet (covers tx fees + rent-exempt reserve)
+    AGGREGATION_FEE_PER_WALLET,
     // Total buffer added to funding so Wallet X can always pay its own cleanup tx after deployment.
     // Split evenly across intermediate wallets — flows through aggregation to Wallet X.
-    WALLET_X_CLEANUP_BUFFER_LAMPORTS: 3_000_000, // 0.003 SOL (covers cleanup fee + margin)
+    WALLET_X_CLEANUP_BUFFER_LAMPORTS,
   },
 };

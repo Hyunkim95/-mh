@@ -45,6 +45,7 @@ export const DeployModal: React.FC<DeployModalProps> = ({
   const { deploy } = useDeploy();
   const { connection } = useConnection();
   const { publicKey } = useWallet();
+  const utils = trpc.useUtils();
 
   // Format time display
   const formatTime = (dateStr: string) => {
@@ -132,16 +133,33 @@ export const DeployModal: React.FC<DeployModalProps> = ({
     setErrorMessage(null);
 
     try {
-      // Pre-flight: verify on-chain balance is sufficient before submitting transaction
-      // Compare against totalSpendTokens (includes fee) if available, otherwise hopAmountTokens
+      // Pre-flight: verify on-chain balances are sufficient before submitting.
+      //
+      // For obfuscated routes the funding txs transfer the route allocation
+      // PLUS per-wallet SOL overhead (deployment share, aggregation reserve,
+      // cleanup reservation, Wallet X cleanup buffer, ATA rent for SPL).
+      // The frontend MUST check SOL against the gross up-front amount
+      // returned by getObfuscationCostEstimate.requiredSolUpFrontLamports —
+      // NOT the displayed "Net Privacy Cost", which is post-refund.
       const totalSpend = parseFloat(route.totalSpendTokens || route.hopAmountTokens);
       const hopAmountTokens = parseFloat(route.hopAmountTokens);
-      let actualBalance: number | null = null;
 
+      // Always fetch SOL balance — we may need it for obfuscation overhead
+      // even on SPL routes.
+      let solLamports: number | null = null;
+      try {
+        solLamports = await connection.getBalance(publicKey);
+      } catch {
+        console.warn("[DeployModal] Failed to fetch SOL balance");
+      }
+
+      // Token-specific balance (for SPL, the SPL token account; for SOL,
+      // mirrors solLamports).
+      let tokenBalance: number | null = null;
       try {
         if (route.tokenType === "SOL") {
-          const lamports = await connection.getBalance(publicKey);
-          actualBalance = lamports / LAMPORTS_PER_SOL;
+          tokenBalance =
+            solLamports !== null ? solLamports / LAMPORTS_PER_SOL : null;
         } else if (route.tokenMint) {
           const mintPubkey = new PublicKey(route.tokenMint);
           const ata = getAssociatedTokenAddressSync(mintPubkey, publicKey, false);
@@ -152,21 +170,60 @@ export const DeployModal: React.FC<DeployModalProps> = ({
             rawAmount > 0 && hopAmountTokens > 0
               ? Math.round(Math.log10(rawAmount / hopAmountTokens))
               : 6;
-          actualBalance = Number(accountInfo.amount / BigInt(10 ** decimals));
+          tokenBalance = Number(accountInfo.amount / BigInt(10 ** decimals));
         }
       } catch {
         // If balance check fails, proceed with deployment (fail on-chain instead)
-        console.warn("[DeployModal] Pre-flight balance check failed, proceeding anyway");
+        console.warn("[DeployModal] Pre-flight token balance check failed, proceeding anyway");
       }
 
-      if (actualBalance !== null && totalSpend > actualBalance) {
+      // Token-side check: do we have enough of the route's spend token?
+      if (tokenBalance !== null && totalSpend > tokenBalance) {
         setStatus("error");
         setErrorMessage(
           `Insufficient balance. You're trying to deploy ${totalSpend.toLocaleString()} ` +
           `${route.tokenSymbol || route.tokenType} but your wallet only has ` +
-          `${actualBalance.toLocaleString()}. Please go back and adjust the amount.`
+          `${tokenBalance.toLocaleString()}. Please go back and adjust the amount.`
         );
         return;
+      }
+
+      // SOL-side check (only matters for obfuscated routes).
+      // requiredSolUpFrontLamports = gross SOL the wallet must hold at funding
+      // time. For SOL routes it already includes the route deposit; for SPL it
+      // is just the obfuscation overhead.
+      if (route.hasObfuscation) {
+        try {
+          // Refetch fresh — priority fees & dynamic fee cache may have moved
+          // since the modal opened.
+          const fresh = await utils.routes.getObfuscationCostEstimate.fetch(
+            { routeId: route.routeId },
+            { staleTime: 0 },
+          );
+          const requiredLamports = fresh?.data?.requiredSolUpFrontLamports;
+
+          if (
+            solLamports !== null &&
+            typeof requiredLamports === "number" &&
+            solLamports < requiredLamports
+          ) {
+            setStatus("error");
+            const requiredSol = (requiredLamports / LAMPORTS_PER_SOL).toFixed(6);
+            const haveSol = (solLamports / LAMPORTS_PER_SOL).toFixed(6);
+            setErrorMessage(
+              `Insufficient SOL for deployment. This route needs at least ${requiredSol} SOL ` +
+              `in your wallet to cover the route amount, privacy wallet funding, and network ` +
+              `fees, but your wallet only has ${haveSol} SOL. Most of this is refunded after ` +
+              `cleanup, but you must hold the full amount up front.`
+            );
+            return;
+          }
+        } catch (err) {
+          console.warn(
+            "[DeployModal] Failed to refetch obfuscation cost estimate; proceeding without SOL pre-flight",
+            err,
+          );
+        }
       }
 
       const deployData = {
@@ -482,12 +539,27 @@ export const DeployModal: React.FC<DeployModalProps> = ({
                       </div>
                     </div>
 
-                    {/* Net Privacy Cost */}
+                    {/* Required Up Front (gross — must be in wallet at funding time) */}
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-[var(--white-100)]">
-                        Net Privacy Cost
-                      </span>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-[var(--white-100)]">
+                          Required Up Front
+                        </span>
+                        <span className="text-xs text-[var(--philippine-gray-500)]/70">
+                          Must be in your wallet to deploy
+                        </span>
+                      </div>
                       <span className="text-[var(--laser-lemon-500)] font-semibold">
+                        {obfuscationCostEstimate.data.data.breakdown.requiredSolUpFrontSOL} SOL
+                      </span>
+                    </div>
+
+                    {/* Net Privacy Cost (after refunds) */}
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-sm text-[var(--philippine-gray-500)]">
+                        Net Privacy Cost (after refunds)
+                      </span>
+                      <span className="text-[var(--white-100)] font-medium">
                         {obfuscationCostEstimate.data.data.breakdown.netCostSOL} SOL
                       </span>
                     </div>

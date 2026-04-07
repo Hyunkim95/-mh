@@ -399,6 +399,9 @@ export const routesRouter = router({
               refundableSOL: lamportsToSol(feeEstimate.rentRecovery),
               dustRefundSOL: lamportsToSol(feeEstimate.dustRefund),
               netCostSOL: lamportsToSol(feeEstimate.totalFeesLamports),
+              // Gross SOL the user must hold in-wallet at funding time
+              // (pre-refund). For SOL routes this includes the route deposit.
+              requiredSolUpFrontSOL: lamportsToSol(feeEstimate.requiredSolUpFrontLamports),
             },
           },
         };

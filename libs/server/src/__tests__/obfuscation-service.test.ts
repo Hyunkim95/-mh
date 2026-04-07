@@ -581,6 +581,364 @@ describe("ObfuscationService", () => {
 
       expect(estimate8.dustRefund).toBeGreaterThan(estimate5.dustRefund);
     });
+
+    describe("requiredSolUpFrontLamports", () => {
+      // The DeployModal uses this to gate the deploy click. The number must
+      // match what `buildFundingTransaction` actually transfers — if the two
+      // drift, the modal will say a deploy will pass while it reverts on-chain
+      // with "insufficient lamports". A regression here is exactly the bug
+      // we're fixing, so the assertions here are tight on purpose.
+
+      it("should be greater than the post-refund netObfuscationCost (gross > net)", async () => {
+        const estimate = await obfuscationService.estimateObfuscationFees(
+          6,
+          "SOL",
+          3,
+          1_000_000_000,
+        );
+
+        // Gross must exceed net because dust refund + rent recovery only
+        // come back AFTER cleanup, not at funding time.
+        expect(estimate.requiredSolUpFrontLamports).toBeGreaterThan(
+          estimate.netObfuscationCost,
+        );
+      });
+
+      it("should include the route deposit for SOL routes", async () => {
+        const routeAmount = 1_000_000_000; // 1 SOL
+        const estimate = await obfuscationService.estimateObfuscationFees(
+          6,
+          "SOL",
+          3,
+          routeAmount,
+        );
+
+        // Must be at least the route deposit (the user has to send at least
+        // their entire route amount, on top of all the fees).
+        expect(estimate.requiredSolUpFrontLamports).toBeGreaterThanOrEqual(
+          routeAmount,
+        );
+      });
+
+      it("should NOT include the route deposit for SPL routes", async () => {
+        // For SPL the route deposit lives in an SPL token account, not SOL.
+        // The up-front SOL is purely overhead.
+        const splAmountInBaseUnits = 1_000_000_000_000; // 1M tokens (irrelevant to SOL math)
+        const estimate = await obfuscationService.estimateObfuscationFees(
+          6,
+          "SPL",
+          3,
+          splAmountInBaseUnits,
+        );
+
+        expect(estimate.requiredSolUpFrontLamports).toBeLessThan(
+          splAmountInBaseUnits,
+        );
+      });
+
+      it("should match the per-wallet formula used by buildFundingTransaction (SOL)", async () => {
+        // This test mirrors the per-wallet math in buildFundingTransaction so
+        // the two implementations cannot drift. With mocked priority fee
+        // 150_000 → buffered 180_000, deployment cost mock totalCost=50M,
+        // 3x multiplier → 150M total, intermediateCount=6.
+        const intermediateCount = 6;
+        const routeAmount = 100_000_000; // 0.1 SOL — small enough that floors don't bind
+
+        const estimate = await obfuscationService.estimateObfuscationFees(
+          intermediateCount,
+          "SOL",
+          3,
+          routeAmount,
+        );
+
+        // Reproduce the formula exactly:
+        const priorityFee = Math.ceil(150_000 * 1.2); // 180_000 (1.2x buffer)
+        const baseTxFee = 5000;
+        const cleanupCu = 50_000;
+        const aggCu = 100_000;
+        const fundingCu = 100_000;
+        const cleanupPriority = Math.ceil((cleanupCu * priorityFee) / 1_000_000);
+        const aggPriority = Math.ceil((aggCu * priorityFee) / 1_000_000);
+        const fundingPriority = Math.ceil((fundingCu * priorityFee) / 1_000_000);
+        const dynamicFeeComponent =
+          (baseTxFee + cleanupPriority + (baseTxFee + aggPriority)) * 3;
+        const cleanupReservation = dynamicFeeComponent + 890_880;
+        const deploymentShare = Math.ceil(150_000_000 / intermediateCount);
+        const walletXCleanupShare = Math.ceil(3_000_000 / intermediateCount);
+        const aggregationFee = 2_500_000;
+        const extraSolForDeployment =
+          deploymentShare + aggregationFee + cleanupReservation + walletXCleanupShare;
+        const fundingTxFee = baseTxFee + fundingPriority;
+        const minLamportsPerWallet = 890_880 + baseTxFee + priorityFee;
+        // Tight upper bound: max over allocations is at a simplex vertex —
+        // concentrate the whole route amount on a single wallet.
+        const totalSolTransferred =
+          Math.max(routeAmount + extraSolForDeployment, minLamportsPerWallet) +
+          (intermediateCount - 1) *
+            Math.max(extraSolForDeployment, minLamportsPerWallet);
+        const expected =
+          totalSolTransferred + intermediateCount * fundingTxFee;
+
+        expect(estimate.requiredSolUpFrontLamports).toBe(expected);
+      });
+
+      it("should include intermediate ATA rent for SPL routes", async () => {
+        // For SPL routes the user pays ATA creation rent for each
+        // intermediate wallet's ATA during funding. We compare against the
+        // SOL-overhead-only baseline (amount=0) so the only legitimate
+        // delta is the per-wallet ATA rent.
+        const intermediateCount = 6;
+        const splEstimate = await obfuscationService.estimateObfuscationFees(
+          intermediateCount,
+          "SPL",
+          3,
+          1_000_000_000,
+        );
+        const solEstimate = await obfuscationService.estimateObfuscationFees(
+          intermediateCount,
+          "SOL",
+          3,
+          0,
+        );
+
+        // In the test mock `getMinimumBalanceForRentExemption` returns
+        // 890_880 for ALL sizes (including the 165-byte ATA query), so
+        // ataRent in this environment equals rentExemptMinimum.
+        const fees = await obfuscationService.getDynamicFees();
+        const ataRent = fees.ataRentLamports;
+
+        const splOverhead = splEstimate.requiredSolUpFrontLamports;
+        const solOverhead = solEstimate.requiredSolUpFrontLamports;
+
+        expect(splOverhead - solOverhead).toBe(intermediateCount * ataRent);
+      });
+
+      it("should scale up with more intermediate wallets", async () => {
+        const estimate5 = await obfuscationService.estimateObfuscationFees(
+          5,
+          "SOL",
+          3,
+          1_000_000_000,
+        );
+        const estimate8 = await obfuscationService.estimateObfuscationFees(
+          8,
+          "SOL",
+          3,
+          1_000_000_000,
+        );
+
+        // More intermediate wallets = more SOL needed up front (every wallet
+        // gets the AGGREGATION_FEE_PER_WALLET reserve and the cleanup
+        // reservation, which dwarf the deployment share rounding).
+        expect(estimate8.requiredSolUpFrontLamports).toBeGreaterThan(
+          estimate5.requiredSolUpFrontLamports,
+        );
+      });
+    });
+
+    describe("computeWorstCaseSolTransferLamports", () => {
+      // The on-chain per-wallet SOL funding transfer (see
+      // buildFundingTransaction) is `max(alloc_i + extra, min)` where
+      // alloc_i come from generateRandomSplit and sum to routeAmount. The
+      // total SOL transferred is therefore sum_i max(alloc_i + extra, min),
+      // and the estimate surfaced to the DeployModal MUST be a safe upper
+      // bound over every allocation the random split could produce —
+      // including the skewed splits where only some wallets hit the floor.
+      //
+      // These tests pin the formula directly so any future "optimization"
+      // that regresses to a looser bound (e.g. max(R + N*extra, N*min))
+      // trips immediately.
+
+      /** Brute-force sum across an arbitrary allocation vector — the exact
+       *  on-chain formula. */
+      const actualFundingSum = (
+        allocations: number[],
+        extra: number,
+        min: number,
+      ) =>
+        allocations.reduce(
+          (acc, alloc) => acc + Math.max(alloc + extra, min),
+          0,
+        );
+
+      /** The old buggy formula — kept as a control to prove the regression. */
+      const oldBuggyBound = (R: number, N: number, extra: number, min: number) =>
+        Math.max(R + N * extra, N * min);
+
+      it("matches the reviewer's partial-floor counter-example (R=15, N=2, extra=0, min=10)", () => {
+        // Concentrated allocation [15, 0]: max(15,10) + max(0,10) = 25.
+        // The old formula returned max(15, 20) = 20 — strictly below the
+        // real funding sum, causing the deploy modal to under-fund.
+        const bound = obfuscationService.computeWorstCaseSolTransferLamports(
+          15,
+          2,
+          0,
+          10,
+        );
+        expect(bound).toBe(25);
+        expect(actualFundingSum([15, 0], 0, 10)).toBe(25);
+        expect(actualFundingSum([0, 15], 0, 10)).toBe(25);
+        expect(oldBuggyBound(15, 2, 0, 10)).toBe(20);
+        expect(bound).toBeGreaterThan(oldBuggyBound(15, 2, 0, 10));
+      });
+
+      it("dominates every allocation split in a mixed-floor regime (extra < min)", () => {
+        // extra=50k, min=200k, N=5, R=500k. With [500k, 0, 0, 0, 0]:
+        //   actual = max(550k, 200k) + 4*max(50k, 200k) = 550k + 800k = 1_350k
+        // Old formula: max(500k + 5*50k, 5*200k) = max(750k, 1_000k) = 1_000k
+        // ⇒ old under-reports by 350k. New formula must equal 1_350k.
+        const R = 500_000;
+        const N = 5;
+        const extra = 50_000;
+        const min = 200_000;
+
+        const bound = obfuscationService.computeWorstCaseSolTransferLamports(
+          R,
+          N,
+          extra,
+          min,
+        );
+        expect(bound).toBe(1_350_000);
+        expect(oldBuggyBound(R, N, extra, min)).toBe(1_000_000);
+        expect(bound).toBeGreaterThan(oldBuggyBound(R, N, extra, min));
+
+        // Exercise a handful of valid allocation splits — concentrated,
+        // skewed, and even — and assert the new bound dominates every one.
+        const splits: number[][] = [
+          [R, 0, 0, 0, 0],
+          [0, R, 0, 0, 0],
+          [R - 100, 100, 0, 0, 0],
+          [200_000, 150_000, 150_000, 0, 0],
+          [100_000, 100_000, 100_000, 100_000, 100_000],
+        ];
+        for (const split of splits) {
+          expect(split.reduce((a, b) => a + b, 0)).toBe(R);
+          expect(bound).toBeGreaterThanOrEqual(
+            actualFundingSum(split, extra, min),
+          );
+        }
+
+        // The concentrated split saturates the bound.
+        expect(actualFundingSum([R, 0, 0, 0, 0], extra, min)).toBe(bound);
+      });
+
+      it("collapses to R + N*extra in the happy path (extra ≥ min)", () => {
+        // extra=30M, min=1.08M, R=1 SOL, N=6. Every wallet is well above
+        // the floor no matter how generateRandomSplit divides R, so the
+        // tight bound equals the real sum and matches the old formula.
+        const R = 1_000_000_000;
+        const N = 6;
+        const extra = 30_000_000;
+        const min = 1_080_000;
+
+        const bound = obfuscationService.computeWorstCaseSolTransferLamports(
+          R,
+          N,
+          extra,
+          min,
+        );
+        expect(bound).toBe(R + N * extra);
+        expect(oldBuggyBound(R, N, extra, min)).toBe(R + N * extra);
+      });
+
+      it("collapses to N*min when the floor binds on every wallet", () => {
+        // R=0, extra=0, min=10, N=5. Every wallet funds exactly `min`.
+        const bound = obfuscationService.computeWorstCaseSolTransferLamports(
+          0,
+          5,
+          0,
+          10,
+        );
+        expect(bound).toBe(50);
+        expect(actualFundingSum([0, 0, 0, 0, 0], 0, 10)).toBe(50);
+      });
+
+      it("handles N=1 (no other wallets)", () => {
+        expect(
+          obfuscationService.computeWorstCaseSolTransferLamports(100, 1, 5, 10),
+        ).toBe(105); // max(100+5, 10) + 0 = 105
+        expect(
+          obfuscationService.computeWorstCaseSolTransferLamports(0, 1, 0, 10),
+        ).toBe(10); // max(0, 10) + 0 = 10
+      });
+    });
+
+    describe("requiredSolUpFrontLamports — end-to-end worst-case guard", () => {
+      it("dominates the actual funding sum for a concentrated allocation (SOL)", async () => {
+        // Verifies the P2 concern: feed a skewed split through the exact
+        // on-chain funding formula and assert the service's up-front
+        // estimate still dominates it. Uses production mocks where
+        // extra >> min (so the formula numerically matches the happy path),
+        // but the assertion is the invariant — not a particular number —
+        // so it catches any future drift back to an unsafe bound.
+        const intermediateCount = 6;
+        const routeAmount = 1_000_000_000; // 1 SOL
+
+        const estimate = await obfuscationService.estimateObfuscationFees(
+          intermediateCount,
+          "SOL",
+          3,
+          routeAmount,
+        );
+
+        // Reproduce the component values the service sees, using the same
+        // math as the existing "should match the per-wallet formula" test.
+        const priorityFee = Math.ceil(150_000 * 1.2);
+        const baseTxFee = 5000;
+        const cleanupPriority = Math.ceil((50_000 * priorityFee) / 1_000_000);
+        const aggPriority = Math.ceil((100_000 * priorityFee) / 1_000_000);
+        const fundingPriority = Math.ceil((100_000 * priorityFee) / 1_000_000);
+        const dynamicFeeComponent =
+          (baseTxFee + cleanupPriority + (baseTxFee + aggPriority)) * 3;
+        const cleanupReservation = dynamicFeeComponent + 890_880;
+        const deploymentShare = Math.ceil(150_000_000 / intermediateCount);
+        const walletXCleanupShare = Math.ceil(3_000_000 / intermediateCount);
+        const aggregationFee = 2_500_000;
+        const extra =
+          deploymentShare +
+          aggregationFee +
+          cleanupReservation +
+          walletXCleanupShare;
+        const min = 890_880 + baseTxFee + priorityFee;
+        const fundingTxFee = baseTxFee + fundingPriority;
+
+        // Worst-case concentrated allocation: one wallet gets the entire
+        // route amount, the rest get 0. Compute the real on-chain transfer
+        // sum with the exact buildFundingTransaction formula.
+        const concentrated = [
+          routeAmount,
+          ...Array(intermediateCount - 1).fill(0),
+        ];
+        const actualSolTransferred = concentrated.reduce(
+          (acc, alloc) => acc + Math.max(alloc + extra, min),
+          0,
+        );
+        const actualRequired =
+          actualSolTransferred + intermediateCount * fundingTxFee;
+
+        expect(estimate.requiredSolUpFrontLamports).toBeGreaterThanOrEqual(
+          actualRequired,
+        );
+
+        // Also assert the invariant holds for a few other valid splits, so a
+        // future regression that only breaks the vertex case still trips.
+        const otherSplits: number[][] = [
+          Array(intermediateCount).fill(routeAmount / intermediateCount),
+          [routeAmount - 1, 1, 0, 0, 0, 0],
+          [0, routeAmount, 0, 0, 0, 0],
+        ];
+        for (const split of otherSplits) {
+          const splitSum = split.reduce(
+            (acc, alloc) => acc + Math.max(alloc + extra, min),
+            0,
+          );
+          const splitRequired = splitSum + intermediateCount * fundingTxFee;
+          expect(estimate.requiredSolUpFrontLamports).toBeGreaterThanOrEqual(
+            splitRequired,
+          );
+        }
+      });
+    });
   });
 
   describe("getDynamicFees", () => {

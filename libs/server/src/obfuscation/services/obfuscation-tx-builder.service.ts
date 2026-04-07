@@ -146,6 +146,16 @@ async function buildFundingTransaction(
   );
   priorityInstructions.forEach((ix) => transaction.add(ix));
 
+  // Per-wallet SOL components — single source of truth shared with the
+  // up-front estimate exposed to the deploy modal. If you change the formula,
+  // change it in obfuscation.service.ts::getPerWalletFundingComponents.
+  const components = await obfuscationService.getPerWalletFundingComponents(
+    totalWalletCount,
+    hopCount,
+    amountLamports,
+    tokenMint ? "SPL" : "SOL",
+  );
+
   if (tokenMint) {
     // SPL Token transfer
     const sourceAta = await getAssociatedTokenAddress(tokenMint, sourceWallet);
@@ -184,26 +194,10 @@ async function buildFundingTransaction(
     // 2. SOL to forward to Wallet X for route deployment (split among all wallets)
     // 3. Cleanup reservation (tx fee + rent exempt) that gets held back during aggregation
     // 4. Wallet X cleanup buffer — ensures Wallet X has SOL for its own cleanup tx after deployment
-    const { AGGREGATION_FEE_PER_WALLET, BASE_TX_FEE_LAMPORTS, WALLET_X_CLEANUP_BUFFER_LAMPORTS } =
-      obfuscationService.constants;
-    const fees = await obfuscationService.getDynamicFees();
-    const dynamicDeploymentCost = obfuscationService.getDeploymentCost(hopCount, amountLamports);
-    const deploymentSharePerWallet = Math.ceil(
-      dynamicDeploymentCost / totalWalletCount,
+    const safeTotalSolFunding = Math.max(
+      components.extraSolForDeployment,
+      minLamportsPerWallet,
     );
-    // Each wallet reserves SOL during aggregation for cleanup (tx fees + rent exempt).
-    // Compute actual fees using dynamic priority fee, with 3x buffer for fee spikes.
-    const CLEANUP_COMPUTE_UNITS = 50_000;
-    const AGG_COMPUTE_UNITS = 100_000;
-    const cleanupPriority = Math.ceil((CLEANUP_COMPUTE_UNITS * fees.priorityFeeLamports) / 1_000_000);
-    const aggPriority = Math.ceil((AGG_COMPUTE_UNITS * fees.priorityFeeLamports) / 1_000_000);
-    const dynamicFeeComponent = ((BASE_TX_FEE_LAMPORTS + cleanupPriority) + (BASE_TX_FEE_LAMPORTS + aggPriority)) * 3;
-    const cleanupReservationPerWallet = dynamicFeeComponent + fees.rentExemptMinimumLamports;
-    // Extra buffer split across wallets so Wallet X can always pay its own cleanup tx
-    const walletXCleanupSharePerWallet = Math.ceil(WALLET_X_CLEANUP_BUFFER_LAMPORTS / totalWalletCount);
-    const totalSolFunding =
-      deploymentSharePerWallet + AGGREGATION_FEE_PER_WALLET + cleanupReservationPerWallet + walletXCleanupSharePerWallet;
-    const safeTotalSolFunding = Math.max(totalSolFunding, minLamportsPerWallet);
 
     transaction.add(
       SystemProgram.transfer({
@@ -214,29 +208,9 @@ async function buildFundingTransaction(
     );
   } else {
     // SOL transfer: allocated amount + extra SOL for Wallet X deployment costs
-    // Uses dynamic deployment cost based on actual hop count + 15% buffer
-    // Plus per-wallet aggregation fees, cleanup reservation, and Wallet X cleanup buffer
-    const { AGGREGATION_FEE_PER_WALLET, BASE_TX_FEE_LAMPORTS, WALLET_X_CLEANUP_BUFFER_LAMPORTS } =
-      obfuscationService.constants;
-    const fees = await obfuscationService.getDynamicFees();
-    const dynamicDeploymentCost = obfuscationService.getDeploymentCost(hopCount, amountLamports);
-    const deploymentSharePerWallet = Math.ceil(
-      dynamicDeploymentCost / totalWalletCount,
-    );
-    // Each wallet reserves SOL during aggregation for cleanup (tx fees + rent exempt).
-    // Compute actual fees using dynamic priority fee, with 3x buffer for fee spikes.
-    const CLEANUP_COMPUTE_UNITS = 50_000;
-    const AGG_COMPUTE_UNITS = 100_000;
-    const cleanupPriority = Math.ceil((CLEANUP_COMPUTE_UNITS * fees.priorityFeeLamports) / 1_000_000);
-    const aggPriority = Math.ceil((AGG_COMPUTE_UNITS * fees.priorityFeeLamports) / 1_000_000);
-    const dynamicFeeComponent = ((BASE_TX_FEE_LAMPORTS + cleanupPriority) + (BASE_TX_FEE_LAMPORTS + aggPriority)) * 3;
-    const cleanupReservationPerWallet = dynamicFeeComponent + fees.rentExemptMinimumLamports;
-    // Extra buffer split across wallets so Wallet X can always pay its own cleanup tx
-    const walletXCleanupSharePerWallet = Math.ceil(WALLET_X_CLEANUP_BUFFER_LAMPORTS / totalWalletCount);
-    const extraSolForDeployment =
-      deploymentSharePerWallet + AGGREGATION_FEE_PER_WALLET + cleanupReservationPerWallet + walletXCleanupSharePerWallet;
+    // (deployment share, aggregation fee, cleanup reservation, Wallet X cleanup buffer share)
     const totalFunding = Math.max(
-      amount.toNumber() + extraSolForDeployment,
+      amount.toNumber() + components.extraSolForDeployment,
       minLamportsPerWallet,
     );
 
