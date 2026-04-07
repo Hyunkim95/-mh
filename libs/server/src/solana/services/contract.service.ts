@@ -772,35 +772,66 @@ const calculateExecutorFunding = (hopCount: number): BN => {
 
 /**
  * Estimate total deployment costs for a route.
- * Returns breakdown of all fees in lamports and SOL.
+ *
+ * Returns pure lamport-denominated infrastructure costs (executor funding,
+ * transaction fees, account rent, and the SOL flat fee) plus a separate
+ * `routeFees` breakdown for the percentage fee in the native base units of
+ * `tokenType`.
+ *
+ * IMPORTANT — units:
+ * - `flatFeeLamports` is ALWAYS in SOL lamports regardless of `tokenType`.
+ *   Even on SPL routes, the on-chain `initializeRoute` instruction takes the
+ *   flat fee via a SystemProgram transfer to `solTreasury`. Admin UI and the
+ *   IDL field `flatFeeLamports: u64` ("Lamports") confirm this.
+ * - `routeFees.percentageFee` is in base units of `tokenType` (lamports for
+ *   SOL routes, SPL token base units for SPL routes). It is deducted from the
+ *   user's deposit during `initializeRoute` and is NOT part of the lamport
+ *   infrastructure the user must supply on top of the deposit.
+ *
+ * `totalCostLamports = executorFunding + transactionFees + accountRent +
+ * flatFeeLamports`. The percentage fee is deliberately excluded.
  *
  * @param hopCount - Number of hops in the route
- * @param amountLamports - Amount being transferred in lamports
- * @param feeBps - Fee in basis points (e.g., 100 = 1%)
- * @param flatFeeLamports - Flat fee in lamports
+ * @param amountBaseUnits - Route amount in the token's base units (lamports
+ *   for SOL routes, SPL token base units for SPL routes)
+ * @param tokenType - "SOL" or "SPL". Determines the unit space of
+ *   `routeFees.percentageFee`.
+ * @param feeBps - Percentage fee in basis points (e.g., 50 = 0.5%)
+ * @param flatFeeLamports - Flat fee in SOL lamports (always SOL, regardless
+ *   of `tokenType`)
  * @returns Cost breakdown object
  */
 export const estimateDeploymentCost = (
   hopCount: number,
-  amountLamports: number,
+  amountBaseUnits: number,
+  tokenType: "SOL" | "SPL" = "SOL",
   feeBps: number = 50, // Fee in basis points (e.g., 50 = 0.5%)
   flatFeeLamports: number = 10000,
 ): {
-  executorFunding: number;
-  transactionFees: number;
-  flatFee: number;
-  percentageFee: number;
-  accountRent: number;
-  totalCost: number;
+  executorFunding: number; // lamports
+  transactionFees: number; // lamports
+  accountRent: number; // lamports
+  flatFeeLamports: number; // lamports (always SOL)
+  infrastructureCostLamports: number; // executor + tx + rent + flatFee
+  routeFees: {
+    percentageFee: number; // base units of `tokenType`
+  };
+  totalCostLamports: number; // === infrastructureCostLamports
   breakdown: {
     executorFundingSOL: string;
     transactionFeesSOL: string;
-    flatFeeSOL: string;
-    percentageFeeSOL: string;
     accountRentSOL: string;
+    flatFeeSOL: string;
+    infrastructureCostSOL: string;
     totalCostSOL: string;
   };
 } => {
+  // tokenType is currently only used to document the unit-space of
+  // routeFees.percentageFee; accepted as a parameter so all callers must be
+  // explicit and so future refinements (e.g. SOL-specific adjustments) have
+  // a hook.
+  void tokenType;
+
   // Executor funding: 0.02 SOL base + 0.002 SOL per hop
   const perHopFunding = 0.002;
   const baseFunding = 0.02;
@@ -818,8 +849,8 @@ export const estimateDeploymentCost = (
   const priorityFee = 200000; // Estimated priority fee per tx (dynamic, can vary)
   const transactionFees = totalTxCount * (baseTxFee + priorityFee);
 
-  // Percentage fee: amount × feeBps / 10000
-  const percentageFee = Math.floor((amountLamports * feeBps) / 10000);
+  // Percentage fee: amount × feeBps / 10000 — in base units of `tokenType`
+  const percentageFee = Math.floor((amountBaseUnits * feeBps) / 10000);
 
   // Account rent costs (rent-exempt minimum for accounts created during deployment)
   // Rent formula: base_rent + (data_bytes × 6960 lamports/byte)
@@ -867,28 +898,33 @@ export const estimateDeploymentCost = (
     networkOverhead;
   const accountRent = Math.ceil(baseAccountRent * 1.1);
 
-  // Total cost
-  const totalCost =
-    executorFunding +
-    transactionFees +
-    flatFeeLamports +
-    percentageFee +
-    accountRent;
+  // Pure infrastructure (lamports). Includes the SOL flat fee (always
+  // lamports — see JSDoc) but NOT the percentage fee, which is denominated
+  // in the token's base units and deducted from the user's deposit during
+  // initializeRoute.
+  const infrastructureCostLamports =
+    executorFunding + transactionFees + accountRent + flatFeeLamports;
+  const totalCostLamports = infrastructureCostLamports;
 
   return {
     executorFunding,
     transactionFees,
-    flatFee: flatFeeLamports,
-    percentageFee,
     accountRent,
-    totalCost,
+    flatFeeLamports,
+    infrastructureCostLamports,
+    routeFees: {
+      percentageFee,
+    },
+    totalCostLamports,
     breakdown: {
       executorFundingSOL: (executorFunding / LAMPORTS_PER_SOL).toFixed(6),
       transactionFeesSOL: (transactionFees / LAMPORTS_PER_SOL).toFixed(6),
-      flatFeeSOL: (flatFeeLamports / LAMPORTS_PER_SOL).toFixed(6),
-      percentageFeeSOL: (percentageFee / LAMPORTS_PER_SOL).toFixed(6),
       accountRentSOL: (accountRent / LAMPORTS_PER_SOL).toFixed(6),
-      totalCostSOL: (totalCost / LAMPORTS_PER_SOL).toFixed(6),
+      flatFeeSOL: (flatFeeLamports / LAMPORTS_PER_SOL).toFixed(6),
+      infrastructureCostSOL: (
+        infrastructureCostLamports / LAMPORTS_PER_SOL
+      ).toFixed(6),
+      totalCostSOL: (totalCostLamports / LAMPORTS_PER_SOL).toFixed(6),
     },
   };
 };

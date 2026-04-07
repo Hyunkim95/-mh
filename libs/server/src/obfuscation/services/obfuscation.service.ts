@@ -137,23 +137,27 @@ async function getMinLamportsPerWallet(): Promise<number> {
 }
 
 /**
- * Get deployment cost for a route using dynamic calculation
+ * Get deployment cost for a route using dynamic calculation.
+ *
+ * estimateDeploymentCost now returns pure lamport-denominated infrastructure
+ * as `totalCostLamports` for both SOL and SPL, so no token-type branch is
+ * needed here. Route fees (flatFee/percentageFee) are deducted from the
+ * user's deposit by the contract during `initializeRoute`, not funded by
+ * Wallet X.
  */
 function getDeploymentCost(
   hopCount: number,
-  amountLamports: number,
+  amountBaseUnits: number,
   tokenType: "SOL" | "SPL" = "SOL",
 ): number {
-  const costEstimate = estimateDeploymentCost(hopCount, amountLamports);
-  const solDenominatedCost =
-    tokenType === "SPL"
-      ? costEstimate.executorFunding +
-        costEstimate.transactionFees +
-        costEstimate.accountRent
-      : costEstimate.totalCost;
+  const costEstimate = estimateDeploymentCost(
+    hopCount,
+    amountBaseUnits,
+    tokenType,
+  );
   // 3x multiplier — estimateDeploymentCost underestimates on-chain rent;
   // excess is refunded to user during Wallet X cleanup
-  return Math.ceil(solDenominatedCost * 3);
+  return Math.ceil(costEstimate.totalCostLamports * 3);
 }
 
 /**

@@ -83,6 +83,29 @@ export const DeployModal: React.FC<DeployModalProps> = ({
     return parseInt(route.hopAmountRaw, 10) || 0;
   }, [route]);
 
+  // Token decimals for formatting routeFees in the route's native units.
+  // SOL is always 9 decimals; for SPL we derive from the ratio of raw to
+  // display amount on the route (same approach as the deploy pre-flight check).
+  const tokenDecimals = useMemo(() => {
+    if (!route) return 9;
+    if (route.tokenType === "SOL") return 9;
+    const rawAmount = parseInt(route.hopAmountRaw, 10) || 0;
+    const displayAmount = parseFloat(route.hopAmountTokens);
+    if (rawAmount > 0 && displayAmount > 0) {
+      return Math.round(Math.log10(rawAmount / displayAmount));
+    }
+    return 6;
+  }, [route]);
+
+  const formatRouteFee = (baseUnits: number) => {
+    const value = baseUnits / 10 ** tokenDecimals;
+    // Choose precision: more decimals for SOL (9) than typical SPL tokens (6)
+    const precision = route?.tokenType === "SOL" ? 6 : Math.min(tokenDecimals, 6);
+    return value.toFixed(precision);
+  };
+
+  const feeTokenLabel = route?.tokenSymbol || route?.tokenType || "SOL";
+
   const costEstimate = trpc.contract.estimateDeploymentCost.useQuery(
     {
       hopCount: route?.hops?.length || 1,
@@ -270,14 +293,6 @@ export const DeployModal: React.FC<DeployModalProps> = ({
                 </div>
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm text-[var(--philippine-gray-500)]">
-                    Platform Fee ({((costEstimate.data.data.feeBps ?? 100) / 100).toFixed(1)}%)
-                  </span>
-                  <span className="text-[var(--white-100)] font-medium">
-                    {costEstimate.data.data.breakdown.percentageFeeSOL} SOL
-                  </span>
-                </div>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm text-[var(--philippine-gray-500)]">
                     Transaction Fees
                   </span>
                   <span className="text-[var(--white-100)] font-medium">
@@ -297,6 +312,19 @@ export const DeployModal: React.FC<DeployModalProps> = ({
                     {costEstimate.data.data.breakdown.accountRentSOL} SOL
                   </span>
                 </div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex flex-col">
+                    <span className="text-sm text-[var(--philippine-gray-500)]">
+                      Network Flat Fee
+                    </span>
+                    <span className="text-xs text-[var(--philippine-gray-500)]/70">
+                      Configured per-route flat fee
+                    </span>
+                  </div>
+                  <span className="text-[var(--white-100)] font-medium" data-testid="cost-flat-fee-value">
+                    {costEstimate.data.data.breakdown.flatFeeSOL} SOL
+                  </span>
+                </div>
                 <div className="border-t border-[var(--white-100-transparency-10)] my-3" />
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-[var(--white-100)]">
@@ -304,6 +332,27 @@ export const DeployModal: React.FC<DeployModalProps> = ({
                   </span>
                   <span className="text-[var(--laser-lemon-500)] font-semibold" data-testid="cost-total-value">
                     {costEstimate.data.data.breakdown.totalCostSOL} SOL
+                  </span>
+                </div>
+
+                {/* Platform Fee (percentage) — deducted from the user's
+                    deposit, NOT additional infrastructure cost. Shown
+                    separately so the Total Cost above stays in pure SOL
+                    infra terms. The flat fee is already counted above
+                    because it's a SOL lamport outflow regardless of token
+                    type. */}
+                <div className="border-t border-[var(--white-100-transparency-10)] my-3" />
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-sm text-[var(--philippine-gray-500)]">
+                      Platform Fee ({((costEstimate.data.data.feeBps ?? 50) / 100).toFixed(1)}%)
+                    </span>
+                    <span className="text-xs text-[var(--philippine-gray-500)]/70">
+                      Deducted from your deposit
+                    </span>
+                  </div>
+                  <span className="text-[var(--white-100)] font-medium" data-testid="cost-platform-fee-value">
+                    {formatRouteFee(costEstimate.data.data.routeFees.percentageFee)} {feeTokenLabel}
                   </span>
                 </div>
               </div>

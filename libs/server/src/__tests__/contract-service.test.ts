@@ -1047,61 +1047,138 @@ describe("Contract Service", () => {
   });
 
   describe("estimateDeploymentCost", () => {
-    it("returns breakdown for typical route", () => {
-      const result = estimateDeploymentCost(5, 1_000_000_000);
+    it("SOL route: infrastructure includes flatFee; percentageFee deducted from deposit and excluded", () => {
+      const result = estimateDeploymentCost(5, 1_000_000_000, "SOL", 50, 10_000);
+
       expect(result.executorFunding).toBeGreaterThan(0);
       expect(result.transactionFees).toBeGreaterThan(0);
-      expect(result.flatFee).toBe(10000);
-      expect(result.percentageFee).toBeGreaterThan(0);
       expect(result.accountRent).toBeGreaterThan(0);
-      expect(result.totalCost).toBe(
+      // flatFee is ALWAYS in lamports, regardless of tokenType — it's a SOL
+      // outflow from the payer to solTreasury during initializeRoute.
+      expect(result.flatFeeLamports).toBe(10_000);
+      expect(result.infrastructureCostLamports).toBe(
         result.executorFunding +
-        result.transactionFees +
-        result.flatFee +
-        result.percentageFee +
-        result.accountRent
+          result.transactionFees +
+          result.accountRent +
+          result.flatFeeLamports,
+      );
+      // Percentage fee is in routeFees (token-denominated for SPL, lamports
+      // for SOL) and is NOT included in the deployment cost — the contract
+      // deducts it from the user's deposit during initializeRoute.
+      expect(result.routeFees.percentageFee).toBe(
+        Math.floor((1_000_000_000 * 50) / 10000),
+      );
+      expect(result.totalCostLamports).toBe(result.infrastructureCostLamports);
+    });
+
+    it("SPL route: flatFee is still SOL lamports; routeFees.percentageFee is in SPL base units", () => {
+      const result = estimateDeploymentCost(5, 1_000_000, "SPL", 50, 10_000);
+
+      // flatFeeLamports is always SOL lamports, even for SPL routes
+      expect(result.flatFeeLamports).toBe(10_000);
+      expect(result.routeFees.percentageFee).toBe(
+        Math.floor((1_000_000 * 50) / 10000),
+      ); // 5_000 SPL base units
+      expect(result.totalCostLamports).toBe(result.infrastructureCostLamports);
+      // routeFees no longer carries flatFee — it's a top-level lamport field
+      expect((result.routeFees as any).flatFee).toBeUndefined();
+    });
+
+    it("SPL regression: totalCostLamports does NOT depend on SPL amount", () => {
+      const small = estimateDeploymentCost(5, 1_000, "SPL", 50, 10_000);
+      const huge = estimateDeploymentCost(
+        5,
+        1_000_000_000_000,
+        "SPL",
+        50,
+        10_000,
+      );
+      expect(huge.totalCostLamports).toBe(small.totalCostLamports);
+      expect(huge.infrastructureCostLamports).toBe(
+        small.infrastructureCostLamports,
       );
     });
 
-    it("includes SOL-formatted breakdown strings", () => {
-      const result = estimateDeploymentCost(3, 500000000);
-      expect(result.breakdown.executorFundingSOL).toBeDefined();
-      expect(result.breakdown.transactionFeesSOL).toBeDefined();
-      expect(result.breakdown.flatFeeSOL).toBeDefined();
-      expect(result.breakdown.percentageFeeSOL).toBeDefined();
-      expect(result.breakdown.accountRentSOL).toBeDefined();
-      expect(result.breakdown.totalCostSOL).toBeDefined();
-      expect(parseFloat(result.breakdown.totalCostSOL)).toBeGreaterThan(0);
+    it("flatFee regression: increasing flatFeeLamports inflates totalCostLamports for both SOL and SPL", () => {
+      // Demonstrates that admin-configured flat fees are correctly reserved
+      // by the obfuscation funding (which keys off totalCostLamports).
+      const SMALL_FLAT = 10_000; // 0.00001 SOL (default)
+      const LARGE_FLAT = 50_000_000; // 0.05 SOL
+
+      const solSmall = estimateDeploymentCost(5, 1_000_000_000, "SOL", 50, SMALL_FLAT);
+      const solLarge = estimateDeploymentCost(5, 1_000_000_000, "SOL", 50, LARGE_FLAT);
+      expect(solLarge.totalCostLamports - solSmall.totalCostLamports).toBe(
+        LARGE_FLAT - SMALL_FLAT,
+      );
+      expect(solLarge.flatFeeLamports).toBe(LARGE_FLAT);
+
+      const splSmall = estimateDeploymentCost(5, 1_000_000, "SPL", 50, SMALL_FLAT);
+      const splLarge = estimateDeploymentCost(5, 1_000_000, "SPL", 50, LARGE_FLAT);
+      expect(splLarge.totalCostLamports - splSmall.totalCostLamports).toBe(
+        LARGE_FLAT - SMALL_FLAT,
+      );
+      expect(splLarge.flatFeeLamports).toBe(LARGE_FLAT);
     });
 
-    it("uses default feeBps=50 and flatFeeLamports=10000", () => {
-      const result = estimateDeploymentCost(1, 1_000_000_000);
-      expect(result.percentageFee).toBe(Math.floor((1_000_000_000 * 50) / 10000));
-      expect(result.flatFee).toBe(10000);
+    it("infrastructure parity: SOL and SPL produce identical lamport infra for same hopCount + flatFee", () => {
+      const sol = estimateDeploymentCost(5, 1_000_000_000, "SOL", 50, 10_000);
+      const spl = estimateDeploymentCost(5, 1_000_000, "SPL", 50, 10_000);
+      expect(sol.infrastructureCostLamports).toBe(spl.infrastructureCostLamports);
+      expect(sol.executorFunding).toBe(spl.executorFunding);
+      expect(sol.transactionFees).toBe(spl.transactionFees);
+      expect(sol.accountRent).toBe(spl.accountRent);
+      expect(sol.flatFeeLamports).toBe(spl.flatFeeLamports);
     });
 
-    it("accepts custom fee parameters", () => {
-      const result = estimateDeploymentCost(1, 1_000_000_000, 100, 50000);
-      expect(result.percentageFee).toBe(Math.floor((1_000_000_000 * 100) / 10000));
-      expect(result.flatFee).toBe(50000);
+    it("feeBps=0 → routeFees.percentageFee=0 for both SOL and SPL", () => {
+      const sol = estimateDeploymentCost(5, 1_000_000_000, "SOL", 0, 10_000);
+      const spl = estimateDeploymentCost(5, 1_000_000, "SPL", 0, 10_000);
+      expect(sol.routeFees.percentageFee).toBe(0);
+      expect(spl.routeFees.percentageFee).toBe(0);
+    });
+
+    it("applies default fees when omitted (50 bps, 10_000 flat lamports)", () => {
+      const result = estimateDeploymentCost(1, 1_000_000_000, "SOL");
+      expect(result.routeFees.percentageFee).toBe(
+        Math.floor((1_000_000_000 * 50) / 10000),
+      );
+      expect(result.flatFeeLamports).toBe(10_000);
+    });
+
+    it("defaults tokenType to SOL when omitted", () => {
+      // Should not throw and should return the same shape as explicit "SOL"
+      const implicit = estimateDeploymentCost(3, 1_000_000_000);
+      const explicit = estimateDeploymentCost(3, 1_000_000_000, "SOL");
+      expect(implicit.totalCostLamports).toBe(explicit.totalCostLamports);
+      expect(implicit.routeFees.percentageFee).toBe(
+        explicit.routeFees.percentageFee,
+      );
     });
 
     it("scales transaction fees with hop count", () => {
-      const r1 = estimateDeploymentCost(1, 1000);
-      const r10 = estimateDeploymentCost(10, 1000);
+      const r1 = estimateDeploymentCost(1, 1000, "SOL");
+      const r10 = estimateDeploymentCost(10, 1000, "SOL");
       expect(r10.transactionFees).toBeGreaterThan(r1.transactionFees);
     });
 
     it("scales rent with hop count", () => {
-      const r1 = estimateDeploymentCost(1, 1000);
-      const r5 = estimateDeploymentCost(5, 1000);
+      const r1 = estimateDeploymentCost(1, 1000, "SOL");
+      const r5 = estimateDeploymentCost(5, 1000, "SOL");
       expect(r5.accountRent).toBeGreaterThan(r1.accountRent);
     });
 
-    it("handles 0 hops", () => {
-      const result = estimateDeploymentCost(0, 1000);
-      expect(result.executorFunding).toBeGreaterThan(0);
-      expect(result.totalCost).toBeGreaterThan(0);
+    it("breakdown exposes only SOL-denominated (lamport) fields", () => {
+      const result = estimateDeploymentCost(3, 500_000_000, "SOL");
+      expect(result.breakdown.executorFundingSOL).toBeDefined();
+      expect(result.breakdown.transactionFeesSOL).toBeDefined();
+      expect(result.breakdown.accountRentSOL).toBeDefined();
+      expect(result.breakdown.flatFeeSOL).toBeDefined();
+      expect(result.breakdown.infrastructureCostSOL).toBeDefined();
+      expect(result.breakdown.totalCostSOL).toBeDefined();
+      expect(parseFloat(result.breakdown.totalCostSOL)).toBeGreaterThan(0);
+      // The misleading percentageFeeSOL stays dropped — percentage fee
+      // is in token base units for SPL and shouldn't be SOL-formatted.
+      expect((result.breakdown as any).percentageFeeSOL).toBeUndefined();
     });
   });
 

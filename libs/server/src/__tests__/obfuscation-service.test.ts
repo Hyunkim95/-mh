@@ -126,10 +126,21 @@ describe("ObfuscationService", () => {
 
     // Setup contract service mocks
     mockEstimateDeploymentCost.mockReturnValue({
-      totalCost: 50000000, // 0.05 SOL
       executorFunding: 20000000,
       transactionFees: 10000000,
-      accountRent: 20000000,
+      accountRent: 19990000,
+      flatFeeLamports: 10000,
+      infrastructureCostLamports: 50000000, // 0.05 SOL (incl. 10k flatFee)
+      routeFees: { percentageFee: 0 },
+      totalCostLamports: 50000000, // 0.05 SOL — infra only
+      breakdown: {
+        executorFundingSOL: "0.020000",
+        transactionFeesSOL: "0.010000",
+        accountRentSOL: "0.019990",
+        flatFeeSOL: "0.000010",
+        infrastructureCostSOL: "0.050000",
+        totalCostSOL: "0.050000",
+      },
     });
     mockGetRecommendedPriorityFee.mockResolvedValue(150000); // 150k micro-lamports
     // Default: db.select().from().where() returns empty array (no hops)
@@ -390,20 +401,26 @@ describe("ObfuscationService", () => {
     });
 
     it("should not count SPL token percentage fee as SOL deployment overhead", async () => {
+      // For SPL, estimateDeploymentCost returns pure lamport infrastructure
+      // as totalCostLamports — the SPL percentage fee lives in routeFees
+      // (token base units) and must NOT influence the deployment cost.
+      // The SOL flat fee IS still included in infrastructureCostLamports
+      // because it's a lamport outflow regardless of token type.
       mockEstimateDeploymentCost.mockReturnValueOnce({
         executorFunding: 20_000_000,
         transactionFees: 615_000,
-        flatFee: 10_000,
-        percentageFee: 500_000_000,
         accountRent: 25_000_000,
-        totalCost: 545_625_000,
+        flatFeeLamports: 10_000,
+        infrastructureCostLamports: 45_625_000,
+        routeFees: { percentageFee: 500_000_000 },
+        totalCostLamports: 45_625_000,
         breakdown: {
           executorFundingSOL: "0.020000",
           transactionFeesSOL: "0.000615",
-          flatFeeSOL: "0.000010",
-          percentageFeeSOL: "0.500000",
           accountRentSOL: "0.025000",
-          totalCostSOL: "0.545625",
+          flatFeeSOL: "0.000010",
+          infrastructureCostSOL: "0.045625",
+          totalCostSOL: "0.045625",
         },
       });
 
@@ -415,7 +432,7 @@ describe("ObfuscationService", () => {
       );
 
       const expectedSolOnlyDeploymentCost = Math.ceil(
-        (20_000_000 + 615_000 + 25_000_000) * 3,
+        (20_000_000 + 615_000 + 25_000_000 + 10_000) * 3,
       );
 
       expect(estimate.deploymentCost).toBe(expectedSolOnlyDeploymentCost);
@@ -1071,17 +1088,18 @@ describe("ObfuscationService", () => {
       mockEstimateDeploymentCost.mockReturnValueOnce({
         executorFunding: 20_000_000,
         transactionFees: 615_000,
-        flatFee: 10_000,
-        percentageFee: 500_000_000,
         accountRent: 25_000_000,
-        totalCost: 545_625_000,
+        flatFeeLamports: 10_000,
+        infrastructureCostLamports: 45_625_000,
+        routeFees: { percentageFee: 500_000_000 },
+        totalCostLamports: 45_625_000,
         breakdown: {
           executorFundingSOL: "0.020000",
           transactionFeesSOL: "0.000615",
-          flatFeeSOL: "0.000010",
-          percentageFeeSOL: "0.500000",
           accountRentSOL: "0.025000",
-          totalCostSOL: "0.545625",
+          flatFeeSOL: "0.000010",
+          infrastructureCostSOL: "0.045625",
+          totalCostSOL: "0.045625",
         },
       });
 
@@ -1291,12 +1309,35 @@ describe("ObfuscationService", () => {
       const amountLamports = 1_000_000_000;
 
       mockEstimateDeploymentCost.mockImplementation(
-        (hops: number, _amount: number) => ({
-          totalCost: 10_000_000 + hops * 600_000,
-          executorFunding: 20_000_000,
-          transactionFees: 10_000_000,
-          accountRent: 20_000_000,
-        }),
+        (hops: number, _amount: number) => {
+          const executorFunding = 20_000_000;
+          const transactionFees = 10_000_000;
+          const accountRent = 20_000_000;
+          const flatFeeLamports = 10_000;
+          const infrastructureCostLamports =
+            10_000_000 + hops * 600_000 + flatFeeLamports; // hop-scaled for this test's assertion
+          return {
+            executorFunding,
+            transactionFees,
+            accountRent,
+            flatFeeLamports,
+            infrastructureCostLamports,
+            routeFees: { percentageFee: 0 },
+            totalCostLamports: infrastructureCostLamports,
+            breakdown: {
+              executorFundingSOL: "0.020000",
+              transactionFeesSOL: "0.010000",
+              accountRentSOL: "0.020000",
+              flatFeeSOL: "0.000010",
+              infrastructureCostSOL: (
+                infrastructureCostLamports / 1_000_000_000
+              ).toFixed(6),
+              totalCostSOL: (
+                infrastructureCostLamports / 1_000_000_000
+              ).toFixed(6),
+            },
+          };
+        },
       );
 
       // With actual hop count from DB (50 hops), both estimate and deployment match

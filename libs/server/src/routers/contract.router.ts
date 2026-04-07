@@ -843,6 +843,7 @@ export const contractRouter = router({
         const costEstimate = estimateDeploymentCost(
           hopCount,
           amountLamports,
+          type,
           feeBps,
           flatFeeLamports
         );
@@ -851,6 +852,10 @@ export const contractRouter = router({
           success: true,
           data: {
             ...costEstimate,
+            // Alias for the current frontend that still reads `totalCost`.
+            // TODO(follow-up): remove once DeployModal migrates to
+            // totalCostLamports + routeFees.
+            totalCost: costEstimate.totalCostLamports,
             hopCount,
             amountLamports,
             type,
