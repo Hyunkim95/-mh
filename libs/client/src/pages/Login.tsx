@@ -64,6 +64,7 @@ export const Login: React.FC = () => {
     }
     try {
       select(name);
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
       await connect();
     } catch {
       // Intentionally swallow to keep UI calm; adapter handles toasts

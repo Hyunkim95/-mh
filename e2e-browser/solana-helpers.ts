@@ -549,6 +549,12 @@ async function main() {
       break;
     }
 
+    case "auth-token": {
+      const token = await getAuthToken();
+      console.log(token);
+      break;
+    }
+
     default:
       console.error(`Unknown command: ${cmd}`);
       process.exit(1);

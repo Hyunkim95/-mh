@@ -19,7 +19,7 @@ export default defineConfig({
   globalTeardown: "./global-teardown.ts",
 
   use: {
-    baseURL: "http://localhost:5173",
+    baseURL: "http://localhost:4173",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
@@ -32,16 +32,17 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: "yarn workspace @trpc-template/web dev",
+    command: "yarn workspace @trpc-template/web dev -- --port 4173",
     cwd: path.resolve(__dirname, ".."),
     env: {
       ...process.env,
       VITE_TEST_WALLET: "true",
       VITE_RPC_URL: "http://localhost:8899",
-      VITE_API_URL: "http://localhost:3001/trpc",
+      VITE_DEV_API_PROXY_TARGET: "http://localhost:3001",
+      PORT: "4173",
     },
-    port: 5173,
-    reuseExistingServer: true,
+    port: 4173,
+    reuseExistingServer: false,
     timeout: 60_000,
   },
 });

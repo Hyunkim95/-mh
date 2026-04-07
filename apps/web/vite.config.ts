@@ -7,6 +7,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const devApiProxyTarget =
     env.VITE_DEV_API_PROXY_TARGET || "http://localhost:3001";
+  const devServerPort = Number(env.PORT || 5173);
 
   return {
     plugins: [
@@ -36,7 +37,7 @@ export default defineConfig(({ mode }) => {
     ],
     server: {
       host: "0.0.0.0",
-      port: 5173,
+      port: devServerPort,
       proxy: {
         "/trpc": {
           target: devApiProxyTarget,

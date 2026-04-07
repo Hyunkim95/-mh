@@ -11,6 +11,7 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const HELPERS = path.resolve(__dirname, "solana-helpers.ts");
+const BETA_ACCESS_STORAGE_KEY = "mh_routing_upgrade_bypass_v1";
 
 // ─── CLI helper ──────────────────────────────────────────────
 
@@ -31,6 +32,10 @@ export function solana(cmd: string): string {
 // ─── Login ───────────────────────────────────────────────────
 
 export async function login(page: Page) {
+  await page.addInitScript((storageKey) => {
+    window.localStorage.setItem(storageKey, "true");
+  }, BETA_ACCESS_STORAGE_KEY);
+
   page.on("console", (msg) => {
     if (msg.type() === "error") {
       console.log(`[BROWSER error] ${msg.text()}`);
@@ -58,6 +63,28 @@ export async function login(page: Page) {
   console.log("Login complete");
 }
 
+async function waitForSessionRole(page: Page, expectedRole: "user" | "admin") {
+  await page.waitForFunction(
+    async ({ role }) => {
+      const token = window.localStorage.getItem("token");
+      if (!token) return false;
+
+      const response = await fetch("/trpc/auth.me", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) return false;
+
+      const json = await response.json();
+      return json?.result?.data?.role === role;
+    },
+    { role: expectedRole },
+    { timeout: 15_000 }
+  );
+}
+
 /**
  * Login, set admin role in DB, then re-authenticate to get a new JWT with admin role.
  */
@@ -65,21 +92,18 @@ export async function loginAsAdmin(page: Page) {
   // First login creates the user record in the DB
   await login(page);
 
-  // Set admin role in DB (role is embedded in JWT, so we need a fresh token)
+  // Set admin role in DB, then mint a fresh admin JWT directly from the test helper.
+  // This avoids depending on a second browser-side auth roundtrip to update role state.
   solana("set-admin-role");
-
-  // Clear token and react-query cache, then re-login
-  await page.evaluate(() => localStorage.removeItem("token"));
-  await page.goto("/login");
-  await page.waitForLoadState("domcontentloaded");
-
-  // Wallet is still connected — just click "Sign Message" to re-authenticate
-  const signBtn = page.locator('[data-testid="sign-message-btn"]');
-  await expect(signBtn).toBeEnabled({ timeout: 10_000 });
-  await signBtn.click();
-
-  // Wait for navigation to /my-assets with new JWT (now has admin role)
+  const adminToken = solana("auth-token");
+  await page.evaluate((token) => {
+    window.localStorage.setItem("token", token);
+  }, adminToken);
+  await page.reload();
   await page.waitForURL("**/my-assets", { timeout: 30_000 });
+  await expect(
+    page.getByRole("button", { name: "Admin Dashboard" })
+  ).toBeVisible({ timeout: 15_000 });
   console.log("Admin login complete");
 }
 
@@ -319,4 +343,3 @@ export async function verifyRouteOnHistory(page: Page) {
   const status = (await statusBadge.textContent())?.trim();
   console.log(`Route visible on history page with status: ${status}`);
 }
-
