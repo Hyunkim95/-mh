@@ -145,7 +145,10 @@
       "Bash(git rebase:*)",
       "Bash(GIT_EDITOR=true git rebase:*)",
       "Bash(yarn vitest typecheck --run:*)",
-      "Bash(yarn workspace @trpc-template/client test:*)"
+      "Bash(yarn workspace @trpc-template/client test:*)",
+      "Bash(yarn workspace @multihopper/client vitest run:*)",
+      "Bash(yarn workspace @trpc-template/client vitest run:*)",
+      "Bash(yarn workspace @trpc-template/client run build:*)"
     ],
     "deny": []
   }

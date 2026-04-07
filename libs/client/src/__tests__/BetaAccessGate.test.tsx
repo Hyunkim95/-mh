@@ -9,6 +9,13 @@ vi.mock("../assets/navbar/logo.svg", () => ({
   default: "logo.svg",
 }));
 
+const mockNavigate = vi.fn();
+vi.mock("../router", () => ({
+  router: {
+    navigate: (...args: unknown[]) => mockNavigate(...args),
+  },
+}));
+
 import {
   BetaAccessGate,
   isBetaGateEnabled,
@@ -19,6 +26,7 @@ describe("BetaAccessGate", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    window.sessionStorage.clear();
   });
 
   it("renders nothing when isOpen is false", () => {
@@ -53,11 +61,26 @@ describe("BetaAccessGate", () => {
 
     expect(mockOnClose).toHaveBeenCalledOnce();
   });
+
+  it("bypasses the gate and navigates to /login on Shift+Enter", () => {
+    render(<BetaAccessGate isOpen={true} onClose={mockOnClose} />);
+
+    fireEvent.keyDown(window, { key: "Enter", shiftKey: true });
+
+    expect(window.sessionStorage.getItem("betaGateBypass")).toBe("true");
+    expect(mockOnClose).toHaveBeenCalledOnce();
+    expect(mockNavigate).toHaveBeenCalledWith({ to: "/login" });
+  });
 });
 
 describe("isBetaGateEnabled", () => {
+  beforeEach(() => {
+    window.sessionStorage.clear();
+  });
+
   afterEach(() => {
     vi.unstubAllEnvs();
+    window.sessionStorage.clear();
   });
 
   it("returns true when VITE_BETA_GATE_ENABLED is 'true'", () => {
@@ -72,6 +95,12 @@ describe("isBetaGateEnabled", () => {
 
   it("returns false for any other value", () => {
     vi.stubEnv("VITE_BETA_GATE_ENABLED", "false");
+    expect(isBetaGateEnabled()).toBe(false);
+  });
+
+  it("returns false when the session bypass flag is set", () => {
+    vi.stubEnv("VITE_BETA_GATE_ENABLED", "true");
+    window.sessionStorage.setItem("betaGateBypass", "true");
     expect(isBetaGateEnabled()).toBe(false);
   });
 });

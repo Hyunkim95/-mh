@@ -1,10 +1,13 @@
 import React, { useEffect } from "react";
 import LogoIcon from "../assets/navbar/logo.svg";
+import { router } from "../router";
 
 interface BetaAccessGateProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+const BETA_GATE_BYPASS_KEY = "betaGateBypass";
 
 const progressDots = Array.from({ length: 5 });
 
@@ -18,6 +21,17 @@ export const BetaAccessGate: React.FC<BetaAccessGateProps> = ({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         onClose();
+        return;
+      }
+      if (event.key === "Enter" && event.shiftKey) {
+        event.preventDefault();
+        try {
+          window.sessionStorage.setItem(BETA_GATE_BYPASS_KEY, "true");
+        } catch {
+          // sessionStorage may be unavailable; ignore
+        }
+        onClose();
+        router.navigate({ to: "/login" });
       }
     };
 
@@ -117,7 +131,20 @@ export const BetaAccessGate: React.FC<BetaAccessGateProps> = ({
 };
 
 export const isBetaGateEnabled = (): boolean => {
-  return import.meta.env.VITE_BETA_GATE_ENABLED === "true";
+  if (import.meta.env.VITE_BETA_GATE_ENABLED !== "true") {
+    return false;
+  }
+  try {
+    if (
+      typeof window !== "undefined" &&
+      window.sessionStorage?.getItem(BETA_GATE_BYPASS_KEY) === "true"
+    ) {
+      return false;
+    }
+  } catch {
+    // sessionStorage may be unavailable; fall through
+  }
+  return true;
 };
 
 export default BetaAccessGate;
