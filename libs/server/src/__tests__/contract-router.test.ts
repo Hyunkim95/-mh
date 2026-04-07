@@ -457,29 +457,30 @@ describe("contractRouter", () => {
   });
 
   describe("estimateDeploymentCost", () => {
+    // Default mock represents 3 hops at 10_000 lamports/hop -> 30_000 total flat fee.
     const makeEstimate = (overrides: Record<string, unknown> = {}) => ({
       executorFunding: 20_000_000,
       transactionFees: 615_000,
       accountRent: 25_000_000,
-      flatFeeLamports: 10_000,
-      infrastructureCostLamports: 45_625_000,
+      flatFeeLamports: 30_000, // perHop(10_000) * hops(3)
+      infrastructureCostLamports: 45_645_000,
       routeFees: { percentageFee: 5_000 },
-      totalCostLamports: 45_625_000,
+      totalCostLamports: 45_645_000,
       breakdown: {
         executorFundingSOL: "0.020000",
         transactionFeesSOL: "0.000615",
         accountRentSOL: "0.025000",
-        flatFeeSOL: "0.000010",
-        infrastructureCostSOL: "0.045625",
-        totalCostSOL: "0.045625",
+        flatFeeSOL: "0.000030",
+        infrastructureCostSOL: "0.045645",
+        totalCostSOL: "0.045645",
       },
       ...overrides,
     });
 
-    it("SOL: returns infrastructure totalCost (incl. flat fee) and passes type through", async () => {
+    it("SOL: returns infrastructure totalCost (incl. flat fee*hops) and passes type + per-hop rate through", async () => {
       mocks.getTokenConfigSOL.mockResolvedValue({
         feeBps: 50,
-        flatFeeLamports: 10000,
+        flatFeeLamports: 10000, // per-hop rate from token config
       });
       mocks.estimateDeploymentCost.mockReturnValue(
         makeEstimate({
@@ -497,7 +498,7 @@ describe("contractRouter", () => {
 
       expect(mocks.getTokenConfigSOL).toHaveBeenCalled();
       expect(mocks.getTokenConfigSPL).not.toHaveBeenCalled();
-      // Function was called with the type argument
+      // Function was called with the per-hop rate (10000) — it scales internally.
       expect(mocks.estimateDeploymentCost).toHaveBeenCalledWith(
         3,
         1_000_000,
@@ -506,61 +507,66 @@ describe("contractRouter", () => {
         10000,
       );
       expect(result.success).toBe(true);
-      // totalCost alias for current frontend
-      expect(result.data.totalCost).toBe(45_625_000);
-      expect(result.data.totalCostLamports).toBe(45_625_000);
-      expect(result.data.flatFeeLamports).toBe(10000); // top-level lamport field (default)
+      expect(result.data.totalCostLamports).toBe(45_645_000);
+      // flatFeeLamports (from costEstimate spread) is the TOTAL for the route
+      expect(result.data.flatFeeLamports).toBe(30_000);
+      // flatFeeLamportsPerHop is the per-hop rate from token config
+      expect(result.data.flatFeeLamportsPerHop).toBe(10000);
       expect(result.data.routeFees.percentageFee).toBe(5_000);
       // routeFees no longer carries flatFee
       expect((result.data.routeFees as any).flatFee).toBeUndefined();
       expect(result.data.hopCount).toBe(3);
     });
 
-    it("flatFee regression: configured flatFeeLamports inflates totalCostLamports", async () => {
-      const LARGE_FLAT = 50_000_000;
+    it("flatFee regression: configured per-hop flatFee inflates totalCostLamports by perHop * hops", async () => {
+      const LARGE_FLAT_PER_HOP = 50_000_000;
+      const HOPS = 3;
       mocks.getTokenConfigSOL.mockResolvedValue({
         feeBps: 50,
-        flatFeeLamports: LARGE_FLAT,
+        flatFeeLamports: LARGE_FLAT_PER_HOP,
       });
       mocks.estimateDeploymentCost.mockImplementation(
         (
-          _hopCount: number,
+          hopCount: number,
           _amountBaseUnits: number,
           _tokenType: "SOL" | "SPL",
           _feeBps: number,
-          flatFeeLamports: number,
-        ) =>
-          makeEstimate({
-            flatFeeLamports,
-            // 45_615_000 was infra without flat fee; default makeEstimate has
-            // flatFeeLamports=10_000 baked in. Recompute properly:
-            infrastructureCostLamports: 45_615_000 + flatFeeLamports,
-            totalCostLamports: 45_615_000 + flatFeeLamports,
+          flatFeeLamportsPerHop: number,
+        ) => {
+          const totalFlat = flatFeeLamportsPerHop * hopCount;
+          return makeEstimate({
+            flatFeeLamports: totalFlat,
+            // 45_615_000 = executor(20M) + tx(615k) + rent(25M)
+            infrastructureCostLamports: 45_615_000 + totalFlat,
+            totalCostLamports: 45_615_000 + totalFlat,
             breakdown: {
               executorFundingSOL: "0.020000",
               transactionFeesSOL: "0.000615",
               accountRentSOL: "0.025000",
-              flatFeeSOL: (flatFeeLamports / 1_000_000_000).toFixed(6),
+              flatFeeSOL: (totalFlat / 1_000_000_000).toFixed(6),
               infrastructureCostSOL: (
-                (45_615_000 + flatFeeLamports) /
+                (45_615_000 + totalFlat) /
                 1_000_000_000
               ).toFixed(6),
               totalCostSOL: (
-                (45_615_000 + flatFeeLamports) /
+                (45_615_000 + totalFlat) /
                 1_000_000_000
               ).toFixed(6),
             },
-          }),
+          });
+        },
       );
 
       const result = await caller.estimateDeploymentCost({
-        hopCount: 3,
+        hopCount: HOPS,
         amountLamports: 1_000_000,
         type: "SOL",
       });
 
-      expect(result.data.totalCostLamports).toBe(45_615_000 + LARGE_FLAT);
-      expect(result.data.flatFeeLamports).toBe(LARGE_FLAT);
+      const expectedTotalFlat = LARGE_FLAT_PER_HOP * HOPS;
+      expect(result.data.totalCostLamports).toBe(45_615_000 + expectedTotalFlat);
+      expect(result.data.flatFeeLamports).toBe(expectedTotalFlat);
+      expect(result.data.flatFeeLamportsPerHop).toBe(LARGE_FLAT_PER_HOP);
     });
 
     it("SPL: calls getTokenConfigSPL and totalCostLamports does not depend on amount", async () => {
@@ -570,13 +576,14 @@ describe("contractRouter", () => {
       });
       mocks.estimateDeploymentCost.mockImplementation(
         (
-          _hopCount: number,
+          hopCount: number,
           amountBaseUnits: number,
           _tokenType: "SOL" | "SPL",
           feeBps: number,
-          _flatFeeLamports: number,
+          flatFeeLamportsPerHop: number,
         ) =>
           makeEstimate({
+            flatFeeLamports: flatFeeLamportsPerHop * hopCount,
             routeFees: {
               percentageFee: Math.floor((amountBaseUnits * feeBps) / 10000),
             },
@@ -597,7 +604,6 @@ describe("contractRouter", () => {
       expect(mocks.getTokenConfigSPL).toHaveBeenCalled();
       // totalCostLamports is identical regardless of amount
       expect(small.data.totalCostLamports).toBe(huge.data.totalCostLamports);
-      expect(small.data.totalCost).toBe(huge.data.totalCost);
       // routeFees.percentageFee is in SPL base units and DOES depend on amount
       expect(small.data.routeFees.percentageFee).toBe(
         Math.floor((1_000 * 50) / 10000),
@@ -605,8 +611,9 @@ describe("contractRouter", () => {
       expect(huge.data.routeFees.percentageFee).toBe(
         Math.floor((1_000_000_000_000 * 50) / 10000),
       );
-      // flatFeeLamports is in lamports for SPL too
-      expect(small.data.flatFeeLamports).toBe(10_000);
+      // flatFeeLamports is in lamports for SPL too, scaled by hops
+      expect(small.data.flatFeeLamports).toBe(10_000 * 5);
+      expect(small.data.flatFeeLamportsPerHop).toBe(10_000);
       expect(huge.data.type).toBe("SPL");
     });
 
@@ -622,7 +629,7 @@ describe("contractRouter", () => {
 
       expect(result.success).toBe(true);
       expect(result.data.feeBps).toBe(50); // default
-      expect(result.data.flatFeeLamports).toBe(10000); // default
+      expect(result.data.flatFeeLamportsPerHop).toBe(10000); // default per-hop rate
       // Type still forwarded to the function despite the config failure
       expect(mocks.estimateDeploymentCost).toHaveBeenCalledWith(
         3,

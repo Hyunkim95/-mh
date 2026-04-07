@@ -819,9 +819,11 @@ export const contractRouter = router({
       try {
         const { hopCount, amountLamports, type } = input;
 
-        // Get token config to get actual fee values
+        // Get token config to get actual fee values.
+        // flatFeeLamportsPerHop is the per-hop rate stored on TokenConfig;
+        // the on-chain `initialize_route` charges perHop * num_hops.
         let feeBps = 50; // Default 0.5%
-        let flatFeeLamports = 10000; // Default 0.00001 SOL
+        let flatFeeLamportsPerHop = 10000; // Default 0.00001 SOL per hop
 
         try {
           const tokenConfig =
@@ -831,7 +833,7 @@ export const contractRouter = router({
 
           if (tokenConfig) {
             feeBps = Number(tokenConfig.feeBps);
-            flatFeeLamports = Number(tokenConfig.flatFeeLamports);
+            flatFeeLamportsPerHop = Number(tokenConfig.flatFeeLamports);
           }
         } catch (configError) {
           log.warn(
@@ -845,22 +847,21 @@ export const contractRouter = router({
           amountLamports,
           type,
           feeBps,
-          flatFeeLamports
+          flatFeeLamportsPerHop
         );
 
         return {
           success: true,
           data: {
             ...costEstimate,
-            // Alias for the current frontend that still reads `totalCost`.
-            // TODO(follow-up): remove once DeployModal migrates to
-            // totalCostLamports + routeFees.
-            totalCost: costEstimate.totalCostLamports,
             hopCount,
             amountLamports,
             type,
             feeBps,
-            flatFeeLamports,
+            // Per-hop rate from TokenConfig (the route is charged
+            // perHop * hopCount, exposed as costEstimate.flatFeeLamports
+            // via the spread above).
+            flatFeeLamportsPerHop,
           },
         };
       } catch (error) {

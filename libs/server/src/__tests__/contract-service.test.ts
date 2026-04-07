@@ -1047,15 +1047,25 @@ describe("Contract Service", () => {
   });
 
   describe("estimateDeploymentCost", () => {
-    it("SOL route: infrastructure includes flatFee; percentageFee deducted from deposit and excluded", () => {
-      const result = estimateDeploymentCost(5, 1_000_000_000, "SOL", 50, 10_000);
+    it("SOL route: infrastructure includes flatFee*hops; percentageFee deducted from deposit and excluded", () => {
+      const HOPS = 5;
+      const PER_HOP_FLAT = 10_000;
+      const result = estimateDeploymentCost(
+        HOPS,
+        1_000_000_000,
+        "SOL",
+        50,
+        PER_HOP_FLAT,
+      );
 
       expect(result.executorFunding).toBeGreaterThan(0);
       expect(result.transactionFees).toBeGreaterThan(0);
       expect(result.accountRent).toBeGreaterThan(0);
       // flatFee is ALWAYS in lamports, regardless of tokenType — it's a SOL
-      // outflow from the payer to solTreasury during initializeRoute.
-      expect(result.flatFeeLamports).toBe(10_000);
+      // outflow from the payer to solTreasury during initializeRoute. The
+      // on-chain program charges per-hop * num_hops, so the output is the
+      // total for the route.
+      expect(result.flatFeeLamports).toBe(PER_HOP_FLAT * HOPS);
       expect(result.infrastructureCostLamports).toBe(
         result.executorFunding +
           result.transactionFees +
@@ -1071,17 +1081,35 @@ describe("Contract Service", () => {
       expect(result.totalCostLamports).toBe(result.infrastructureCostLamports);
     });
 
-    it("SPL route: flatFee is still SOL lamports; routeFees.percentageFee is in SPL base units", () => {
-      const result = estimateDeploymentCost(5, 1_000_000, "SPL", 50, 10_000);
+    it("SPL route: flatFee is still SOL lamports * hops; routeFees.percentageFee is in SPL base units", () => {
+      const HOPS = 5;
+      const PER_HOP_FLAT = 10_000;
+      const result = estimateDeploymentCost(
+        HOPS,
+        1_000_000,
+        "SPL",
+        50,
+        PER_HOP_FLAT,
+      );
 
-      // flatFeeLamports is always SOL lamports, even for SPL routes
-      expect(result.flatFeeLamports).toBe(10_000);
+      // flatFeeLamports is always SOL lamports, scaled by hops, even for SPL.
+      expect(result.flatFeeLamports).toBe(PER_HOP_FLAT * HOPS);
       expect(result.routeFees.percentageFee).toBe(
         Math.floor((1_000_000 * 50) / 10000),
       ); // 5_000 SPL base units
       expect(result.totalCostLamports).toBe(result.infrastructureCostLamports);
       // routeFees no longer carries flatFee — it's a top-level lamport field
       expect((result.routeFees as any).flatFee).toBeUndefined();
+    });
+
+    it("flatFee scales linearly with hop count (matches on-chain perHop * num_hops)", () => {
+      const PER_HOP = 100_000;
+      const r1 = estimateDeploymentCost(1, 1_000_000_000, "SOL", 50, PER_HOP);
+      const r5 = estimateDeploymentCost(5, 1_000_000_000, "SOL", 50, PER_HOP);
+      const r10 = estimateDeploymentCost(10, 1_000_000_000, "SOL", 50, PER_HOP);
+      expect(r1.flatFeeLamports).toBe(PER_HOP * 1);
+      expect(r5.flatFeeLamports).toBe(PER_HOP * 5);
+      expect(r10.flatFeeLamports).toBe(PER_HOP * 10);
     });
 
     it("SPL regression: totalCostLamports does NOT depend on SPL amount", () => {
@@ -1099,25 +1127,27 @@ describe("Contract Service", () => {
       );
     });
 
-    it("flatFee regression: increasing flatFeeLamports inflates totalCostLamports for both SOL and SPL", () => {
+    it("flatFee regression: increasing per-hop flatFee inflates totalCostLamports by perHop*hops for both SOL and SPL", () => {
       // Demonstrates that admin-configured flat fees are correctly reserved
-      // by the obfuscation funding (which keys off totalCostLamports).
-      const SMALL_FLAT = 10_000; // 0.00001 SOL (default)
-      const LARGE_FLAT = 50_000_000; // 0.05 SOL
+      // by the obfuscation funding (which keys off totalCostLamports), and
+      // that the per-hop scaling matches the on-chain semantics.
+      const HOPS = 5;
+      const SMALL_FLAT = 10_000; // 0.00001 SOL (default) per hop
+      const LARGE_FLAT = 50_000_000; // 0.05 SOL per hop
 
-      const solSmall = estimateDeploymentCost(5, 1_000_000_000, "SOL", 50, SMALL_FLAT);
-      const solLarge = estimateDeploymentCost(5, 1_000_000_000, "SOL", 50, LARGE_FLAT);
+      const solSmall = estimateDeploymentCost(HOPS, 1_000_000_000, "SOL", 50, SMALL_FLAT);
+      const solLarge = estimateDeploymentCost(HOPS, 1_000_000_000, "SOL", 50, LARGE_FLAT);
       expect(solLarge.totalCostLamports - solSmall.totalCostLamports).toBe(
-        LARGE_FLAT - SMALL_FLAT,
+        (LARGE_FLAT - SMALL_FLAT) * HOPS,
       );
-      expect(solLarge.flatFeeLamports).toBe(LARGE_FLAT);
+      expect(solLarge.flatFeeLamports).toBe(LARGE_FLAT * HOPS);
 
-      const splSmall = estimateDeploymentCost(5, 1_000_000, "SPL", 50, SMALL_FLAT);
-      const splLarge = estimateDeploymentCost(5, 1_000_000, "SPL", 50, LARGE_FLAT);
+      const splSmall = estimateDeploymentCost(HOPS, 1_000_000, "SPL", 50, SMALL_FLAT);
+      const splLarge = estimateDeploymentCost(HOPS, 1_000_000, "SPL", 50, LARGE_FLAT);
       expect(splLarge.totalCostLamports - splSmall.totalCostLamports).toBe(
-        LARGE_FLAT - SMALL_FLAT,
+        (LARGE_FLAT - SMALL_FLAT) * HOPS,
       );
-      expect(splLarge.flatFeeLamports).toBe(LARGE_FLAT);
+      expect(splLarge.flatFeeLamports).toBe(LARGE_FLAT * HOPS);
     });
 
     it("infrastructure parity: SOL and SPL produce identical lamport infra for same hopCount + flatFee", () => {
@@ -1137,12 +1167,13 @@ describe("Contract Service", () => {
       expect(spl.routeFees.percentageFee).toBe(0);
     });
 
-    it("applies default fees when omitted (50 bps, 10_000 flat lamports)", () => {
-      const result = estimateDeploymentCost(1, 1_000_000_000, "SOL");
+    it("applies default fees when omitted (50 bps, 10_000 flat lamports per hop)", () => {
+      const HOPS = 1;
+      const result = estimateDeploymentCost(HOPS, 1_000_000_000, "SOL");
       expect(result.routeFees.percentageFee).toBe(
         Math.floor((1_000_000_000 * 50) / 10000),
       );
-      expect(result.flatFeeLamports).toBe(10_000);
+      expect(result.flatFeeLamports).toBe(10_000 * HOPS);
     });
 
     it("defaults tokenType to SOL when omitted", () => {

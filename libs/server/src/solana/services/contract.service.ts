@@ -774,19 +774,23 @@ const calculateExecutorFunding = (hopCount: number): BN => {
  * Estimate total deployment costs for a route.
  *
  * Returns pure lamport-denominated infrastructure costs (executor funding,
- * transaction fees, account rent, and the SOL flat fee) plus a separate
- * `routeFees` breakdown for the percentage fee in the native base units of
- * `tokenType`.
+ * transaction fees, account rent, and the SOL flat fee — scaled by hops)
+ * plus a separate `routeFees` breakdown for the percentage fee in the
+ * native base units of `tokenType`.
  *
- * IMPORTANT — units:
- * - `flatFeeLamports` is ALWAYS in SOL lamports regardless of `tokenType`.
- *   Even on SPL routes, the on-chain `initializeRoute` instruction takes the
- *   flat fee via a SystemProgram transfer to `solTreasury`. Admin UI and the
- *   IDL field `flatFeeLamports: u64` ("Lamports") confirm this.
+ * IMPORTANT — units & scaling:
+ * - `flatFeeLamportsPerHop` (input) is the per-hop rate stored on the
+ *   on-chain `TokenConfig` (IDL: `flat_fee_lamports: u64` "Lamports").
+ *   The on-chain `initialize_route` charges
+ *   `flat_fee_lamports * num_hops` lamports via a SystemProgram transfer to
+ *   `solTreasury`, ALWAYS in SOL regardless of whether the route's token
+ *   is SOL or SPL.
+ * - The OUTPUT field `flatFeeLamports` is the TOTAL for this route
+ *   (`perHop * hopCount`), matching what the user actually pays.
  * - `routeFees.percentageFee` is in base units of `tokenType` (lamports for
- *   SOL routes, SPL token base units for SPL routes). It is deducted from the
- *   user's deposit during `initializeRoute` and is NOT part of the lamport
- *   infrastructure the user must supply on top of the deposit.
+ *   SOL routes, SPL token base units for SPL routes). It is deducted from
+ *   the user's deposit during `initializeRoute` and is NOT part of the
+ *   lamport infrastructure the user must supply on top of the deposit.
  *
  * `totalCostLamports = executorFunding + transactionFees + accountRent +
  * flatFeeLamports`. The percentage fee is deliberately excluded.
@@ -797,8 +801,8 @@ const calculateExecutorFunding = (hopCount: number): BN => {
  * @param tokenType - "SOL" or "SPL". Determines the unit space of
  *   `routeFees.percentageFee`.
  * @param feeBps - Percentage fee in basis points (e.g., 50 = 0.5%)
- * @param flatFeeLamports - Flat fee in SOL lamports (always SOL, regardless
- *   of `tokenType`)
+ * @param flatFeeLamportsPerHop - Per-hop flat fee in SOL lamports (always
+ *   SOL, regardless of `tokenType`). Sourced from the on-chain TokenConfig.
  * @returns Cost breakdown object
  */
 export const estimateDeploymentCost = (
@@ -806,13 +810,13 @@ export const estimateDeploymentCost = (
   amountBaseUnits: number,
   tokenType: "SOL" | "SPL" = "SOL",
   feeBps: number = 50, // Fee in basis points (e.g., 50 = 0.5%)
-  flatFeeLamports: number = 10000,
+  flatFeeLamportsPerHop: number = 10000,
 ): {
   executorFunding: number; // lamports
   transactionFees: number; // lamports
   accountRent: number; // lamports
-  flatFeeLamports: number; // lamports (always SOL)
-  infrastructureCostLamports: number; // executor + tx + rent + flatFee
+  flatFeeLamports: number; // lamports (always SOL); TOTAL for the route (perHop * hopCount)
+  infrastructureCostLamports: number; // executor + tx + rent + flatFee (total)
   routeFees: {
     percentageFee: number; // base units of `tokenType`
   };
@@ -898,7 +902,11 @@ export const estimateDeploymentCost = (
     networkOverhead;
   const accountRent = Math.ceil(baseAccountRent * 1.1);
 
-  // Pure infrastructure (lamports). Includes the SOL flat fee (always
+  // The on-chain initialize_route charges flat_fee_lamports * num_hops as
+  // a SystemProgram transfer to solTreasury. Scale here to match.
+  const flatFeeLamports = flatFeeLamportsPerHop * hopCount;
+
+  // Pure infrastructure (lamports). Includes the total SOL flat fee (always
   // lamports — see JSDoc) but NOT the percentage fee, which is denominated
   // in the token's base units and deducted from the user's deposit during
   // initializeRoute.
