@@ -146,7 +146,7 @@ export const LandingPage: React.FC = () => {
       }}
     >
       <BetaAccessGate
-        isOpen={showBetaGate}
+        isOpen={showBetaGate && !isBetaUnlocked()}
         onClose={() => setShowBetaGate(false)}
         onSuccess={() => {
           setShowBetaGate(false);

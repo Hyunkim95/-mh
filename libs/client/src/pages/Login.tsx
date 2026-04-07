@@ -29,7 +29,7 @@ export const Login: React.FC = () => {
   } = useSolanaAuth();
   const initialBetaAccess = isBetaUnlocked();
   const [hasBetaAccess, setHasBetaAccess] = useState(initialBetaAccess);
-  const [showBetaGate, setShowBetaGate] = useState(!initialBetaAccess);
+  const [showBetaGate, setShowBetaGate] = useState(false);
   const [pendingWalletName, setPendingWalletName] = useState<WalletName | null>(null);
 
   // Navigate when authenticated
@@ -247,7 +247,7 @@ export const Login: React.FC = () => {
         <img src={Logo} className="relative w-[auto] h-[31px] object-contain" />
       </div>
       <BetaAccessGate
-        isOpen={showBetaGate}
+        isOpen={showBetaGate && !hasBetaAccess}
         onClose={handleBetaClose}
         onSuccess={handleBetaSuccess}
       />

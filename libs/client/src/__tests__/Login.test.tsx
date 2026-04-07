@@ -6,6 +6,31 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BETA_ACCESS_STORAGE_KEY } from "../components/BetaAccessGate";
 
+const localStorageMock = (() => {
+  let store: Record<string, string> = {};
+  return {
+    getItem: vi.fn((key: string) => store[key] ?? null),
+    setItem: vi.fn((key: string, value: string) => {
+      store[key] = value;
+    }),
+    removeItem: vi.fn((key: string) => {
+      delete store[key];
+    }),
+    clear: vi.fn(() => {
+      store = {};
+    }),
+    get length() {
+      return Object.keys(store).length;
+    },
+    key: vi.fn((i: number) => Object.keys(store)[i] ?? null),
+  };
+})();
+
+Object.defineProperty(globalThis, "localStorage", {
+  value: localStorageMock,
+  writable: true,
+});
+
 const mocks = vi.hoisted(() => ({
   useWallet: vi.fn(),
   useSolanaAuth: vi.fn(),
@@ -58,8 +83,8 @@ import { Login } from "../pages/Login";
 describe("Login", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    window.localStorage.clear();
-    window.localStorage.setItem(BETA_ACCESS_STORAGE_KEY, "true");
+    localStorageMock.clear();
+    localStorageMock.setItem(BETA_ACCESS_STORAGE_KEY, "true");
 
     mocks.useWallet.mockReturnValue({
       wallets: [
@@ -119,13 +144,13 @@ describe("Login", () => {
     });
   });
 
-  it("shows the routing-upgrade screen instead of the login UI when access is locked", () => {
-    window.localStorage.clear();
+  it("hides the login UI when access is locked", () => {
+    localStorageMock.clear();
 
     render(<Login />);
 
-    expect(screen.getByText("Routing upgrade in process")).toBeInTheDocument();
     expect(screen.queryByTestId("wallet-tile-phantom")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("enables signing for a connected wallet and authenticates on click", () => {

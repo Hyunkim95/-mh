@@ -389,6 +389,38 @@ describe("ObfuscationService", () => {
       expect(estimate.rentRecovery).toBeGreaterThan(0);
     });
 
+    it("should not count SPL token percentage fee as SOL deployment overhead", async () => {
+      mockEstimateDeploymentCost.mockReturnValueOnce({
+        executorFunding: 20_000_000,
+        transactionFees: 615_000,
+        flatFee: 10_000,
+        percentageFee: 500_000_000,
+        accountRent: 25_000_000,
+        totalCost: 545_625_000,
+        breakdown: {
+          executorFundingSOL: "0.020000",
+          transactionFeesSOL: "0.000615",
+          flatFeeSOL: "0.000010",
+          percentageFeeSOL: "0.500000",
+          accountRentSOL: "0.025000",
+          totalCostSOL: "0.545625",
+        },
+      });
+
+      const estimate = await obfuscationService.estimateObfuscationFees(
+        5,
+        "SPL",
+        3,
+        100_000_000_000,
+      );
+
+      const expectedSolOnlyDeploymentCost = Math.ceil(
+        (20_000_000 + 615_000 + 25_000_000) * 3,
+      );
+
+      expect(estimate.deploymentCost).toBe(expectedSolOnlyDeploymentCost);
+    });
+
     it("should include deployment cost that scales with hop count", async () => {
       const intermediateCount = 6;
       const amountLamports = 1000000000;
@@ -1021,9 +1053,79 @@ describe("ObfuscationService", () => {
 
       await expect(
         obfuscationService.createSession(mockSessionInput)
-      ).rejects.toThrow("wallet only has 1000");
+      ).rejects.toThrow("wallet only has 0.000001 SOL (1000 lamports)");
 
       expect(mockTransaction).not.toHaveBeenCalled();
+    });
+
+    it("should allow large SPL routes when wallet has enough SOL for real overhead only", async () => {
+      mockFindFirst.mockResolvedValue(null);
+      mockFindMany.mockResolvedValue([]);
+      vi
+        .mocked(obfuscationService.getWalletManager().getOrCreateWallet)
+        .mockResolvedValue({
+          id: 1,
+          address: "MockWalletAddress111111111111111111111111",
+        } as any);
+
+      mockEstimateDeploymentCost.mockReturnValueOnce({
+        executorFunding: 20_000_000,
+        transactionFees: 615_000,
+        flatFee: 10_000,
+        percentageFee: 500_000_000,
+        accountRent: 25_000_000,
+        totalCost: 545_625_000,
+        breakdown: {
+          executorFundingSOL: "0.020000",
+          transactionFeesSOL: "0.000615",
+          flatFeeSOL: "0.000010",
+          percentageFeeSOL: "0.500000",
+          accountRentSOL: "0.025000",
+          totalCostSOL: "0.545625",
+        },
+      });
+
+      // Enough SOL for the real overhead (SOL-denominated pieces only), but not enough
+      // for the old buggy path that also counted token percentage fee as SOL.
+      mockGetBalance.mockResolvedValue(350_000_000);
+
+      mockTransaction.mockImplementation(async (cb: any) => {
+        let insertCall = 0;
+        const tx = {
+          insert: vi.fn(() => {
+            insertCall += 1;
+            if (insertCall === 1) {
+              return {
+                values: vi.fn().mockReturnValue({
+                  returning: vi.fn().mockResolvedValue([{ id: 123, routeId: 77, status: "pending" }]),
+                }),
+              };
+            }
+
+            return {
+              values: vi.fn().mockResolvedValue(undefined),
+            };
+          }),
+        };
+
+        return cb(tx);
+      });
+
+      const result = await obfuscationService.createSession({
+        routeId: 77,
+        tokenMint: undefined,
+        tokenType: "SPL",
+        totalAmount: "100000000000",
+        hopCount: 3,
+        creator: "11111111111111111111111111111111",
+      });
+
+      expect(result).toMatchObject({
+        id: 123,
+        routeId: 77,
+        status: "pending",
+      });
+      expect(mockTransaction).toHaveBeenCalledOnce();
     });
   });
 

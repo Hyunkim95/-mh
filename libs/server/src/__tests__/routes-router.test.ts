@@ -367,6 +367,42 @@ describe("routesRouter", () => {
 
       expect(result.success).toBe(false);
     });
+
+    it("keeps large SPL routes on the sane overhead path", async () => {
+      mocks.getSessionByRouteId.mockResolvedValue({
+        id: 77,
+        intermediateCount: 5,
+        tokenType: "SPL",
+      });
+      mocks.dbQueryRoutes.mockResolvedValue({
+        id: 77,
+        hopAmountRaw: "100000000000",
+        hops: [{ id: 1 }, { id: 2 }, { id: 3 }],
+      });
+      mocks.estimateObfuscationFees.mockResolvedValue({
+        totalFeesLamports: 136875000,
+        fundingTxFees: 10000,
+        aggregationTxFees: 10000,
+        cleanupTxFees: 5000,
+        intermediateAtaCreation: 15000,
+        walletXAtaCreation: 5000,
+        rentRecovery: 3000,
+        dustRefund: 2000,
+        deploymentCost: 136_845_000,
+      });
+
+      const result = await caller.getObfuscationCostEstimate({ routeId: 77 });
+
+      expect(result.success).toBe(true);
+      expect(result.data).not.toBeNull();
+      expect(mocks.estimateObfuscationFees).toHaveBeenCalledWith(
+        5,
+        "SPL",
+        3,
+        100000000000,
+      );
+      expect(result.data!.totalFeesLamports).toBe(136875000);
+    });
   });
 
   describe("confirmObfuscationFunding", () => {

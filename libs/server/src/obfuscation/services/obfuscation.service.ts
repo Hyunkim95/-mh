@@ -61,6 +61,11 @@ const walletManager = new SolanaWalletManager({
   connection,
 });
 
+const formatLamportsAsSol = (lamports: BN | number) => {
+  const lamportsAsNumber = typeof lamports === "number" ? lamports : Number(lamports.toString());
+  return (lamportsAsNumber / 1_000_000_000).toFixed(6);
+};
+
 /**
  * Get dynamic fee values from RPC, with caching to reduce RPC calls.
  * Falls back to hardcoded values if RPC fails.
@@ -134,11 +139,21 @@ async function getMinLamportsPerWallet(): Promise<number> {
 /**
  * Get deployment cost for a route using dynamic calculation
  */
-function getDeploymentCost(hopCount: number, amountLamports: number): number {
+function getDeploymentCost(
+  hopCount: number,
+  amountLamports: number,
+  tokenType: "SOL" | "SPL" = "SOL",
+): number {
   const costEstimate = estimateDeploymentCost(hopCount, amountLamports);
+  const solDenominatedCost =
+    tokenType === "SPL"
+      ? costEstimate.executorFunding +
+        costEstimate.transactionFees +
+        costEstimate.accountRent
+      : costEstimate.totalCost;
   // 3x multiplier — estimateDeploymentCost underestimates on-chain rent;
   // excess is refunded to user during Wallet X cleanup
-  return Math.ceil(costEstimate.totalCost * 3);
+  return Math.ceil(solDenominatedCost * 3);
 }
 
 /**
@@ -311,7 +326,7 @@ async function estimateObfuscationFees(
     (fees.rentExemptMinimumLamports - cleanupTxFeePerWallet);
 
   // Get dynamic deployment cost based on hop count
-  const deploymentCost = getDeploymentCost(hopCount, amountLamports);
+  const deploymentCost = getDeploymentCost(hopCount, amountLamports, tokenType);
 
   // Cleanup reservation: each intermediate wallet holds back agg fee + 2x cleanup fee + rent-exempt
   // during aggregation. This reduces what reaches Wallet X and must be accounted for.
@@ -429,7 +444,11 @@ async function createSession(
         ? "route amount plus obfuscation overhead"
         : "obfuscation overhead";
     throw new Error(
-      `Insufficient funds for obfuscation: need at least ${requiredSolLamports.toString()} lamports for ${requiredLabel}, but wallet only has ${creatorBalanceLamports}`,
+      `Insufficient funds for obfuscation: need at least ${formatLamportsAsSol(
+        requiredSolLamports,
+      )} SOL for ${requiredLabel} (${requiredSolLamports.toString()} lamports), but wallet only has ${formatLamportsAsSol(
+        creatorBalanceLamports,
+      )} SOL (${creatorBalanceLamports} lamports)`,
     );
   }
 
