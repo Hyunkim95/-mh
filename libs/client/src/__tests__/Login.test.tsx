@@ -3,33 +3,7 @@
  */
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { BETA_ACCESS_STORAGE_KEY } from "../components/BetaAccessGate";
-
-const localStorageMock = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: vi.fn((key: string) => store[key] ?? null),
-    setItem: vi.fn((key: string, value: string) => {
-      store[key] = value;
-    }),
-    removeItem: vi.fn((key: string) => {
-      delete store[key];
-    }),
-    clear: vi.fn(() => {
-      store = {};
-    }),
-    get length() {
-      return Object.keys(store).length;
-    },
-    key: vi.fn((i: number) => Object.keys(store)[i] ?? null),
-  };
-})();
-
-Object.defineProperty(globalThis, "localStorage", {
-  value: localStorageMock,
-  writable: true,
-});
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   useWallet: vi.fn(),
@@ -83,8 +57,7 @@ import { Login } from "../pages/Login";
 describe("Login", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    localStorageMock.clear();
-    localStorageMock.setItem(BETA_ACCESS_STORAGE_KEY, "true");
+    vi.stubEnv("VITE_BETA_GATE_ENABLED", "");
 
     mocks.useWallet.mockReturnValue({
       wallets: [
@@ -108,6 +81,10 @@ describe("Login", () => {
       isVerifyUserWithSignaturePending: false,
       isWaitingForSignature: false,
     });
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("shows supported wallet options and connects the selected wallet", async () => {
@@ -144,13 +121,15 @@ describe("Login", () => {
     });
   });
 
-  it("hides the login UI when access is locked", () => {
-    localStorageMock.clear();
+  it("redirects to landing and renders nothing when the beta gate is enabled", async () => {
+    vi.stubEnv("VITE_BETA_GATE_ENABLED", "true");
 
-    render(<Login />);
+    const { container } = render(<Login />);
 
-    expect(screen.queryByTestId("wallet-tile-phantom")).not.toBeInTheDocument();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(container.innerHTML).toBe("");
+    await waitFor(() => {
+      expect(mocks.navigate).toHaveBeenCalledWith({ to: "/" });
+    });
   });
 
   it("enables signing for a connected wallet and authenticates on click", () => {

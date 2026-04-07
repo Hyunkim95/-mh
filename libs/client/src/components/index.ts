@@ -10,6 +10,7 @@ export * from "./RouteDetailView";
 export * from "./WalletConnectPrompt";
 export * from "./root";
 export * from "./AppRouter";
+export * from "./UpdateBanner";
 
 export * from "./ViewTokenConfig";
 export * from "./TokenConfigsTable";

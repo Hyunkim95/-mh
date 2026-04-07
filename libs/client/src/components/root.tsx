@@ -15,6 +15,7 @@ import { MagicEdenWalletAdapter } from '@solana/wallet-adapter-magiceden'
 import { TestWalletAdapter } from '../adapters/TestWalletAdapter'
 import { useMemo } from 'react'
 import { Toaster } from 'react-hot-toast'
+import { UpdateBanner } from './UpdateBanner'
 const endpoint =
   import.meta.env.VITE_RPC_URL || clusterApiUrl(WalletAdapterNetwork.Devnet)
 interface RootProps {
@@ -40,6 +41,7 @@ export const Root = ({ children }: RootProps) => {
         <ConnectionProvider endpoint={endpoint}>
           <WalletProvider wallets={wallets} autoConnect>
             <WalletModalProvider>
+              <UpdateBanner />
               {children}
               <Toaster position="top-right" />
             </WalletModalProvider>

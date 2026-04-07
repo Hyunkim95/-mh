@@ -1,7 +1,22 @@
+import { execSync } from "node:child_process";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import svgr from 'vite-plugin-svgr'
 import { nodePolyfills } from "vite-plugin-node-polyfills";
+
+// Build-time version identifier used by the deployment-detection feature.
+// Prefer Netlify's injected env vars; fall back to git SHA, then to a timestamp.
+const buildVersion =
+  process.env.COMMIT_REF ||
+  process.env.BUILD_ID ||
+  (() => {
+    try {
+      return execSync("git rev-parse HEAD").toString().trim();
+    } catch {
+      return String(Date.now());
+    }
+  })();
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
@@ -13,6 +28,17 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       svgr(),
+      {
+        name: "emit-version-json",
+        apply: "build",
+        generateBundle() {
+          this.emitFile({
+            type: "asset",
+            fileName: "version.json",
+            source: JSON.stringify({ version: buildVersion }),
+          });
+        },
+      },
       nodePolyfills({
         globals: {
           Buffer: true,
@@ -47,6 +73,7 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       global: "globalThis",
+      __APP_VERSION__: JSON.stringify(buildVersion),
     },
     resolve: {
       alias: {

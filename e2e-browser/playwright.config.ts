@@ -32,7 +32,8 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: "yarn workspace @trpc-template/web dev -- --port 4173",
+    command:
+      "yarn build:shared && yarn build:client && yarn workspace @trpc-template/web dev -- --port 4173",
     cwd: path.resolve(__dirname, ".."),
     env: {
       ...process.env,

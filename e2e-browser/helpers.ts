@@ -11,7 +11,6 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const HELPERS = path.resolve(__dirname, "solana-helpers.ts");
-const BETA_ACCESS_STORAGE_KEY = "mh_routing_upgrade_bypass_v1";
 
 // ─── CLI helper ──────────────────────────────────────────────
 
@@ -32,10 +31,6 @@ export function solana(cmd: string): string {
 // ─── Login ───────────────────────────────────────────────────
 
 export async function login(page: Page) {
-  await page.addInitScript((storageKey) => {
-    window.localStorage.setItem(storageKey, "true");
-  }, BETA_ACCESS_STORAGE_KEY);
-
   page.on("console", (msg) => {
     if (msg.type() === "error") {
       console.log(`[BROWSER error] ${msg.text()}`);
@@ -98,12 +93,11 @@ export async function loginAsAdmin(page: Page) {
   const adminToken = solana("auth-token");
   await page.evaluate((token) => {
     window.localStorage.setItem("token", token);
+    window.dispatchEvent(new Event("auth-token-changed"));
   }, adminToken);
   await page.reload();
   await page.waitForURL("**/my-assets", { timeout: 30_000 });
-  await expect(
-    page.getByRole("button", { name: "Admin Dashboard" })
-  ).toBeVisible({ timeout: 15_000 });
+  await waitForSessionRole(page, "admin");
   console.log("Admin login complete");
 }
 

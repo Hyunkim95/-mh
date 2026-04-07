@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo } from "react";
 import { Card } from "../components/Card";
 import { NavBar } from "../components/NavBar";
 import { useSolanaAuth } from "../hooks/useSolanaAuth";
@@ -7,7 +7,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import type { WalletName } from "@solana/wallet-adapter-base";
 import { ReactComponent as CheckIcon } from "../../assets/icons/check-icon.svg";
 import Logo from "../assets/navbar/logo.svg";
-import { BetaAccessGate, isBetaUnlocked } from "../components/BetaAccessGate";
+import { isBetaGateEnabled } from "../components/BetaAccessGate";
 
 export const Login: React.FC = () => {
   const {
@@ -27,17 +27,21 @@ export const Login: React.FC = () => {
     isVerifyUserWithSignaturePending,
     isWaitingForSignature,
   } = useSolanaAuth();
-  const initialBetaAccess = isBetaUnlocked();
-  const [hasBetaAccess, setHasBetaAccess] = useState(initialBetaAccess);
-  const [showBetaGate, setShowBetaGate] = useState(false);
-  const [pendingWalletName, setPendingWalletName] = useState<WalletName | null>(null);
+  const betaGateEnabled = isBetaGateEnabled();
+
+  // When the beta gate is enabled, only the landing page is accessible.
+  useEffect(() => {
+    if (betaGateEnabled) {
+      router.navigate({ to: "/" });
+    }
+  }, [betaGateEnabled]);
 
   // Navigate when authenticated
   useEffect(() => {
-    if (hasBetaAccess && userData && publicKey) {
+    if (!betaGateEnabled && userData && publicKey) {
       router.navigate({ to: "/my-assets" });
     }
-  }, [hasBetaAccess, userData, publicKey]);
+  }, [betaGateEnabled, userData, publicKey]);
 
   const desiredWallets = useMemo(() => {
     const allowedWallets = ['phantom', 'backpack', 'magic eden'];
@@ -57,11 +61,6 @@ export const Login: React.FC = () => {
 
   const handleSelectWallet = async (name: WalletName | undefined) => {
     if (!name) return;
-    if (!hasBetaAccess) {
-      setPendingWalletName(name);
-      setShowBetaGate(true);
-      return;
-    }
     try {
       select(name);
       await new Promise((resolve) => window.setTimeout(resolve, 0));
@@ -71,33 +70,15 @@ export const Login: React.FC = () => {
     }
   };
 
-  const handleBetaSuccess = async () => {
-    setHasBetaAccess(true);
-    setShowBetaGate(false);
-    if (pendingWalletName) {
-      try {
-        select(pendingWalletName);
-        await connect();
-      } catch {
-        // Intentionally swallow
-      }
-      setPendingWalletName(null);
-    }
-  };
-
-  const handleBetaClose = () => {
-    setShowBetaGate(false);
-    setPendingWalletName(null);
-    if (!hasBetaAccess) {
-      router.navigate({ to: "/" });
-    }
-  };
-
   const isSelectedTile = (label: string) => {
     return currentWallet?.adapter?.name
       ?.toLowerCase()
       .includes(label.toLowerCase());
   };
+
+  if (betaGateEnabled) {
+    return null;
+  }
 
   const loginCardBody = (
     <div className="flex flex-col h-full md:gap-8">
@@ -247,28 +228,21 @@ export const Login: React.FC = () => {
       <div className="flex sm:hidden">
         <img src={Logo} className="relative w-[auto] h-[31px] object-contain" />
       </div>
-      <BetaAccessGate
-        isOpen={showBetaGate && !hasBetaAccess}
-        onClose={handleBetaClose}
-        onSuccess={handleBetaSuccess}
+      <Card
+        cardClasses={{
+          mainCardContainer:
+            "sm:!w-[90%] md:!w-full px-14 py-0 md:px-20 md:pt-20 md:pb-16",
+          cardBodyContainer: "flex flex-col justify-center",
+        }}
+        cardBody={loginCardBody}
+        cardFooter={loginCardFooter}
+        cardHeight={"617px"}
+        cardStyle={{
+          background:
+            'linear-gradient(#1F2224, #1F2224) padding-box, linear-gradient(0deg, rgba(255,255,255,0) 23%, rgba(255,255,255,0.5) 49%, rgba(255,255,255,0) 75%) border-box',
+          border: '1px solid transparent',
+        }}
       />
-      {hasBetaAccess ? (
-        <Card
-          cardClasses={{
-            mainCardContainer:
-              "sm:!w-[90%] md:!w-full px-14 py-0 md:px-20 md:pt-20 md:pb-16",
-            cardBodyContainer: "flex flex-col justify-center",
-          }}
-          cardBody={loginCardBody}
-          cardFooter={loginCardFooter}
-          cardHeight={"617px"}
-          cardStyle={{
-            background:
-              'linear-gradient(#1F2224, #1F2224) padding-box, linear-gradient(0deg, rgba(255,255,255,0) 23%, rgba(255,255,255,0.5) 49%, rgba(255,255,255,0) 75%) border-box',
-            border: '1px solid transparent',
-          }}
-        />
-      ) : null}
     </div>
   );
 };

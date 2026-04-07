@@ -546,6 +546,7 @@ async function main() {
       } finally {
         await client.end();
       }
+      cachedAuthToken = null;
       break;
     }
 

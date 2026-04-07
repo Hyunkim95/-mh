@@ -1,12 +1,9 @@
 import React, { useEffect } from "react";
 import LogoIcon from "../assets/navbar/logo.svg";
 
-export const BETA_ACCESS_STORAGE_KEY = "mh_routing_upgrade_bypass_v1";
-
 interface BetaAccessGateProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
 }
 
 const progressDots = Array.from({ length: 5 });
@@ -14,19 +11,13 @@ const progressDots = Array.from({ length: 5 });
 export const BetaAccessGate: React.FC<BetaAccessGateProps> = ({
   isOpen,
   onClose,
-  onSuccess,
 }) => {
-  const handleDismiss = () => {
-    localStorage.setItem(BETA_ACCESS_STORAGE_KEY, "true");
-    onSuccess();
-  };
-
   useEffect(() => {
     if (!isOpen) return undefined;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        handleDismiss();
+        onClose();
       }
     };
 
@@ -44,7 +35,7 @@ export const BetaAccessGate: React.FC<BetaAccessGateProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="routing-upgrade-title"
-      onClick={handleDismiss}
+      onClick={onClose}
     >
       <div
         className="absolute inset-0"
@@ -125,8 +116,8 @@ export const BetaAccessGate: React.FC<BetaAccessGateProps> = ({
   );
 };
 
-export const isBetaUnlocked = (): boolean => {
-  return localStorage.getItem(BETA_ACCESS_STORAGE_KEY) === "true";
+export const isBetaGateEnabled = (): boolean => {
+  return import.meta.env.VITE_BETA_GATE_ENABLED === "true";
 };
 
 export default BetaAccessGate;

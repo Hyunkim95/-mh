@@ -9,3 +9,4 @@ export * from "./useInitializeTokenConfig";
 export * from "./useUpdateTokenConfig";
 export * from "./useObfuscationDeploy";
 export * from "./useDeploy";
+export * from "./useDeploymentCheck";

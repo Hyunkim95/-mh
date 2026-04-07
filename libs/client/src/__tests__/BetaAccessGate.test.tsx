@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 
@@ -11,64 +11,26 @@ vi.mock("../assets/navbar/logo.svg", () => ({
 
 import {
   BetaAccessGate,
-  BETA_ACCESS_STORAGE_KEY,
-  isBetaUnlocked,
+  isBetaGateEnabled,
 } from "../components/BetaAccessGate";
-
-const localStorageMock = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: vi.fn((key: string) => store[key] ?? null),
-    setItem: vi.fn((key: string, value: string) => {
-      store[key] = value;
-    }),
-    removeItem: vi.fn((key: string) => {
-      delete store[key];
-    }),
-    clear: vi.fn(() => {
-      store = {};
-    }),
-    get length() {
-      return Object.keys(store).length;
-    },
-    key: vi.fn((i: number) => Object.keys(store)[i] ?? null),
-  };
-})();
-
-Object.defineProperty(globalThis, "localStorage", {
-  value: localStorageMock,
-  writable: true,
-});
 
 describe("BetaAccessGate", () => {
   const mockOnClose = vi.fn();
-  const mockOnSuccess = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
-    localStorageMock.clear();
   });
 
   it("renders nothing when isOpen is false", () => {
     const { container } = render(
-      <BetaAccessGate
-        isOpen={false}
-        onClose={mockOnClose}
-        onSuccess={mockOnSuccess}
-      />
+      <BetaAccessGate isOpen={false} onClose={mockOnClose} />
     );
 
     expect(container.innerHTML).toBe("");
   });
 
   it("renders the routing-upgrade maintenance screen when open", () => {
-    render(
-      <BetaAccessGate
-        isOpen={true}
-        onClose={mockOnClose}
-        onSuccess={mockOnSuccess}
-      />
-    );
+    render(<BetaAccessGate isOpen={true} onClose={mockOnClose} />);
 
     expect(screen.getByText("MultiHopper")).toBeInTheDocument();
     expect(screen.getByText("Routing upgrade in process")).toBeInTheDocument();
@@ -76,59 +38,40 @@ describe("BetaAccessGate", () => {
     expect(screen.getAllByTestId("routing-upgrade-dot")).toHaveLength(5);
   });
 
-  it("calls onSuccess when the splash screen is clicked", () => {
-    render(
-      <BetaAccessGate
-        isOpen={true}
-        onClose={mockOnClose}
-        onSuccess={mockOnSuccess}
-      />
-    );
+  it("calls onClose when the splash screen is clicked", () => {
+    render(<BetaAccessGate isOpen={true} onClose={mockOnClose} />);
 
     fireEvent.click(screen.getByTestId("routing-upgrade-backdrop"));
 
-    expect(localStorageMock.setItem).toHaveBeenCalledWith(
-      BETA_ACCESS_STORAGE_KEY,
-      "true"
-    );
-    expect(mockOnSuccess).toHaveBeenCalledOnce();
+    expect(mockOnClose).toHaveBeenCalledOnce();
   });
 
-  it("calls onSuccess when escape is pressed", () => {
-    render(
-      <BetaAccessGate
-        isOpen={true}
-        onClose={mockOnClose}
-        onSuccess={mockOnSuccess}
-      />
-    );
+  it("calls onClose when escape is pressed", () => {
+    render(<BetaAccessGate isOpen={true} onClose={mockOnClose} />);
 
     fireEvent.keyDown(window, { key: "Escape" });
 
-    expect(localStorageMock.setItem).toHaveBeenCalledWith(
-      BETA_ACCESS_STORAGE_KEY,
-      "true"
-    );
-    expect(mockOnSuccess).toHaveBeenCalledOnce();
+    expect(mockOnClose).toHaveBeenCalledOnce();
   });
 });
 
-describe("isBetaUnlocked", () => {
-  beforeEach(() => {
-    localStorageMock.clear();
+describe("isBetaGateEnabled", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
-  it("returns false when not set", () => {
-    expect(isBetaUnlocked()).toBe(false);
+  it("returns true when VITE_BETA_GATE_ENABLED is 'true'", () => {
+    vi.stubEnv("VITE_BETA_GATE_ENABLED", "true");
+    expect(isBetaGateEnabled()).toBe(true);
   });
 
-  it("returns true when the bypass key is set", () => {
-    localStorageMock.setItem(BETA_ACCESS_STORAGE_KEY, "true");
-    expect(isBetaUnlocked()).toBe(true);
+  it("returns false when VITE_BETA_GATE_ENABLED is unset", () => {
+    vi.stubEnv("VITE_BETA_GATE_ENABLED", "");
+    expect(isBetaGateEnabled()).toBe(false);
   });
 
   it("returns false for any other value", () => {
-    localStorageMock.setItem(BETA_ACCESS_STORAGE_KEY, "false");
-    expect(isBetaUnlocked()).toBe(false);
+    vi.stubEnv("VITE_BETA_GATE_ENABLED", "false");
+    expect(isBetaGateEnabled()).toBe(false);
   });
 });
