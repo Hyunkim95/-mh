@@ -214,10 +214,19 @@ export const LandingPage: React.FC = () => {
                     href="https://business.multihopper.com"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="not-italic font-medium text-xs leading-3 text-[#7E7F83] hover:text-white transition-colors duration-300"
+                    className="not-italic font-medium text-xs leading-3 text-[var(--laser-lemon-500)] hover:text-white transition-colors duration-300"
                     style={{ fontFamily: "Roboto, sans-serif" }}
                   >
                     Business
+                  </a>
+                  <a
+                    href="https://business.multihopper.com/developers"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="not-italic font-medium text-xs leading-3 text-[var(--laser-lemon-500)] hover:text-white transition-colors duration-300"
+                    style={{ fontFamily: "Roboto, sans-serif" }}
+                  >
+                    Build
                   </a>
                   <a
                     href="#how-it-works"
@@ -313,9 +322,17 @@ export const LandingPage: React.FC = () => {
                   href="https://business.multihopper.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-white/80 hover:text-white py-2 transition-colors"
+                  className="text-[var(--laser-lemon-500)] hover:text-white py-2 transition-colors"
                 >
                   Business
+                </a>
+                <a
+                  href="https://business.multihopper.com/developers"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[var(--laser-lemon-500)] hover:text-white py-2 transition-colors"
+                >
+                  Build
                 </a>
                 <a
                   href="#how-it-works"
@@ -567,6 +584,17 @@ export const LandingPage: React.FC = () => {
               Send any digital asset, bouncing it off any wallets <br /> across
               Web3{" "}
               <span className="font-light italic">even ones you don't own</span>
+            </p>
+
+            {/* Beta Disclaimer */}
+            <p
+              className="mt-3 text-xs sm:text-sm not-italic font-medium leading-5 text-center text-[var(--laser-lemon-500)] mx-auto px-4"
+              style={{
+                fontFamily: "Roboto, sans-serif",
+                animation: "fadeInUp 0.6s ease-out 0.45s both",
+              }}
+            >
+              [MultiHopper is stable in beta and pre-audit.]
             </p>
 
             {/* Scroll Indicator */}
