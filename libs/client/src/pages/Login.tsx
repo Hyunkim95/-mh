@@ -168,6 +168,9 @@ export const Login: React.FC = () => {
         >
           Privacy Policy
         </a>
+        <div className="mt-2">
+          Note: MultiHopper is stable in beta and pre-audit.
+        </div>
       </div>
       <button
         type="button"

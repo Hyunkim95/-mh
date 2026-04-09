@@ -149,14 +149,6 @@ export const LandingPage: React.FC = () => {
         isOpen={showBetaGate}
         onClose={() => setShowBetaGate(false)}
       />
-      {/* Beta Warning Banner */}
-      <div
-        className="w-full bg-[#FBFF69] text-black text-center text-sm font-medium"
-        style={{ padding: "7px 16px" }}
-      >
-        This product is currently in beta and has not been audited. Use at your
-        own risk.
-      </div>
 
       {/* Left and Right background images - Hidden on mobile */}
       <div className="hidden lg:block absolute top-64 left-0 w-auto h-auto pointer-events-none z-0">
@@ -1823,7 +1815,15 @@ export const LandingPage: React.FC = () => {
             {/* Bottom Bar */}
             <div className="pt-3 border-t border-white/[0.06] flex flex-col items-center w-full">
               <p
-                className="not-italic font-normal text-xs leading-[17px] text-white/[0.22] text-center w-full"
+                className="not-italic font-normal text-xs leading-[17px] text-[var(--laser-lemon-500)] text-center w-full"
+                style={{
+                  fontFamily: "Grotesk, sans-serif",
+                }}
+              >
+                MultiHopper is stable in beta and pre-audit.
+              </p>
+              <p
+                className="not-italic font-normal text-xs leading-[17px] text-white/[0.22] text-center w-full mt-1"
                 style={{
                   fontFamily: "Grotesk, sans-serif",
                 }}
