@@ -379,10 +379,10 @@ walletC,10`
     <>
       <div className='mb-6'>
         <h2 className='not-italic font-medium text-xl leading-6 text-[var(--white-100)] mb-2'>
-          Choose Your Token
+          Choose Your Amount
         </h2>
         <p className='not-italic font-light text-base leading-5 text-[var(--philippine-gray-500)]'>
-          Choose a token to route with Multihopper and set the amount.
+          Choose an amount to route with the MultiHopper
         </p>
       </div>
       <AmountSelector
@@ -557,6 +557,9 @@ walletC,10`
     if (activeKey === 'choose') {
       setActiveKey('mode')
     } else if (activeKey === 'mode') {
+      if (routeMode === 'easy' && !easyRouteConfig.arrivalTime) {
+        setEasyRouteConfig(prev => ({ ...prev, arrivalTime: new Date(Date.now() + 5 * 60 * 1000) }))
+      }
       setActiveKey('configure')
     } else if (activeKey === 'configure') {
       setActiveKey('summary')

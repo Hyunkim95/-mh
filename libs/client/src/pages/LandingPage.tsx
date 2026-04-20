@@ -392,7 +392,7 @@ export const LandingPage: React.FC = () => {
                 fontFamily: "Roboto, sans-serif",
               }}
             >
-              Regulated-Ready On-Chain Asset Routing in Seconds
+              Regulator-Ready On-Chain Asset Routing in Seconds
             </h2>
 
             {/* Main Feature Card */}
