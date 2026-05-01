@@ -1,0 +1,13 @@
+{
+  "subject": "Review and document: Continue orchestrator end-to-end integration. Split into: b",
+  "description": "Review code quality and update documentation for: Continue orchestrator end-to-end integration. Split into: backend route/API migration off obfuscation, frontend deploy/status migration off obfuscation, and verification/regression. Keep backend and frontend lifecycle aligned. Do not revert unrelated dirty files. Verify before shutdown.",
+  "status": "completed",
+  "owner": "worker-3",
+  "role": "executor",
+  "id": "3",
+  "depends_on": [],
+  "version": 3,
+  "created_at": "2026-04-24T12:21:32.509Z",
+  "completed_at": "2026-04-24T12:33:59.350Z",
+  "result": "Completed docs/review slice in commit c64c42f. Added docs/superpowers/specs/2026-04-24-continue-orchestrator-e2e-integration-review.md and linked it from libs/server/src/orchestrator/README.md. Review captures current orchestrator runtime vs legacy obfuscation-shaped route/API and client deploy/status contract, lifecycle alignment rules, and next regression checklist. Verification: PASS git diff --check; PASS ./node_modules/.bin/vitest run libs/client/src/__tests__/useDeploy.test.tsx libs/client/src/__tests__/RouteItem.test.tsx libs/client/src/__tests__/RouteViewer.test.tsx (14 tests). Pre-existing branch issues remain outside this docs-only diff: server-public-exports/db-schema-exports vitest entry resolution failures and broader server/client typecheck failures."
+}

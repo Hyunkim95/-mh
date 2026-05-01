@@ -1,0 +1,73 @@
+{
+  "active": true,
+  "mode": "team",
+  "current_phase": "team-exec",
+  "started_at": "2026-04-24T12:11:35.766Z",
+  "updated_at": "2026-04-24T12:22:34.014Z",
+  "thread_id": "019dbf50-6d13-7770-afd7-d885902f8a7e",
+  "turn_id": "019dbf6e-3c9d-7ff2-900e-2bc0b42622ac",
+  "iteration": 11,
+  "last_turn_at": "2026-04-24T18:05:06.922Z",
+  "task_description": "Continue orchestrator end-to-end integration. Split into: backend route/API migration off obfuscation, frontend deploy/status migration off obfuscation, and verification/regression. Keep backend and frontend lifecycle aligned. Do not revert unrelated dirty files. Verify before shutdown.",
+  "team_name": "continue-orchestrator-end-to-e",
+  "agent_count": 3,
+  "agent_types": "executor",
+  "available_agent_types": [
+    "analyst",
+    "api-reviewer",
+    "architect",
+    "build-fixer",
+    "code-reviewer",
+    "code-simplifier",
+    "critic",
+    "debugger",
+    "dependency-expert",
+    "designer",
+    "executor",
+    "explore",
+    "explore-harness",
+    "git-master",
+    "information-architect",
+    "performance-reviewer",
+    "planner",
+    "product-analyst",
+    "product-manager",
+    "qa-tester",
+    "quality-reviewer",
+    "quality-strategist",
+    "researcher",
+    "security-reviewer",
+    "sisyphus-lite",
+    "style-reviewer",
+    "team-executor",
+    "team-orchestrator",
+    "test-engineer",
+    "ux-researcher",
+    "verifier",
+    "vision",
+    "writer"
+  ],
+  "staffing_summary": "quality-reviewer x1 (primary delivery lane, medium reasoning); test-engineer x1 (verification + regression lane, medium reasoning); debugger x1 (specialist support lane, high reasoning)",
+  "staffing_allocations": [
+    {
+      "role": "quality-reviewer",
+      "count": 1,
+      "reason": "primary delivery lane",
+      "reasoningEffort": "medium"
+    },
+    {
+      "role": "test-engineer",
+      "count": 1,
+      "reason": "verification + regression lane",
+      "reasoningEffort": "medium"
+    },
+    {
+      "role": "debugger",
+      "count": 1,
+      "reason": "specialist support lane",
+      "reasoningEffort": "high"
+    }
+  ],
+  "tmux_pane_id": "%0",
+  "tmux_pane_set_at": "2026-04-24T12:23:24.835Z"
+}

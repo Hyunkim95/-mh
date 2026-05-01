@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd /Users/brotherofalphakim/dev/multihopper && rm -f /tmp/mh-debug.log scripts/api-test/.state.json && npx tsx scripts/api-test/01-create-transfer.ts > /dev/null 2>&1 && npx tsx scripts/ap...",
+  "error": "Exit code 1",
+  "timestamp": "2026-04-29T09:44:48.828Z",
+  "retry_count": 1
+}

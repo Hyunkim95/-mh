@@ -1,0 +1,13 @@
+{
+  "subject": "Implement: Continue orchestrator end-to-end integration. Split into: backend rou",
+  "description": "Implement the core functionality for: Continue orchestrator end-to-end integration. Split into: backend route/API migration off obfuscation, frontend deploy/status migration off obfuscation, and verification/regression. Keep backend and frontend lifecycle aligned. Do not revert unrelated dirty files. Verify before shutdown.",
+  "status": "completed",
+  "owner": "worker-1",
+  "role": "executor",
+  "id": "1",
+  "depends_on": [],
+  "version": 4,
+  "created_at": "2026-04-24T12:21:32.503Z",
+  "completed_at": "2026-04-24T12:40:24.130Z",
+  "result": "Implemented orchestrator-backed route deployment/status migration and committed it in ceb67bf.\n\nChanges:\n- Stopped route creation from auto-spawning legacy obfuscation sessions; route deploy now lazily creates/rebuilds orchestrator initialization transactions.\n- Rewired routes router obfuscation endpoints to orchestrator session/status/cost/init flows while preserving the existing client-facing tRPC surface.\n- Updated orchestrator keeper + API scheduler startup so orchestrator execution advances and marks routes deployed in the DB.\n- Updated client deploy hook to batch-confirm orchestrator initialization and fixed DeployModal to refetch cost estimates with the DB route id.\n- Updated targeted tests for the new client/orchestrator behavior.\n\nVerification:\nPASS - Diagnostics: lsp_diagnostics clean for changed files (routes.router.ts, routes.service.ts, orchestrator.service.ts, orchestrator-keeper.service.ts, useObfuscationDeploy.ts, DeployModal.tsx, apps/api/src/index.ts, routes-router.test.ts)\nPASS - Tests: yarn vitest run libs/client/src/__tests__/useObfuscationDeploy.test.tsx libs/client/src/__tests__/useDeploy.test.tsx --reporter=dot\nPASS - Sanity: git diff --check\nFAIL/PRE-EXISTING - Full server typecheck: yarn workspace @trpc-template/server type-check (blocked by unrelated existing workspace/package/type issues in auth/db/obfuscation/solana-node/etc.)\nFAIL/PRE-EXISTING - Server router test execution: JWT_SECRET=test-secret yarn vitest run libs/server/src/__tests__/routes-router.test.ts --reporter=dot (blocked by existing workspace package resolution/build issues around @libs/solana-node and related packages)\n"
+}

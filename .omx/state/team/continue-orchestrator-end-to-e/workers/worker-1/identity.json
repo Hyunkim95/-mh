@@ -1,0 +1,17 @@
+{
+  "name": "worker-1",
+  "index": 1,
+  "role": "executor",
+  "worker_cli": "codex",
+  "assigned_tasks": [
+    "1"
+  ],
+  "working_dir": "/Users/brotherofalphakim/dev/multihopper/.omx/team/continue-orchestrator-end-to-e/worktrees/worker-1",
+  "worktree_repo_root": "/Users/brotherofalphakim/dev/multihopper",
+  "worktree_path": "/Users/brotherofalphakim/dev/multihopper/.omx/team/continue-orchestrator-end-to-e/worktrees/worker-1",
+  "worktree_detached": true,
+  "worktree_created": true,
+  "team_state_root": "/Users/brotherofalphakim/dev/multihopper/.omx/state",
+  "pid": 12758,
+  "pane_id": "%33"
+}

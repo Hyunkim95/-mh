@@ -1,0 +1,16 @@
+{
+  "team_name": "continue-orchestrator-end-to-e",
+  "updated_at": "2026-04-24T15:23:58.346Z",
+  "source": "notify_hook",
+  "leader_decision_state": "done_waiting_on_leader",
+  "leader_attention_pending": false,
+  "leader_attention_reason": null,
+  "attention_reasons": [],
+  "leader_stale": true,
+  "leader_session_active": true,
+  "leader_session_id": null,
+  "leader_session_stopped_at": null,
+  "unread_leader_message_count": 13,
+  "work_remaining": false,
+  "stalled_for_ms": null
+}

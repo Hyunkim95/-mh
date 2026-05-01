@@ -1,0 +1,8 @@
+{
+  "last_notified_at_ms": 1777034441686,
+  "last_notified_at": "2026-04-24T12:40:41.686Z",
+  "prev_state": "unknown",
+  "orchestration_intent": "followup-reuse",
+  "delivery": "deferred_shell",
+  "pane_current_command": "zsh"
+}

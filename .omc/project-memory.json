@@ -1,0 +1,556 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1777635388686,
+  "projectRoot": "/Users/brotherofalphakim/dev/multihopper",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": ">=20",
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      },
+      {
+        "name": "TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "tsconfig.json"
+        ]
+      },
+      {
+        "name": "C/C++",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "Makefile"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "@playwright/test",
+        "version": "1.58.2",
+        "category": "testing"
+      },
+      {
+        "name": "vitest",
+        "version": "4.0.16",
+        "category": "testing"
+      }
+    ],
+    "packageManager": "yarn",
+    "runtime": "Node.js 20"
+  },
+  "build": {
+    "buildCommand": "yarn build",
+    "testCommand": "yarn test",
+    "lintCommand": null,
+    "devCommand": "yarn dev",
+    "scripts": {
+      "dev": "turbo run dev",
+      "dev:libs": "turbo run dev --filter=@trpc-template/shared --filter=@trpc-template/server --filter=@trpc-template/client",
+      "dev:local": "sh -c 'docker compose -f docker-compose.dev.yml up -d --build && yarn dev:libs'",
+      "build": "turbo run build",
+      "start": "turbo run start --filter=@trpc-template/api",
+      "heroku-postbuild": "yarn build",
+      "dev:web": "turbo run dev --filter=@trpc-template/web",
+      "dev:api": "turbo run dev --filter=@trpc-template/api",
+      "build:client": "turbo run build --filter=@trpc-template/client",
+      "build:server": "turbo run build --filter=@trpc-template/server",
+      "build:shared": "turbo run build --filter=@trpc-template/shared",
+      "type-check": "turbo run type-check",
+      "docker:dev": "docker-compose -f docker-compose.dev.yml up --build -d",
+      "docker:prod": "docker-compose up --build",
+      "docker:down": "docker-compose down && docker-compose -f docker-compose.dev.yml down",
+      "docker:logs": "docker-compose logs -f",
+      "docker:logs:dev": "docker-compose -f docker-compose.dev.yml logs -f",
+      "env:check:local": "node scripts/local-env-tools.mjs check",
+      "env:generate:local": "node scripts/local-env-tools.mjs generate",
+      "env:generate:local:write": "node scripts/local-env-tools.mjs generate --write",
+      "create:devnet-spl-token": "tsx scripts/create-devnet-spl-token.ts",
+      "test": "vitest run",
+      "test:watch": "vitest",
+      "test:e2e": "vitest run --config vitest.config.e2e.ts",
+      "test:e2e:watch": "vitest --config vitest.config.e2e.ts",
+      "test:e2e:up": "docker compose -f docker-compose.e2e.yml up -d --build",
+      "test:e2e:down": "docker compose -f docker-compose.e2e.yml down -v",
+      "test:e2e:logs": "docker compose -f docker-compose.e2e.yml logs -f",
+      "test:e2e:browser": "node --no-strip-types node_modules/.bin/playwright test --config e2e-browser/playwright.config.ts",
+      "test:e2e:browser:ui": "node --no-strip-types node_modules/.bin/playwright test --config e2e-browser/playwright.config.ts --ui"
+    }
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": true,
+    "workspaces": [
+      "apps/*",
+      "libs/*"
+    ],
+    "mainDirectories": [
+      "docs",
+      "scripts"
+    ],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "apps": {
+      "path": "apps",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1777635388666,
+      "keyFiles": []
+    },
+    "coverage": {
+      "path": "coverage",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1777635388667,
+      "keyFiles": [
+        "coverage-summary.json",
+        "lcov.info"
+      ]
+    },
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 2,
+      "lastAccessed": 1777635388670,
+      "keyFiles": [
+        "PRD-Referral-System.md",
+        "simulation-logs-17-hops.md"
+      ]
+    },
+    "e2e": {
+      "path": "e2e",
+      "purpose": null,
+      "fileCount": 9,
+      "lastAccessed": 1777635388670,
+      "keyFiles": [
+        "Dockerfile.validator",
+        "cleanup.e2e.test.ts",
+        "deploy-recovery.e2e.test.ts",
+        "easy-route.e2e.test.ts",
+        "error-paths.e2e.test.ts"
+      ]
+    },
+    "e2e-browser": {
+      "path": "e2e-browser",
+      "purpose": null,
+      "fileCount": 17,
+      "lastAccessed": 1777635388671,
+      "keyFiles": [
+        "admin-dashboard.spec.ts",
+        "custom-route-sol.spec.ts",
+        "custom-route-spl.spec.ts",
+        "easy-route-sol.spec.ts",
+        "easy-route-spl.spec.ts"
+      ]
+    },
+    "init-db": {
+      "path": "init-db",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1777635388672,
+      "keyFiles": [
+        "01-init.sql"
+      ]
+    },
+    "libs": {
+      "path": "libs",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1777635388672,
+      "keyFiles": []
+    },
+    "scripts": {
+      "path": "scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 31,
+      "lastAccessed": 1777635388672,
+      "keyFiles": [
+        "add-hops-api.ts",
+        "bootstrap-fee-schedule.ts",
+        "check-executor-balances.ts",
+        "check-route-1031-direct.ts",
+        "check-route-1031-onchain.ts"
+      ]
+    },
+    "test-ledger": {
+      "path": "test-ledger",
+      "purpose": null,
+      "fileCount": 10,
+      "lastAccessed": 1777635388673,
+      "keyFiles": [
+        "faucet-keypair.json",
+        "genesis.bin",
+        "genesis.tar.bz2",
+        "snapshot-6600-BCLqMrEH1mNiTvorGWxqJLJDtFT5U939Mx8VLy8q9vY5.tar.zst",
+        "snapshot-6700-Fh2yNHjyfwKQA56CNWuzTa7qmoJLo5BQdhucJhLaAcbP.tar.zst"
+      ]
+    },
+    "test-results": {
+      "path": "test-results",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1777635388673,
+      "keyFiles": []
+    },
+    "apps/api": {
+      "path": "apps/api",
+      "purpose": "API routes",
+      "fileCount": 6,
+      "lastAccessed": 1777635388673,
+      "keyFiles": [
+        "Dockerfile",
+        "Dockerfile.dev",
+        "Procfile"
+      ]
+    },
+    "e2e/fixtures": {
+      "path": "e2e/fixtures",
+      "purpose": "Test fixtures",
+      "fileCount": 5,
+      "lastAccessed": 1777635388674,
+      "keyFiles": [
+        "multi_hopper_project.so",
+        "orchestrator.so",
+        "spl_token_2022.so"
+      ]
+    },
+    "e2e/helpers": {
+      "path": "e2e/helpers",
+      "purpose": "Helper functions",
+      "fileCount": 6,
+      "lastAccessed": 1777635388674,
+      "keyFiles": [
+        "airdrop.ts",
+        "api-client.ts",
+        "auth.ts"
+      ]
+    },
+    "e2e/scripts": {
+      "path": "e2e/scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 1,
+      "lastAccessed": 1777635388674,
+      "keyFiles": [
+        "dump-programs.sh"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "libs/server/src/integrations/services/api-transfer-orchestration.service.ts",
+      "accessCount": 111,
+      "lastAccessed": 1777635568676,
+      "type": "file"
+    },
+    {
+      "path": "libs/server/src",
+      "accessCount": 81,
+      "lastAccessed": 1777637374149,
+      "type": "directory"
+    },
+    {
+      "path": "libs/server/src/rest/self-service.routes.ts",
+      "accessCount": 75,
+      "lastAccessed": 1777638452059,
+      "type": "directory"
+    },
+    {
+      "path": "libs/server/src/orchestrator/orchestrator.service.ts",
+      "accessCount": 46,
+      "lastAccessed": 1777556497675,
+      "type": "file"
+    },
+    {
+      "path": "libs/server/src/solana/services/contract.service.ts",
+      "accessCount": 41,
+      "lastAccessed": 1777583063849,
+      "type": "file"
+    },
+    {
+      "path": "libs/server/src/solana/services/composers/orch-session-init.ts",
+      "accessCount": 34,
+      "lastAccessed": 1777540320872,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 33,
+      "lastAccessed": 1777635300670,
+      "type": "directory"
+    },
+    {
+      "path": "libs/server/src/orchestrator/orchestrator-keeper.service.ts",
+      "accessCount": 30,
+      "lastAccessed": 1777556488112,
+      "type": "file"
+    },
+    {
+      "path": "libs/server/src/integrations/self-service-api.ts",
+      "accessCount": 27,
+      "lastAccessed": 1777635259044,
+      "type": "file"
+    },
+    {
+      "path": "scripts/api-test/_lib.ts",
+      "accessCount": 21,
+      "lastAccessed": 1777559627541,
+      "type": "file"
+    },
+    {
+      "path": "libs/server/src/solana/services/composers/orch-route-init.ts",
+      "accessCount": 19,
+      "lastAccessed": 1777552866933,
+      "type": "file"
+    },
+    {
+      "path": "libs/server/src/integrations/services/transfer.service.ts",
+      "accessCount": 17,
+      "lastAccessed": 1777549451899,
+      "type": "file"
+    },
+    {
+      "path": "libs/server/src/solana/idl/multi_hopper_project.json",
+      "accessCount": 15,
+      "lastAccessed": 1777550343235,
+      "type": "file"
+    },
+    {
+      "path": "libs/server/src/integrations/services/provider-registration.service.ts",
+      "accessCount": 15,
+      "lastAccessed": 1777637519810,
+      "type": "file"
+    },
+    {
+      "path": "libs/server/src/integrations/services/transfer-sync.service.ts",
+      "accessCount": 14,
+      "lastAccessed": 1777549416501,
+      "type": "file"
+    },
+    {
+      "path": "scripts/api-test/03-sign-and-broadcast.ts",
+      "accessCount": 14,
+      "lastAccessed": 1777553244213,
+      "type": "file"
+    },
+    {
+      "path": "libs/server/src/solana/idl/orchestrator.json",
+      "accessCount": 12,
+      "lastAccessed": 1777536235593,
+      "type": "file"
+    },
+    {
+      "path": "libs/server/src/solana/services/primitives/_shared.ts",
+      "accessCount": 12,
+      "lastAccessed": 1777540011397,
+      "type": "file"
+    },
+    {
+      "path": "libs/server/src/integrations/schema/transfers.schema.ts",
+      "accessCount": 11,
+      "lastAccessed": 1777549330729,
+      "type": "directory"
+    },
+    {
+      "path": "libs/server/src/orchestrator",
+      "accessCount": 11,
+      "lastAccessed": 1777556332190,
+      "type": "directory"
+    },
+    {
+      "path": "libs/server/src/integrations/errors.ts",
+      "accessCount": 11,
+      "lastAccessed": 1777558734974,
+      "type": "file"
+    },
+    {
+      "path": "libs/server/src/solana/services/primitives/keeper.ts",
+      "accessCount": 10,
+      "lastAccessed": 1777537890623,
+      "type": "directory"
+    },
+    {
+      "path": "libs/server/src/solana",
+      "accessCount": 9,
+      "lastAccessed": 1777558558007,
+      "type": "directory"
+    },
+    {
+      "path": "libs/server/src/orchestrator/schema/orchestrator-sessions.schema.ts",
+      "accessCount": 9,
+      "lastAccessed": 1777564245185,
+      "type": "file"
+    },
+    {
+      "path": "libs/server/src/solana/services/primitives/route-init.ts",
+      "accessCount": 8,
+      "lastAccessed": 1777541286676,
+      "type": "file"
+    },
+    {
+      "path": "scripts/api-test/02-prepare.ts",
+      "accessCount": 8,
+      "lastAccessed": 1777552487264,
+      "type": "file"
+    },
+    {
+      "path": "libs/server/src/integrations",
+      "accessCount": 8,
+      "lastAccessed": 1777558549913,
+      "type": "directory"
+    },
+    {
+      "path": "libs/server/src/solana/services/composers/exec-and-close.ts",
+      "accessCount": 7,
+      "lastAccessed": 1777537935709,
+      "type": "directory"
+    },
+    {
+      "path": "scripts/api-test/04-confirm-broadcast.ts",
+      "accessCount": 7,
+      "lastAccessed": 1777551572606,
+      "type": "file"
+    },
+    {
+      "path": "scripts/api-test/.env",
+      "accessCount": 7,
+      "lastAccessed": 1777553261738,
+      "type": "file"
+    },
+    {
+      "path": "libs/server",
+      "accessCount": 7,
+      "lastAccessed": 1777557589651,
+      "type": "directory"
+    },
+    {
+      "path": "libs/server/src/orchestrator/schema/orchestrator-steps.schema.ts",
+      "accessCount": 5,
+      "lastAccessed": 1777549335711,
+      "type": "file"
+    },
+    {
+      "path": "libs/server/src/__tests__/api-transfer-orchestration.service.test.ts",
+      "accessCount": 5,
+      "lastAccessed": 1777552523995,
+      "type": "file"
+    },
+    {
+      "path": "scripts/api-test/all.ts",
+      "accessCount": 5,
+      "lastAccessed": 1777553247656,
+      "type": "file"
+    },
+    {
+      "path": "libs/server/src/solana/services/primitives/orchestrator-init.ts",
+      "accessCount": 4,
+      "lastAccessed": 1777538105074,
+      "type": "file"
+    },
+    {
+      "path": "libs/server/src/routes/services/routes.service.ts",
+      "accessCount": 4,
+      "lastAccessed": 1777540785307,
+      "type": "file"
+    },
+    {
+      "path": "apps/api/src/index.ts",
+      "accessCount": 3,
+      "lastAccessed": 1777472969365,
+      "type": "file"
+    },
+    {
+      "path": "libs/server/src/server.ts",
+      "accessCount": 3,
+      "lastAccessed": 1777548706814,
+      "type": "file"
+    },
+    {
+      "path": "scripts/api-test/01-create-transfer.ts",
+      "accessCount": 2,
+      "lastAccessed": 1777448549918,
+      "type": "file"
+    },
+    {
+      "path": "scripts/api-test/00-estimate.ts",
+      "accessCount": 2,
+      "lastAccessed": 1777448561366,
+      "type": "file"
+    },
+    {
+      "path": "scripts/api-test/07-get-transfer.ts",
+      "accessCount": 2,
+      "lastAccessed": 1777544009763,
+      "type": "file"
+    },
+    {
+      "path": "libs/server/src/token-pools/schema/token-pool.schema.ts",
+      "accessCount": 2,
+      "lastAccessed": 1777544351221,
+      "type": "file"
+    },
+    {
+      "path": "scripts/bootstrap-fee-schedule.ts",
+      "accessCount": 2,
+      "lastAccessed": 1777549916889,
+      "type": "file"
+    },
+    {
+      "path": "libs/server/src/solana/services/contract-utils.ts",
+      "accessCount": 2,
+      "lastAccessed": 1777549968561,
+      "type": "file"
+    },
+    {
+      "path": "libs/server/src/rest",
+      "accessCount": 1,
+      "lastAccessed": 1777451569635,
+      "type": "directory"
+    },
+    {
+      "path": "libs/server/src/routes",
+      "accessCount": 1,
+      "lastAccessed": 1777454819812,
+      "type": "directory"
+    },
+    {
+      "path": "libs/logger",
+      "accessCount": 1,
+      "lastAccessed": 1777457938528,
+      "type": "directory"
+    },
+    {
+      "path": "Makefile",
+      "accessCount": 1,
+      "lastAccessed": 1777466714884,
+      "type": "file"
+    },
+    {
+      "path": "libs/server/src/solana/idl",
+      "accessCount": 1,
+      "lastAccessed": 1777467509367,
+      "type": "directory"
+    },
+    {
+      "path": "libs/server/src/solana/services/primitives/wrap.ts",
+      "accessCount": 1,
+      "lastAccessed": 1777468450632,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

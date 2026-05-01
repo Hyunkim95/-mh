@@ -1,0 +1,266 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1777542750419,
+  "projectRoot": "/Users/brotherofalphakim/dev/multihopper/libs/server",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      },
+      {
+        "name": "TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "tsconfig.json"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "fastify",
+        "version": "5.1.0",
+        "category": "backend"
+      }
+    ],
+    "packageManager": "npm",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": "npm run build",
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": "npm run dev",
+    "scripts": {
+      "build": "yarn workspace @libs/etl build && tsup",
+      "dev": "tsup --watch",
+      "type-check": "tsc --noEmit",
+      "db:generate": "drizzle-kit generate:pg help",
+      "db:push": "drizzle-kit push:pg",
+      "db:migrate": "tsx src/db/migrate.ts",
+      "db:studio": "drizzle-kit studio",
+      "db:reset": "docker exec -it multihopper-postgres psql -U trpc_user -d trpc_db -c \"DROP SCHEMA public CASCADE; CREATE SCHEMA public;\"",
+      "db:seed": "tsx src/db/seed.ts",
+      "db:status": "drizzle-kit up:pg",
+      "db:drop": "drizzle-kit drop",
+      "db:introspect": "drizzle-kit introspect:pg",
+      "db:check": "drizzle-kit check:pg"
+    }
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "scripts",
+      "src"
+    ],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "dist": {
+      "path": "dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 6,
+      "lastAccessed": 1777542750356,
+      "keyFiles": [
+        "index.d.mts",
+        "index.d.ts",
+        "index.js",
+        "index.js.map",
+        "index.mjs"
+      ]
+    },
+    "scripts": {
+      "path": "scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 1,
+      "lastAccessed": 1777542750374,
+      "keyFiles": [
+        "check-build-fresh.mjs"
+      ]
+    },
+    "src": {
+      "path": "src",
+      "purpose": "Source code",
+      "fileCount": 4,
+      "lastAccessed": 1777542750385,
+      "keyFiles": [
+        "index.ts",
+        "rate-limit.ts",
+        "server.ts",
+        "trpc.ts"
+      ]
+    },
+    "src/__tests__": {
+      "path": "src/__tests__",
+      "purpose": "Test files",
+      "fileCount": 58,
+      "lastAccessed": 1777542750387,
+      "keyFiles": [
+        "admin-integration-status.test.ts",
+        "admin-pricing-router.test.ts",
+        "api-key-service.test.ts"
+      ]
+    },
+    "src/config": {
+      "path": "src/config",
+      "purpose": "Configuration files",
+      "fileCount": 2,
+      "lastAccessed": 1777542750388,
+      "keyFiles": [
+        "config.ts",
+        "database.ts"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "src/__tests__/contract-events-etl.test.ts",
+      "accessCount": 13,
+      "lastAccessed": 1777543059875,
+      "type": "file"
+    },
+    {
+      "path": "src/solana/services/contract-events-etl.ts",
+      "accessCount": 10,
+      "lastAccessed": 1777542945627,
+      "type": "directory"
+    },
+    {
+      "path": "src",
+      "accessCount": 7,
+      "lastAccessed": 1777543080982,
+      "type": "directory"
+    },
+    {
+      "path": "src/__tests__/provider-metrics.service.test.ts",
+      "accessCount": 6,
+      "lastAccessed": 1777543076700,
+      "type": "file"
+    },
+    {
+      "path": "src/integrations/services/provider-metrics.service.ts",
+      "accessCount": 4,
+      "lastAccessed": 1777542953201,
+      "type": "file"
+    },
+    {
+      "path": "src/integrations/services/provider-metrics-query.service.ts",
+      "accessCount": 4,
+      "lastAccessed": 1777542965932,
+      "type": "file"
+    },
+    {
+      "path": "src/solana/schemas/contract-events.schema.ts",
+      "accessCount": 3,
+      "lastAccessed": 1777542924580,
+      "type": "file"
+    },
+    {
+      "path": "src/integrations/schema/provider-metrics.schema.ts",
+      "accessCount": 3,
+      "lastAccessed": 1777542929744,
+      "type": "file"
+    },
+    {
+      "path": "src/routers",
+      "accessCount": 2,
+      "lastAccessed": 1777542783020,
+      "type": "directory"
+    },
+    {
+      "path": "src/solana/schemas/provider-fee-events.schema.ts",
+      "accessCount": 2,
+      "lastAccessed": 1777542914689,
+      "type": "file"
+    },
+    {
+      "path": "src/integrations/services/reporting.service.ts",
+      "accessCount": 1,
+      "lastAccessed": 1777542759662,
+      "type": "file"
+    },
+    {
+      "path": "src/rest",
+      "accessCount": 1,
+      "lastAccessed": 1777542774531,
+      "type": "directory"
+    },
+    {
+      "path": "src/routers/dual-contract-events.router.ts",
+      "accessCount": 1,
+      "lastAccessed": 1777542786115,
+      "type": "file"
+    },
+    {
+      "path": "src/routers/dashboard.router.ts",
+      "accessCount": 1,
+      "lastAccessed": 1777542786343,
+      "type": "file"
+    },
+    {
+      "path": "src/db/migrations/0026_add_token_pools.sql",
+      "accessCount": 1,
+      "lastAccessed": 1777542847691,
+      "type": "file"
+    },
+    {
+      "path": "src/db",
+      "accessCount": 1,
+      "lastAccessed": 1777542854556,
+      "type": "directory"
+    },
+    {
+      "path": "src/db/migrate.ts",
+      "accessCount": 1,
+      "lastAccessed": 1777542857815,
+      "type": "file"
+    },
+    {
+      "path": "src/db/migrations/0027_provider_id_to_hex_text.sql",
+      "accessCount": 1,
+      "lastAccessed": 1777542904887,
+      "type": "file"
+    },
+    {
+      "path": "src/integrations/services/provider-registration.service.ts",
+      "accessCount": 1,
+      "lastAccessed": 1777542977138,
+      "type": "file"
+    },
+    {
+      "path": "src/integrations/services/api-transfer-orchestration.service.ts",
+      "accessCount": 1,
+      "lastAccessed": 1777542978162,
+      "type": "file"
+    },
+    {
+      "path": "src/__tests__/provider-metrics-query.service.test.ts",
+      "accessCount": 1,
+      "lastAccessed": 1777543065101,
+      "type": "file"
+    },
+    {
+      "path": "src/solana/services/contract.service.ts",
+      "accessCount": 1,
+      "lastAccessed": 1777543084805,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

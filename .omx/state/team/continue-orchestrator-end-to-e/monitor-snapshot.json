@@ -1,0 +1,63 @@
+{
+  "taskStatusById": {
+    "1": "in_progress",
+    "2": "in_progress",
+    "3": "pending"
+  },
+  "workerAliveByName": {
+    "worker-1": true,
+    "worker-2": true,
+    "worker-3": true
+  },
+  "workerStateByName": {
+    "worker-1": "unknown",
+    "worker-2": "unknown",
+    "worker-3": "unknown"
+  },
+  "workerTurnCountByName": {
+    "worker-1": 0,
+    "worker-2": 0,
+    "worker-3": 0
+  },
+  "workerTaskIdByName": {
+    "worker-1": "1",
+    "worker-2": "2",
+    "worker-3": "3"
+  },
+  "mailboxNotifiedByMessageId": {},
+  "completedEventTaskIds": {
+    "1": true,
+    "2": true,
+    "3": true
+  },
+  "integrationByWorker": {
+    "worker-1": {
+      "last_seen_head": "4b40a49f2901b9ccc8ec82270083458e75f68a64",
+      "last_integrated_head": "4b40a49f2901b9ccc8ec82270083458e75f68a64",
+      "last_leader_head": "4b40a49f2901b9ccc8ec82270083458e75f68a64",
+      "status": "idle",
+      "updated_at": "2026-04-24T12:23:25.286Z"
+    },
+    "worker-2": {
+      "last_seen_head": "4b40a49f2901b9ccc8ec82270083458e75f68a64",
+      "last_integrated_head": "4b40a49f2901b9ccc8ec82270083458e75f68a64",
+      "last_leader_head": "4b40a49f2901b9ccc8ec82270083458e75f68a64",
+      "status": "idle",
+      "updated_at": "2026-04-24T12:23:25.396Z"
+    },
+    "worker-3": {
+      "last_seen_head": "4b40a49f2901b9ccc8ec82270083458e75f68a64",
+      "last_integrated_head": "4b40a49f2901b9ccc8ec82270083458e75f68a64",
+      "last_leader_head": "4b40a49f2901b9ccc8ec82270083458e75f68a64",
+      "status": "idle",
+      "updated_at": "2026-04-24T12:23:25.647Z"
+    }
+  },
+  "monitorTimings": {
+    "list_tasks_ms": 0.46,
+    "worker_scan_ms": 179.74,
+    "mailbox_delivery_ms": 0.26,
+    "total_ms": 891.67,
+    "updated_at": "2026-04-24T12:23:25.729Z"
+  }
+}

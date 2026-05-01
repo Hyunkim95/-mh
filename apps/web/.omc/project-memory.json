@@ -1,0 +1,129 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1777358175124,
+  "projectRoot": "/Users/brotherofalphakim/dev/multihopper/apps/web",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      },
+      {
+        "name": "TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "tsconfig.json"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "react",
+        "version": "18.2.0",
+        "category": "frontend"
+      },
+      {
+        "name": "react-dom",
+        "version": "18.2.0",
+        "category": "frontend"
+      },
+      {
+        "name": "vite",
+        "version": "5.2.0",
+        "category": "build"
+      }
+    ],
+    "packageManager": "npm",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": "npm run build",
+    "testCommand": null,
+    "lintCommand": "npm run lint",
+    "devCommand": "npm run dev",
+    "scripts": {
+      "dev": "vite",
+      "build": "tsc && vite build",
+      "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+      "preview": "vite preview"
+    }
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": "feature-based"
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "public",
+      "src"
+    ],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "dist": {
+      "path": "dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 31,
+      "lastAccessed": 1777358175107,
+      "keyFiles": [
+        "blurred-arrows.png",
+        "cnnt-bg-btn.png",
+        "cnnt-wllt-bg-btn.png",
+        "easy-route.svg",
+        "favicon.svg"
+      ]
+    },
+    "public": {
+      "path": "public",
+      "purpose": "Public files",
+      "fileCount": 29,
+      "lastAccessed": 1777358175107,
+      "keyFiles": [
+        "blurred-arrows.png",
+        "cnnt-bg-btn.png",
+        "cnnt-wllt-bg-btn.png",
+        "easy-route.svg",
+        "favicon.svg"
+      ]
+    },
+    "src": {
+      "path": "src",
+      "purpose": "Source code",
+      "fileCount": 5,
+      "lastAccessed": 1777358175109,
+      "keyFiles": [
+        "App.css",
+        "index.css",
+        "main.tsx",
+        "svg.d.ts",
+        "vite-env.d.ts"
+      ]
+    },
+    "dist/assets": {
+      "path": "dist/assets",
+      "purpose": "Static assets",
+      "fileCount": 3,
+      "lastAccessed": 1777358175110,
+      "keyFiles": [
+        "index-DeadFpC7.js",
+        "index-lVhK126y.css",
+        "solana-Bwk5Nltl.js"
+      ]
+    }
+  },
+  "hotPaths": [],
+  "userDirectives": []
+}

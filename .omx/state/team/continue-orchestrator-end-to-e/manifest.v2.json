@@ -1,0 +1,99 @@
+{
+  "schema_version": 2,
+  "name": "continue-orchestrator-end-to-e",
+  "task": "Continue orchestrator end-to-end integration. Split into: backend route/API migration off obfuscation, frontend deploy/status migration off obfuscation, and verification/regression. Keep backend and frontend lifecycle aligned. Do not revert unrelated dirty files. Verify before shutdown.",
+  "leader": {
+    "session_id": "",
+    "worker_id": "leader-fixed",
+    "role": "coordinator"
+  },
+  "policy": {
+    "worker_launch_mode": "interactive",
+    "display_mode": "split_pane",
+    "dispatch_mode": "hook_preferred_with_fallback",
+    "dispatch_ack_timeout_ms": 2000
+  },
+  "governance": {
+    "delegation_only": false,
+    "plan_approval_required": false,
+    "nested_teams_allowed": false,
+    "one_team_per_leader_session": true,
+    "cleanup_requires_all_workers_inactive": true
+  },
+  "lifecycle_profile": "default",
+  "permissions_snapshot": {
+    "approval_mode": "unknown",
+    "sandbox_mode": "unknown",
+    "network_access": true
+  },
+  "tmux_session": "0:0",
+  "worker_count": 3,
+  "workers": [
+    {
+      "name": "worker-1",
+      "index": 1,
+      "role": "executor",
+      "assigned_tasks": [
+        "1"
+      ],
+      "pane_id": "%33",
+      "pid": 12758,
+      "worker_cli": "codex",
+      "working_dir": "/Users/brotherofalphakim/dev/multihopper/.omx/team/continue-orchestrator-end-to-e/worktrees/worker-1",
+      "worktree_repo_root": "/Users/brotherofalphakim/dev/multihopper",
+      "worktree_path": "/Users/brotherofalphakim/dev/multihopper/.omx/team/continue-orchestrator-end-to-e/worktrees/worker-1",
+      "worktree_detached": true,
+      "worktree_created": true,
+      "team_state_root": "/Users/brotherofalphakim/dev/multihopper/.omx/state"
+    },
+    {
+      "name": "worker-2",
+      "index": 2,
+      "role": "executor",
+      "assigned_tasks": [
+        "2"
+      ],
+      "pane_id": "%34",
+      "pid": 12758,
+      "worker_cli": "codex",
+      "working_dir": "/Users/brotherofalphakim/dev/multihopper/.omx/team/continue-orchestrator-end-to-e/worktrees/worker-2",
+      "worktree_repo_root": "/Users/brotherofalphakim/dev/multihopper",
+      "worktree_path": "/Users/brotherofalphakim/dev/multihopper/.omx/team/continue-orchestrator-end-to-e/worktrees/worker-2",
+      "worktree_detached": true,
+      "worktree_created": true,
+      "team_state_root": "/Users/brotherofalphakim/dev/multihopper/.omx/state"
+    },
+    {
+      "name": "worker-3",
+      "index": 3,
+      "role": "executor",
+      "assigned_tasks": [
+        "3"
+      ],
+      "pane_id": "%35",
+      "pid": 12758,
+      "worker_cli": "codex",
+      "working_dir": "/Users/brotherofalphakim/dev/multihopper/.omx/team/continue-orchestrator-end-to-e/worktrees/worker-3",
+      "worktree_repo_root": "/Users/brotherofalphakim/dev/multihopper",
+      "worktree_path": "/Users/brotherofalphakim/dev/multihopper/.omx/team/continue-orchestrator-end-to-e/worktrees/worker-3",
+      "worktree_detached": true,
+      "worktree_created": true,
+      "team_state_root": "/Users/brotherofalphakim/dev/multihopper/.omx/state"
+    }
+  ],
+  "next_task_id": 1,
+  "created_at": "2026-04-24T12:21:32.500Z",
+  "leader_cwd": "/Users/brotherofalphakim/dev/multihopper",
+  "team_state_root": "/Users/brotherofalphakim/dev/multihopper/.omx/state",
+  "workspace_mode": "worktree",
+  "worktree_mode": {
+    "enabled": true,
+    "detached": true,
+    "name": null
+  },
+  "leader_pane_id": "%0",
+  "hud_pane_id": "%36",
+  "resize_hook_name": "omx_resize_continue-orchestrator-end-to-e_0_0_36",
+  "resize_hook_target": "0:0",
+  "next_worker_index": 4
+}
